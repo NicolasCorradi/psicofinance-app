@@ -1,0 +1,19 @@
+PRODUCT REQUIREMENTS DOCUMENT (PRD) - PsicoFinance AI
+
+1. Visión y Usuario
+
+Target: Psicólogos clínicos independientes en Argentina.
+
+Job to be Done: El usuario busca delegar la carga administrativa y proteger sus ingresos frente a la inflación y el fisco.
+
+Solución: Un "CFO + Secretario" virtual, operado principalmente por interfaces de baja fricción.
+
+2. Core Features (MVP)
+
+Doble Caja: Panel que separa "Caja Líquida" (dinero en mano) vs "Caja Diferida" (dinero pendiente de prepagas a 60/90 días).
+
+Calculadora de Licuación: Muestra la pérdida de valor real de la Caja Diferida debido a la inflación, usando descuento compuesto.
+
+Semáforo Monotributo: Alerta visual que cruza la facturación de los últimos 12 meses contra los topes de AFIP/ARCA para evitar recategorizaciones.
+
+Copiloto NLP: Transforma un input de texto/audio del psicólogo ("Vino Martín, pagó 10k") en un JSON estructurado para la base de datos.

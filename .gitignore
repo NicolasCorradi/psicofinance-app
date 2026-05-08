@@ -1,0 +1,28 @@
+# === PYTHON / BACKEND ===
+psicofinance-backend/venv/
+psicofinance-backend/.venv/
+psicofinance-backend/__pycache__/
+psicofinance-backend/**/__pycache__/
+psicofinance-backend/**/*.pyc
+psicofinance-backend/*.db
+psicofinance-backend/*.sqlite
+psicofinance-backend/.env
+
+# === NODE / FRONTEND ===
+psicofinance-frontend/node_modules/
+psicofinance-frontend/.next/
+psicofinance-frontend/out/
+psicofinance-frontend/.env.local
+psicofinance-frontend/.env*.local
+
+# === LOGS ===
+*.log
+npm-debug.log*
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === IDE ===
+.vscode/
+.idea/

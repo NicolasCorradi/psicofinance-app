@@ -1,0 +1,17 @@
+ARQUITECTURA TÉCNICA (MVP)
+
+1. Flujo de Datos
+
+Input: El psicólogo carga un turno (monto, paciente, estado) vía interfaz web móvil.
+
+Procesamiento: El backend (FastAPI) recibe el dato. Si es un pago diferido, invoca la función de cálculo inflacionario. Si es una liquidación, actualiza el estado fiscal.
+
+Persistencia: Se guarda en PostgreSQL.
+
+Output: El frontend renderiza el Dashboard (Doble Caja y Semáforo).
+
+2. Fórmulas Económicas Críticas (A validar por el PM)
+
+Cálculo de Pérdida por Inflación: Se debe mostrar la pérdida directa sobre el capital cobrado a destiempo.
+Valor Real = Monto Inicial / ((1 + Inflación Mensual) ^ Meses de retraso)
+Nota para la IA: El PM definirá la tasa de inflación a inyectar como parámetro.

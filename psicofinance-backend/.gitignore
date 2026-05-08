@@ -1,0 +1,19 @@
+# Entorno virtual
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Variables de entorno (¡NUNCA subir a git!)
+.env
+
+# Base de datos local
+*.db
+*.sqlite
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Alembic
+alembic/versions/
