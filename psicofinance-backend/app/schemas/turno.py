@@ -5,7 +5,7 @@
 import uuid
 from datetime import date, datetime
 from pydantic import BaseModel, Field, model_validator
-from app.models.turno import EstadoTurno, OrigenPago
+from app.models.enums import EstadoTurno, OrigenPago
 
 
 class TurnoBase(BaseModel):

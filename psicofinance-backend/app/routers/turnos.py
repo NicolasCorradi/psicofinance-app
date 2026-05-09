@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from datetime import date
 from app.supabase_client import SupabaseClient, get_supabase
-from app.models.turno import EstadoTurno
+from app.models.enums import EstadoTurno
 from app.schemas.turno import TurnoCreate, TurnoRead, TurnoUpdate
 from app.crud.turno import crear_turno, obtener_turno, listar_turnos, actualizar_turno, eliminar_turno
 

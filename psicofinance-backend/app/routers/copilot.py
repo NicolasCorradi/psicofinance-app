@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from dateutil.relativedelta import relativedelta
 
 from app.supabase_client import SupabaseClient, get_supabase
+from app.models.enums import EstadoTurno, OrigenPago
 from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
 from app.schemas.turno import TurnoCreate, TurnoRead
@@ -130,7 +131,6 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         logger.error("Error BD al gestionar paciente: %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
 
-    from app.models.turno import EstadoTurno, OrigenPago
     origen = OrigenPago.PREPAGA if datos.es_prepaga else OrigenPago.DIRECTO
     estado = EstadoTurno.DIFERIDO if datos.es_prepaga else EstadoTurno.COBRADO
 
@@ -257,7 +257,6 @@ def aprobar_comprobante(
         logger.error("Error BD al gestionar paciente (comprobante): %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
 
-    from app.models.turno import EstadoTurno, OrigenPago
     datos_turno = TurnoCreate(
         paciente_id=paciente["id"],
         fecha_turno=body.fecha,

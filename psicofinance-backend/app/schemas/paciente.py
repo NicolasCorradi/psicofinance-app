@@ -5,7 +5,7 @@
 import uuid
 from datetime import date, datetime
 from pydantic import BaseModel, Field
-from app.models.turno import EstadoTurno, OrigenPago
+from app.models.enums import EstadoTurno, OrigenPago
 
 
 # ── Sub-schema de turno (para el historial dentro del detalle de paciente) ───
