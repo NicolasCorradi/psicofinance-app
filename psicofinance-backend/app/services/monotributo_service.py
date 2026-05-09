@@ -1,43 +1,35 @@
 # Servicio del Semáforo Monotributo.
-# Calcula la facturación de los últimos 12 meses rodantes y la compara
-# contra el tope de la categoría actual del psicólogo (definido en .env).
-# NO contiene topes hardcodeados: el PM los configura en el archivo .env.
+# Usa Supabase REST API via SupabaseClient (sin SQLAlchemy).
 
 import enum
 from dataclasses import dataclass
 from datetime import date
-from sqlalchemy.orm import Session
+from app.supabase_client import SupabaseClient
 from app.crud.turno import sumar_facturado_ultimos_12_meses
 from app.config import config
 
 
 class EstadoSemaforo(str, enum.Enum):
-    """Estado visual del semáforo para el frontend."""
-    VERDE = "VERDE"       # Por debajo del umbral de alerta
-    AMARILLO = "AMARILLO" # Superó el umbral_amarillo del tope (ej: 80%)
-    ROJO = "ROJO"         # Superó el tope: riesgo inminente de recategorización
+    VERDE = "VERDE"
+    AMARILLO = "AMARILLO"
+    ROJO = "ROJO"
 
 
 @dataclass
 class ResultadoSemaforo:
-    """Resultado completo del análisis de Monotributo."""
-    categoria_actual: str        # Letra de la categoría (ej: "D")
-    facturado_12m: float         # Suma de facturación en los últimos 12 meses
-    tope_anual: float            # Tope de la categoría actual
-    porcentaje_consumido: float  # % del tope ya utilizado
-    margen_disponible: float     # Cuánto le queda antes de superar el tope (en pesos)
-    estado: EstadoSemaforo       # VERDE / AMARILLO / ROJO
-    mensaje: str                 # Mensaje explicativo para mostrar al usuario
+    categoria_actual: str
+    facturado_12m: float
+    tope_anual: float
+    porcentaje_consumido: float
+    margen_disponible: float
+    estado: EstadoSemaforo
+    mensaje: str
 
 
-def obtener_semaforo(db: Session) -> ResultadoSemaforo:
-    """
-    Calcula el estado del Semáforo Monotributo para la fecha actual.
-    Lee los parámetros de configuración del .env (via config).
-    """
+def obtener_semaforo(sb: SupabaseClient) -> ResultadoSemaforo:
     hoy = date.today()
 
-    facturado = sumar_facturado_ultimos_12_meses(db, hasta=hoy)
+    facturado = sumar_facturado_ultimos_12_meses(sb, hasta=hoy)
     tope = config.monotributo_tope_anual
     categoria = config.monotributo_categoria
     umbral_amarillo = config.monotributo_umbral_amarillo
@@ -45,7 +37,6 @@ def obtener_semaforo(db: Session) -> ResultadoSemaforo:
     porcentaje = (facturado / tope * 100) if tope > 0 else 0.0
     margen = max(tope - facturado, 0.0)
 
-    # Determinar estado del semáforo
     if facturado >= tope:
         estado = EstadoSemaforo.ROJO
         mensaje = (

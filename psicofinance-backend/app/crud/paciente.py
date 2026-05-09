@@ -1,231 +1,166 @@
-# Operaciones de base de datos para la entidad Paciente.
-# Solo contiene queries SQLAlchemy, sin lógica de negocio.
+# CRUD de Pacientes usando Supabase REST API.
+# Reemplaza SQLAlchemy para evitar problemas de conectividad PostgreSQL en Render free.
 
 import uuid
-from datetime import date
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from app.models.paciente import Paciente
-from app.models.turno import Turno, EstadoTurno
+from datetime import date, datetime
+from app.supabase_client import SupabaseClient
 from app.schemas.paciente import PacienteCreate, PacienteUpdate
 
 
-def crear_paciente(db: Session, nombre: str, apellido: str, email: str | None = None) -> Paciente:
-    """Inserta un paciente nuevo en la base de datos."""
-    paciente = Paciente(nombre=nombre, apellido=apellido, email=email)
-    db.add(paciente)
-    db.commit()
-    db.refresh(paciente)
-    return paciente
-
-
-def crear_paciente_completo(db: Session, datos: PacienteCreate) -> Paciente:
-    """Crea un paciente con todos los campos del schema (incluye honorario)."""
-    paciente = Paciente(**datos.model_dump())
-    db.add(paciente)
-    db.commit()
-    db.refresh(paciente)
-    return paciente
-
-
-def obtener_paciente(db: Session, paciente_id: uuid.UUID) -> Paciente | None:
-    """Busca un paciente por su ID. Retorna None si no existe."""
-    return db.get(Paciente, paciente_id)
-
-
-def actualizar_paciente(db: Session, paciente_id: uuid.UUID, datos: PacienteUpdate) -> Paciente | None:
-    """Actualiza solo los campos enviados (partial update)."""
-    paciente = db.get(Paciente, paciente_id)
-    if paciente is None:
+def _parse_date(val) -> date | None:
+    if val is None:
         return None
-    cambios = datos.model_dump(exclude_unset=True)
-    for campo, valor in cambios.items():
-        setattr(paciente, campo, valor)
-    db.commit()
-    db.refresh(paciente)
-    return paciente
+    if isinstance(val, date):
+        return val
+    return date.fromisoformat(str(val)[:10])
 
 
-def eliminar_paciente(db: Session, paciente_id: uuid.UUID) -> tuple[bool, str]:
-    """
-    Elimina un paciente. Retorna (True, '') si OK.
-    Retorna (False, motivo) si no se puede eliminar.
-    No se permite eliminar pacientes con turnos registrados.
-    """
-    paciente = db.get(Paciente, paciente_id)
+def crear_paciente(sb: SupabaseClient, nombre: str, apellido: str, email: str | None = None) -> dict:
+    data = {"id": str(uuid.uuid4()), "nombre": nombre, "apellido": apellido}
+    if email:
+        data["email"] = email
+    return sb.insert("pacientes", data)
+
+
+def crear_paciente_completo(sb: SupabaseClient, datos: PacienteCreate) -> dict:
+    data = {k: (str(v) if isinstance(v, (uuid.UUID, date)) else v)
+            for k, v in datos.model_dump().items() if v is not None}
+    data["id"] = str(uuid.uuid4())
+    return sb.insert("pacientes", data)
+
+
+def obtener_paciente(sb: SupabaseClient, paciente_id: uuid.UUID) -> dict | None:
+    rows = sb.select("pacientes", {"id": f"eq.{paciente_id}"})
+    return rows[0] if rows else None
+
+
+def actualizar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID, datos: PacienteUpdate) -> dict | None:
+    cambios = {}
+    for k, v in datos.model_dump(exclude_unset=True).items():
+        if isinstance(v, date):
+            cambios[k] = v.isoformat()
+        elif isinstance(v, uuid.UUID):
+            cambios[k] = str(v)
+        else:
+            cambios[k] = v
+    if not cambios:
+        return obtener_paciente(sb, paciente_id)
+    return sb.update("pacientes", {"id": f"eq.{paciente_id}"}, cambios)
+
+
+def eliminar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID) -> tuple[bool, str]:
+    paciente = obtener_paciente(sb, paciente_id)
     if paciente is None:
         return False, "no_encontrado"
-    tiene_turnos = db.query(Turno).filter(Turno.paciente_id == paciente_id).first() is not None
-    if tiene_turnos:
+    turnos = sb.select("turnos", {"paciente_id": f"eq.{paciente_id}", "limit": "1"})
+    if turnos:
         return False, "tiene_turnos"
-    db.delete(paciente)
-    db.commit()
+    sb.delete("pacientes", {"id": f"eq.{paciente_id}"})
     return True, ""
 
 
-def listar_pacientes(db: Session, offset: int = 0, limit: int = 100) -> list[Paciente]:
-    """Retorna la lista paginada de pacientes ordenada por apellido."""
-    return (
-        db.query(Paciente)
-        .order_by(Paciente.apellido, Paciente.nombre)
-        .offset(offset).limit(limit).all()
-    )
+def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
+    pacientes = sb.select("pacientes", {"order": "apellido.asc,nombre.asc"})
+    if not pacientes:
+        return []
 
+    turnos = sb.select("turnos", {"select": "paciente_id,monto,estado,fecha_turno"})
 
-def listar_pacientes_con_stats(db: Session) -> list[dict]:
-    """
-    Retorna todos los pacientes con estadísticas agregadas en dos queries:
-    1. SELECT * FROM pacientes
-    2. SELECT agregados FROM turnos GROUP BY paciente_id
-    Evita N+1 sin necesitar ORM joins complejos.
-    """
-    pacientes = (
-        db.query(Paciente)
-        .order_by(Paciente.apellido, Paciente.nombre)
-        .all()
-    )
-
-    # Una sola query con todos los agregados
-    from sqlalchemy import case as sa_case
     hoy = date.today()
+    mes_actual = hoy.strftime("%Y-%m")
 
-    stats_rows = (
-        db.query(
-            Turno.paciente_id,
-            func.count(Turno.id).label("total_sesiones"),
-            func.max(Turno.fecha_turno).label("ultima_sesion"),
-            func.coalesce(
-                func.sum(sa_case((Turno.estado == EstadoTurno.COBRADO,   Turno.monto), else_=0)), 0
-            ).label("cobrado_total"),
-            func.coalesce(
-                func.sum(sa_case((Turno.estado == EstadoTurno.DIFERIDO,  Turno.monto), else_=0)), 0
-            ).label("pendiente"),
-            func.coalesce(
-                func.sum(
-                    sa_case(
-                        (
-                            (Turno.estado != EstadoTurno.INCOBRABLE) &
-                            (func.strftime("%Y-%m", Turno.fecha_turno) == func.strftime("%Y-%m", func.date("now"))),
-                            1
-                        ),
-                        else_=0
-                    )
-                ), 0
-            ).label("sesiones_mes"),
-        )
-        .group_by(Turno.paciente_id)
-        .all()
-    )
-
-    stats_map = {str(row.paciente_id): row for row in stats_rows}
+    stats: dict[str, dict] = {}
+    for t in turnos:
+        pid = t["paciente_id"]
+        if pid not in stats:
+            stats[pid] = {"total": 0, "ultima": None, "cobrado": 0.0, "pendiente": 0.0, "mes": 0}
+        s = stats[pid]
+        s["total"] += 1
+        ft = _parse_date(t.get("fecha_turno"))
+        if ft and (s["ultima"] is None or ft > s["ultima"]):
+            s["ultima"] = ft
+        monto = float(t.get("monto") or 0)
+        estado = t.get("estado", "")
+        if estado == "COBRADO":
+            s["cobrado"] += monto
+        elif estado == "DIFERIDO":
+            s["pendiente"] += monto
+        if estado != "INCOBRABLE" and ft and ft.strftime("%Y-%m") == mes_actual:
+            s["mes"] += 1
 
     resultado = []
     for p in pacientes:
-        s = stats_map.get(str(p.id))
-        ultima = s.ultima_sesion if s else None
-        # SQLite puede retornar fecha como string
-        if isinstance(ultima, str):
-            from datetime import date as _date
-            ultima = _date.fromisoformat(ultima)
+        pid = p["id"]
+        s = stats.get(pid, {})
+        ultima = s.get("ultima")
         dias = (hoy - ultima).days if ultima else None
-
         resultado.append({
-            "paciente":       p,
-            "total_sesiones": int(s.total_sesiones) if s else 0,
-            "ultima_sesion":  ultima,
-            "dias_inactivo":  dias,
-            "cobrado_total":  float(s.cobrado_total) if s else 0.0,
-            "pendiente":      float(s.pendiente)     if s else 0.0,
-            "sesiones_mes":   int(s.sesiones_mes)    if s else 0,
+            "paciente": p,
+            "total_sesiones": s.get("total", 0),
+            "ultima_sesion": ultima,
+            "dias_inactivo": dias,
+            "cobrado_total": s.get("cobrado", 0.0),
+            "pendiente": s.get("pendiente", 0.0),
+            "sesiones_mes": s.get("mes", 0),
         })
-
     return resultado
 
 
-def obtener_paciente_con_turnos(db: Session, paciente_id: uuid.UUID) -> dict | None:
-    """Retorna el paciente + sus turnos ordenados por fecha desc + estadísticas."""
-    paciente = db.get(Paciente, paciente_id)
+def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID) -> dict | None:
+    paciente = obtener_paciente(sb, paciente_id)
     if paciente is None:
         return None
 
-    turnos = (
-        db.query(Turno)
-        .filter(Turno.paciente_id == paciente_id)
-        .order_by(Turno.fecha_turno.desc())
-        .all()
-    )
+    turnos = sb.select("turnos", {
+        "paciente_id": f"eq.{paciente_id}",
+        "order": "fecha_turno.desc",
+    })
 
     hoy = date.today()
-    ultima = turnos[0].fecha_turno if turnos else None
-    if isinstance(ultima, str):
-        from datetime import date as _date
-        ultima = _date.fromisoformat(ultima)
+    mes_actual = hoy.strftime("%Y-%m")
+    ultima = _parse_date(turnos[0]["fecha_turno"]) if turnos else None
     dias = (hoy - ultima).days if ultima else None
 
-    cobrado  = sum(float(t.monto) for t in turnos if t.estado == EstadoTurno.COBRADO)
-    pendiente = sum(float(t.monto) for t in turnos if t.estado == EstadoTurno.DIFERIDO)
-    mes_actual = hoy.strftime("%Y-%m")
+    cobrado = sum(float(t["monto"] or 0) for t in turnos if t.get("estado") == "COBRADO")
+    pendiente = sum(float(t["monto"] or 0) for t in turnos if t.get("estado") == "DIFERIDO")
     sesiones_mes = sum(
         1 for t in turnos
-        if t.estado != EstadoTurno.INCOBRABLE and t.fecha_turno.strftime("%Y-%m") == mes_actual
+        if t.get("estado") != "INCOBRABLE"
+        and _parse_date(t.get("fecha_turno")) is not None
+        and _parse_date(t["fecha_turno"]).strftime("%Y-%m") == mes_actual
     )
 
     return {
-        "paciente":       paciente,
+        "paciente": paciente,
         "total_sesiones": len(turnos),
-        "ultima_sesion":  ultima,
-        "dias_inactivo":  dias,
-        "cobrado_total":  cobrado,
-        "pendiente":      pendiente,
-        "sesiones_mes":   sesiones_mes,
-        "turnos":         turnos,
+        "ultima_sesion": ultima,
+        "dias_inactivo": dias,
+        "cobrado_total": cobrado,
+        "pendiente": pendiente,
+        "sesiones_mes": sesiones_mes,
+        "turnos": turnos,
     }
 
 
-def buscar_paciente_por_nombre(db: Session, nombre_completo: str) -> Paciente | None:
-    """
-    Busca un paciente por nombre completo (case-insensitive).
-    Estrategia: intenta coincidir contra nombre+apellido concatenados.
-    Si el input tiene un solo token, busca en nombre O apellido.
-    Retorna el primer resultado o None.
-    Usado por el Copiloto NLP para evitar duplicar pacientes.
-    """
+def buscar_paciente_por_nombre(sb: SupabaseClient, nombre_completo: str) -> dict | None:
     termino = nombre_completo.strip().lower()
     partes = termino.split()
-
     if len(partes) == 1:
-        return (
-            db.query(Paciente)
-            .filter(
-                func.lower(Paciente.nombre).contains(partes[0]) |
-                func.lower(Paciente.apellido).contains(partes[0])
-            )
-            .first()
-        )
-
-    return (
-        db.query(Paciente)
-        .filter(
-            func.lower(Paciente.nombre).contains(partes[0]) &
-            func.lower(Paciente.apellido).contains(partes[-1])
-        )
-        .first()
-    )
+        rows = sb.select("pacientes", {"or": f"(nombre.ilike.*{partes[0]}*,apellido.ilike.*{partes[0]}*)"})
+    else:
+        rows = sb.select("pacientes", {
+            "nombre": f"ilike.*{partes[0]}*",
+            "apellido": f"ilike.*{partes[-1]}*",
+        })
+    return rows[0] if rows else None
 
 
-def obtener_o_crear_paciente(db: Session, nombre_completo: str) -> tuple[Paciente, bool]:
-    """
-    Busca el paciente por nombre. Si no existe, lo crea.
-    Retorna (paciente, fue_creado).
-    Usado por el Copiloto para garantizar que el turno siempre tenga un paciente.
-    """
-    existente = buscar_paciente_por_nombre(db, nombre_completo)
+def obtener_o_crear_paciente(sb: SupabaseClient, nombre_completo: str) -> tuple[dict, bool]:
+    existente = buscar_paciente_por_nombre(sb, nombre_completo)
     if existente:
         return existente, False
-
     partes = nombre_completo.strip().split()
-    nombre  = partes[0] if partes else nombre_completo
+    nombre = partes[0] if partes else nombre_completo
     apellido = " ".join(partes[1:]) if len(partes) > 1 else ""
-
-    nuevo = crear_paciente(db, nombre=nombre, apellido=apellido)
+    nuevo = crear_paciente(sb, nombre=nombre, apellido=apellido)
     return nuevo, True

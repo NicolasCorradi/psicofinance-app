@@ -21,6 +21,7 @@ class TurnoBase(BaseModel):
 
 class TurnoCreate(TurnoBase):
     """Schema para crear un turno nuevo (POST /turnos)."""
+    fecha_cobro_efectivo: date | None = None
 
     @model_validator(mode="after")
     def validar_prepaga(self) -> "TurnoCreate":

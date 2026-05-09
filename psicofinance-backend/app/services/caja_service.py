@@ -1,42 +1,38 @@
 # Servicio de la Doble Caja.
-# Orquesta la clasificación de turnos en Caja Líquida y Caja Diferida,
-# y calcula la pérdida real por inflación sobre los montos pendientes.
+# Usa Supabase REST API via SupabaseClient (sin SQLAlchemy).
 
 from datetime import date
-from sqlalchemy.orm import Session
-from app.models.turno import EstadoTurno, OrigenPago
+from app.supabase_client import SupabaseClient
 from app.crud.turno import listar_turnos, listar_turnos_diferidos
 from app.services.finanzas import calcular_perdida_caja_diferida
 from app.schemas.caja import ResumenCaja
 from app.config import config
 
 
-def obtener_resumen_caja(db: Session) -> ResumenCaja:
-    """
-    Calcula el resumen completo de la Doble Caja del psicólogo.
-
-    Caja Líquida = suma de turnos en estado COBRADO.
-    Caja Diferida = suma nominal de turnos en estado DIFERIDO +
-                    cálculo de valor real ajustado por inflación.
-    """
+def obtener_resumen_caja(sb: SupabaseClient) -> ResumenCaja:
     hoy = date.today()
 
     # --- Caja Líquida ---
-    turnos_cobrados = listar_turnos(db, estado=EstadoTurno.COBRADO)
-    caja_liquida = sum(float(t.monto) for t in turnos_cobrados)
+    turnos_cobrados = listar_turnos(sb, estado="COBRADO", limit=10000)
+    caja_liquida = sum(float(t.get("monto") or 0) for t in turnos_cobrados)
 
     # --- Caja Diferida ---
-    turnos_diferidos = listar_turnos_diferidos(db)
+    turnos_diferidos = listar_turnos_diferidos(sb)
     cantidad_diferidos = len(turnos_diferidos)
 
-    # Construimos la lista que espera la función financiera
     turnos_para_calculo = []
     for turno in turnos_diferidos:
-        # Si tiene fecha estimada de cobro la usamos; si no, asumimos hoy (sin retraso)
-        fecha_cobro = turno.fecha_cobro_estimada or hoy
+        fecha_turno_str = turno.get("fecha_turno")
+        fecha_est_str = turno.get("fecha_cobro_estimada")
+        if not fecha_turno_str:
+            continue
+        fecha_turno = date.fromisoformat(str(fecha_turno_str)[:10])
+        fecha_cobro = (
+            date.fromisoformat(str(fecha_est_str)[:10]) if fecha_est_str else hoy
+        )
         turnos_para_calculo.append({
-            "monto": float(turno.monto),
-            "fecha_turno": turno.fecha_turno,
+            "monto": float(turno.get("monto") or 0),
+            "fecha_turno": fecha_turno,
             "fecha_cobro_estimada": fecha_cobro,
         })
 
@@ -55,7 +51,7 @@ def obtener_resumen_caja(db: Session) -> ResumenCaja:
         perdida_total = 0.0
         porcentaje_licuado = 0.0
 
-    turnos_incobrables = listar_turnos(db, estado=EstadoTurno.INCOBRABLE)
+    turnos_incobrables = listar_turnos(sb, estado="INCOBRABLE", limit=10000)
 
     return ResumenCaja(
         caja_liquida_total=round(caja_liquida, 2),

@@ -1,96 +1,98 @@
-# Operaciones de base de datos para la entidad Turno.
-# Solo contiene queries SQLAlchemy, sin lógica de negocio.
+# CRUD de Turnos usando Supabase REST API.
+# Reemplaza SQLAlchemy para evitar problemas de conectividad PostgreSQL en Render free.
 
 import uuid
 from datetime import date
-from sqlalchemy.orm import Session
-from app.models.turno import Turno, EstadoTurno
+from app.supabase_client import SupabaseClient
 from app.schemas.turno import TurnoCreate, TurnoUpdate
 
 
-def crear_turno(db: Session, datos: TurnoCreate) -> Turno:
-    """Inserta un turno nuevo en la base de datos."""
-    turno = Turno(**datos.model_dump())
-    db.add(turno)
-    db.commit()
-    db.refresh(turno)
-    return turno
+def _parse_date(val) -> date | None:
+    if val is None:
+        return None
+    if isinstance(val, date):
+        return val
+    return date.fromisoformat(str(val)[:10])
 
 
-def obtener_turno(db: Session, turno_id: uuid.UUID) -> Turno | None:
-    """Busca un turno por su ID. Retorna None si no existe."""
-    return db.get(Turno, turno_id)
+def crear_turno(sb: SupabaseClient, datos: TurnoCreate) -> dict:
+    data = {}
+    for k, v in datos.model_dump().items():
+        if v is None:
+            continue
+        if isinstance(v, (date,)):
+            data[k] = v.isoformat()
+        elif isinstance(v, uuid.UUID):
+            data[k] = str(v)
+        elif hasattr(v, "value"):  # Enum
+            data[k] = v.value
+        else:
+            data[k] = v
+    data["id"] = str(uuid.uuid4())
+    return sb.insert("turnos", data)
+
+
+def obtener_turno(sb: SupabaseClient, turno_id: uuid.UUID) -> dict | None:
+    rows = sb.select("turnos", {"id": f"eq.{turno_id}"})
+    return rows[0] if rows else None
 
 
 def listar_turnos(
-    db: Session,
-    estado: EstadoTurno | None = None,
+    sb: SupabaseClient,
+    estado: str | None = None,
     desde: date | None = None,
     hasta: date | None = None,
     offset: int = 0,
     limit: int = 100,
-) -> list[Turno]:
-    """
-    Lista turnos con filtros opcionales por estado y rango de fechas.
-    Usado por los servicios de Caja y Monotributo.
-    """
-    query = db.query(Turno)
+) -> list[dict]:
+    params: dict = {"order": "fecha_turno.desc", "offset": str(offset), "limit": str(limit)}
     if estado:
-        query = query.filter(Turno.estado == estado)
+        params["estado"] = f"eq.{estado}"
     if desde:
-        query = query.filter(Turno.fecha_turno >= desde)
+        params["fecha_turno"] = f"gte.{desde.isoformat()}"
     if hasta:
-        query = query.filter(Turno.fecha_turno <= hasta)
-    return query.order_by(Turno.fecha_turno.desc()).offset(offset).limit(limit).all()
+        params["fecha_turno"] = f"lte.{hasta.isoformat()}"
+    return sb.select("turnos", params)
 
 
-def actualizar_turno(db: Session, turno_id: uuid.UUID, datos: TurnoUpdate) -> Turno | None:
-    """Actualiza solo los campos enviados en el PATCH (partial update)."""
-    turno = db.get(Turno, turno_id)
-    if turno is None:
-        return None
+def actualizar_turno(sb: SupabaseClient, turno_id: uuid.UUID, datos: TurnoUpdate) -> dict | None:
+    cambios = {}
+    for k, v in datos.model_dump(exclude_none=True).items():
+        if isinstance(v, date):
+            cambios[k] = v.isoformat()
+        elif isinstance(v, uuid.UUID):
+            cambios[k] = str(v)
+        elif hasattr(v, "value"):
+            cambios[k] = v.value
+        else:
+            cambios[k] = v
+    if not cambios:
+        return obtener_turno(sb, turno_id)
+    return sb.update("turnos", {"id": f"eq.{turno_id}"}, cambios)
 
-    # Solo actualiza los campos que fueron explícitamente enviados (no None)
-    cambios = datos.model_dump(exclude_none=True)
-    for campo, valor in cambios.items():
-        setattr(turno, campo, valor)
 
-    db.commit()
-    db.refresh(turno)
-    return turno
-
-
-def eliminar_turno(db: Session, turno_id: uuid.UUID) -> bool:
-    """Elimina un turno. Retorna True si existía, False si no se encontró."""
-    turno = db.get(Turno, turno_id)
+def eliminar_turno(sb: SupabaseClient, turno_id: uuid.UUID) -> bool:
+    turno = obtener_turno(sb, turno_id)
     if turno is None:
         return False
-    db.delete(turno)
-    db.commit()
+    sb.delete("turnos", {"id": f"eq.{turno_id}"})
     return True
 
 
-def listar_turnos_diferidos(db: Session) -> list[Turno]:
-    """Shortcut: retorna todos los turnos en estado DIFERIDO (Caja Diferida)."""
-    return db.query(Turno).filter(Turno.estado == EstadoTurno.DIFERIDO).all()
+def listar_turnos_diferidos(sb: SupabaseClient) -> list[dict]:
+    return sb.select("turnos", {"estado": "eq.DIFERIDO"})
 
 
-def sumar_facturado_ultimos_12_meses(db: Session, hasta: date) -> float:
-    """
-    Suma el monto de todos los turnos COBRADOS en los últimos 12 meses rodantes.
-    Usado por el Semáforo Monotributo.
-    """
-    from datetime import timedelta
-    from sqlalchemy import func as sa_func
-
+def sumar_facturado_ultimos_12_meses(sb: SupabaseClient, hasta: date) -> float:
     desde = date(hasta.year - 1, hasta.month, hasta.day)
-    resultado = (
-        db.query(sa_func.sum(Turno.monto))
-        .filter(
-            Turno.estado == EstadoTurno.COBRADO,
-            Turno.fecha_cobro_efectivo >= desde,
-            Turno.fecha_cobro_efectivo <= hasta,
-        )
-        .scalar()
+    turnos = sb.select("turnos", {
+        "estado": "eq.COBRADO",
+        "fecha_cobro_efectivo": f"gte.{desde.isoformat()}",
+        "select": "monto",
+    })
+    # Filtrar también por fecha_cobro_efectivo <= hasta en Python
+    total = sum(
+        float(t["monto"] or 0) for t in turnos
+        if t.get("fecha_cobro_efectivo") and _parse_date(t["fecha_cobro_efectivo"]) <= hasta
     )
-    return float(resultado or 0.0)
+    return total
