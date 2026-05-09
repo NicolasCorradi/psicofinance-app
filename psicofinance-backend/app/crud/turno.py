@@ -88,9 +88,8 @@ def sumar_facturado_ultimos_12_meses(sb: SupabaseClient, hasta: date) -> float:
     turnos = sb.select("turnos", {
         "estado": "eq.COBRADO",
         "fecha_cobro_efectivo": f"gte.{desde.isoformat()}",
-        "select": "monto",
+        "select": "monto,fecha_cobro_efectivo",
     })
-    # Filtrar también por fecha_cobro_efectivo <= hasta en Python
     total = sum(
         float(t["monto"] or 0) for t in turnos
         if t.get("fecha_cobro_efectivo") and _parse_date(t["fecha_cobro_efectivo"]) <= hasta
