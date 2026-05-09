@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock } from "lucide-react";
+import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock, Mail } from "lucide-react";
 import { getPacienteDetalle, actualizarPaciente, eliminarPaciente } from "@/lib/api";
 import type { PacienteDetalle as Detalle, TurnoEnDetalle, EstadoTurno, PacienteUpdatePayload } from "@/lib/types";
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+import { avatarCls } from "@/lib/avatar";
 
 function fmtPesos(n: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -47,24 +46,10 @@ function Chip({ estado }: { estado: EstadoTurno }) {
   );
 }
 
-const AVATAR_PALETTES = [
-  "bg-violet-100 text-violet-700", "bg-blue-100 text-blue-700",
-  "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700",
-  "bg-pink-100 text-pink-700", "bg-cyan-100 text-cyan-700",
-  "bg-orange-100 text-orange-700", "bg-teal-100 text-teal-700",
-];
-function avatarCls(nombre: string): string {
-  let h = 0;
-  for (let i = 0; i < nombre.length; i++) h = (h * 31 + nombre.charCodeAt(i)) >>> 0;
-  return AVATAR_PALETTES[h % AVATAR_PALETTES.length];
-}
-
-// ── Componente principal ──────────────────────────────────────────────────────
-
 interface Props {
   pacienteId: string;
   onClose:    () => void;
-  onRefresh:  () => void;         // para recargar la lista después de editar/eliminar
+  onRefresh:  () => void;
 }
 
 interface EditForm {
@@ -144,42 +129,67 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   }
 
   const nombreCompleto = detalle ? `${detalle.nombre} ${detalle.apellido}` : "";
+  const inicialesAvatar = detalle ? `${detalle.nombre[0] ?? ""}${detalle.apellido[0] ?? ""}`.toUpperCase() : "";
 
   return (
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
+        className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Panel */}
       <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
 
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-          {cargando ? (
-            <div className="h-4 w-40 animate-pulse rounded bg-neutral-200" />
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarCls(nombreCompleto)}`}>
-                {(nombreCompleto[0] ?? "") + (nombreCompleto.split(" ")[1]?.[0] ?? "")}
+        {/* Header con gradiente */}
+        <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-5 pt-5 pb-6 text-white">
+          <div className="flex items-start justify-between">
+            {cargando ? (
+              <div className="h-9 w-40 animate-pulse rounded bg-white/10" />
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold ring-2 ring-white/20 ${avatarCls(nombreCompleto)}`}>
+                  {inicialesAvatar}
+                </div>
+                <div>
+                  <p className="text-base font-semibold leading-tight">{nombreCompleto}</p>
+                  {detalle?.email && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-white/50">
+                      <Mail className="h-3 w-3" />
+                      {detalle.email}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-neutral-900">{nombreCompleto}</p>
-                {detalle?.email && (
-                  <p className="text-xs text-neutral-400">{detalle.email}</p>
-                )}
-              </div>
-            </div>
-          )}
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
+            )}
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+
+        {/* Stats rápidas */}
+        {!cargando && detalle && (
+          <div className="grid grid-cols-3 gap-px bg-neutral-100 border-b border-neutral-100">
+            {[
+              { icon: TrendingUp, label: "Cobrado",    value: fmtPesos(detalle.cobrado_total), color: "text-emerald-600", iconBg: "bg-emerald-50" },
+              { icon: Clock,      label: "Pendiente",  value: fmtPesos(detalle.pendiente),     color: "text-amber-600",   iconBg: "bg-amber-50"   },
+              { icon: Calendar,   label: "Sesiones",   value: String(detalle.total_sesiones),  color: "text-indigo-600",  iconBg: "bg-indigo-50"  },
+            ].map(({ icon: Icon, label, value, color, iconBg }) => (
+              <div key={label} className="flex flex-col items-center gap-1.5 bg-white px-3 py-4">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg}`}>
+                  <Icon className={`h-3.5 w-3.5 ${color}`} strokeWidth={2} />
+                </div>
+                <p className={`text-base font-bold tabular-nums ${color}`}>{value}</p>
+                <p className="text-[10px] uppercase tracking-wider text-neutral-400">{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Contenido scrollable */}
         <div className="flex-1 overflow-y-auto">
@@ -194,33 +204,18 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
 
           {!cargando && detalle && (
             <>
-              {/* Stats rápidas */}
-              <div className="grid grid-cols-3 gap-px bg-neutral-100">
-                {[
-                  { icon: TrendingUp, label: "Cobrado total", value: fmtPesos(detalle.cobrado_total), color: "text-emerald-600" },
-                  { icon: Clock,      label: "Pendiente",     value: fmtPesos(detalle.pendiente),     color: "text-amber-600"  },
-                  { icon: Calendar,   label: "Sesiones",      value: String(detalle.total_sesiones),  color: "text-neutral-800" },
-                ].map(({ icon: Icon, label, value, color }) => (
-                  <div key={label} className="flex flex-col items-center gap-1 bg-white px-3 py-4">
-                    <Icon className={`h-4 w-4 ${color} opacity-70`} />
-                    <p className={`text-lg font-semibold tabular-nums ${color}`}>{value}</p>
-                    <p className="text-[10px] text-neutral-400">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Info del paciente / Formulario edición */}
+              {/* Datos / Edición */}
               <div className="p-5">
                 {editando ? (
                   <div className="space-y-3">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">Editar datos</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Editar datos</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase text-neutral-400">Nombre</label>
                         <input
                           value={form.nombre}
                           onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                          className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+                          className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
@@ -228,7 +223,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                         <input
                           value={form.apellido}
                           onChange={(e) => setForm((f) => ({ ...f, apellido: e.target.value }))}
-                          className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+                          className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                         />
                       </div>
                     </div>
@@ -239,7 +234,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                         value={form.email}
                         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                         placeholder="ejemplo@mail.com"
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -250,7 +245,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                         value={form.honorario}
                         onChange={(e) => setForm((f) => ({ ...f, honorario: e.target.value }))}
                         placeholder="Ej: 25000"
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums focus:border-neutral-400 focus:outline-none"
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                       />
                       <p className="text-[10px] text-neutral-400">Al guardar, se actualiza la fecha de ajuste a hoy.</p>
                     </div>
@@ -258,7 +253,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                       <button
                         onClick={guardar}
                         disabled={guardando}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-40"
                       >
                         {guardando
                           ? <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white" />
@@ -278,35 +273,35 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">Datos del paciente</p>
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Datos del paciente</p>
                       <button
                         onClick={iniciarEdicion}
-                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-neutral-500 hover:bg-neutral-100"
+                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 transition-colors"
                       >
                         <Pencil className="h-3 w-3" /> Editar
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 rounded-xl bg-neutral-50 p-3.5 text-sm">
+                    <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3.5 text-sm ring-1 ring-slate-100">
                       <div>
-                        <p className="text-[10px] text-neutral-400">Última sesión</p>
-                        <p className="font-medium text-neutral-800">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400">Última sesión</p>
+                        <p className="mt-0.5 font-medium text-neutral-800">
                           {detalle.ultima_sesion ? fechaRel(detalle.ultima_sesion) : "—"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-neutral-400">Sesiones este mes</p>
-                        <p className="font-medium text-neutral-800">{detalle.sesiones_mes}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400">Sesiones este mes</p>
+                        <p className="mt-0.5 font-medium text-neutral-800">{detalle.sesiones_mes}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-neutral-400">Honorario actual</p>
-                        <p className="font-medium tabular-nums text-neutral-800">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400">Honorario actual</p>
+                        <p className="mt-0.5 font-medium tabular-nums text-neutral-800">
                           {detalle.honorario_actual ? fmtPesos(detalle.honorario_actual) : "Sin datos"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-neutral-400">Último ajuste</p>
-                        <p className="font-medium text-neutral-800">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400">Último ajuste</p>
+                        <p className="mt-0.5 font-medium text-neutral-800">
                           {detalle.fecha_ultimo_ajuste_honorario
                             ? fmtFecha(detalle.fecha_ultimo_ajuste_honorario)
                             : "—"}
@@ -317,17 +312,17 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                 )}
               </div>
 
-              {/* Historial de turnos */}
+              {/* Historial */}
               <div className="px-5 pb-5">
-                <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+                <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
                   Historial de turnos
                 </p>
                 {detalle.turnos.length === 0 ? (
                   <p className="text-sm text-neutral-400">Sin turnos registrados.</p>
                 ) : (
-                  <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-100">
+                  <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-100 bg-white">
                     {detalle.turnos.map((t: TurnoEnDetalle) => (
-                      <div key={t.id} className="flex items-center justify-between px-3.5 py-2.5">
+                      <div key={t.id} className="flex items-center justify-between px-3.5 py-3 transition-colors hover:bg-indigo-50/30">
                         <div>
                           <p className="text-sm font-medium text-neutral-800">{fechaRel(t.fecha_turno)}</p>
                           <p className="text-xs text-neutral-400">
@@ -350,12 +345,12 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
           )}
         </div>
 
-        {/* Footer — eliminar */}
+        {/* Footer */}
         {!cargando && detalle && (
-          <div className="border-t border-neutral-100 px-5 py-3">
+          <div className="border-t border-neutral-100 px-5 py-3 bg-white">
             {confirmarEliminar ? (
               <div className="flex items-center gap-2">
-                <p className="flex-1 text-xs text-red-500">¿Eliminar a {detalle.nombre}? Esta acción no se puede deshacer.</p>
+                <p className="flex-1 text-xs text-red-500">¿Eliminar a {detalle.nombre}? No se puede deshacer.</p>
                 <button
                   onClick={eliminar}
                   disabled={guardando}
@@ -373,7 +368,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
             ) : (
               <button
                 onClick={() => setConfirmarEliminar(true)}
-                className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-red-500"
+                className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-red-500 transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 Eliminar paciente

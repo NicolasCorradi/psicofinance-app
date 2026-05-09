@@ -4,11 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { UserPlus, Search } from "lucide-react";
 import { getPacientes } from "@/lib/api";
 import type { PacienteConStats } from "@/lib/types";
-import Navbar from "@/components/layout/Navbar";
 import PacienteDetalle from "@/components/pacientes/PacienteDetalle";
 import NuevoPaciente from "@/components/pacientes/NuevoPaciente";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+import { avatarCls, iniciales } from "@/lib/avatar";
 
 function fmtPesos(n: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -29,21 +27,6 @@ function fechaRel(iso: string | null): string {
   return f.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
 }
 
-const AVATAR_PALETTES = [
-  "bg-violet-100 text-violet-700", "bg-blue-100 text-blue-700",
-  "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700",
-  "bg-pink-100 text-pink-700", "bg-cyan-100 text-cyan-700",
-  "bg-orange-100 text-orange-700", "bg-teal-100 text-teal-700",
-];
-function avatarCls(nombre: string): string {
-  let h = 0;
-  for (let i = 0; i < nombre.length; i++) h = (h * 31 + nombre.charCodeAt(i)) >>> 0;
-  return AVATAR_PALETTES[h % AVATAR_PALETTES.length];
-}
-function iniciales(nombre: string, apellido: string): string {
-  return (nombre[0] ?? "").toUpperCase() + (apellido[0] ?? "").toUpperCase();
-}
-
 // ── Tarjeta de paciente ───────────────────────────────────────────────────────
 
 function PacienteCard({
@@ -55,7 +38,7 @@ function PacienteCard({
   return (
     <button
       onClick={onClick}
-      className="group flex w-full items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-transparent transition-all hover:ring-neutral-200 hover:shadow-md text-left"
+      className="group flex w-full items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-transparent transition-all hover:ring-indigo-200 hover:shadow-md text-left"
     >
       {/* Avatar */}
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarCls(nombreCompleto)}`}>
@@ -129,9 +112,7 @@ export default function PacientesPage() {
 
   return (
     <>
-      <Navbar />
-
-      <main className="mx-auto max-w-screen-lg px-4 py-6">
+      <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
 
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
@@ -143,7 +124,7 @@ export default function PacientesPage() {
           </div>
           <button
             onClick={() => setNuevoModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 shadow-sm"
           >
             <UserPlus className="h-4 w-4" />
             Nuevo
@@ -154,15 +135,16 @@ export default function PacientesPage() {
         {!cargando && pacientes.length > 0 && (
           <div className="mb-5 grid grid-cols-3 gap-3">
             {[
-              { label: "Total cobrado",  value: fmtPesos(totalCobrado),   color: "text-emerald-600" },
-              { label: "Total pendiente", value: fmtPesos(totalPendiente), color: "text-amber-600" },
+              { label: "Total cobrado",   value: fmtPesos(totalCobrado),   color: "text-emerald-600", gradient: "from-emerald-400 to-teal-500" },
+              { label: "Total pendiente", value: fmtPesos(totalPendiente), color: "text-amber-600",   gradient: "from-amber-400 to-orange-400" },
               { label: "Activos este mes",
                 value: String(pacientes.filter((p) => p.sesiones_mes > 0).length),
-                color: "text-neutral-800" },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="rounded-2xl bg-white p-4 shadow-sm">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">{label}</p>
-                <p className={`mt-1.5 text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
+                color: "text-indigo-600", gradient: "from-indigo-400 to-violet-500" },
+            ].map(({ label, value, color, gradient }) => (
+              <div key={label} className="relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400">{label}</p>
+                <p className={`mt-1.5 text-2xl font-bold tabular-nums ${color}`}>{value}</p>
               </div>
             ))}
           </div>
@@ -175,7 +157,7 @@ export default function PacientesPage() {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre, apellido o email…"
-            className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-9 pr-4 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+            className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-9 pr-4 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 shadow-sm"
           />
         </div>
 

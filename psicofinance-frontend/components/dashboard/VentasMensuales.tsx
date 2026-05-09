@@ -1,8 +1,5 @@
 "use client";
 
-// Gráfico de ventas mensuales — barras div puras, sin librerías externas.
-// Eje Y con valores K, tooltip con variación vs mes anterior.
-
 import { useState } from "react";
 import type { VentaMensual } from "@/lib/types";
 
@@ -35,17 +32,16 @@ export default function VentasMensuales({ data }: Props) {
           data[data.length - 2].cobrado) * 100
       : null;
 
-  // Variación de una barra respecto a la anterior
   const varPct = (i: number): number | null => {
     if (i === 0 || data[i - 1].cobrado === 0) return null;
     return ((data[i].cobrado - data[i - 1].cobrado) / data[i - 1].cobrado) * 100;
   };
 
   return (
-    <div className="flex flex-col rounded-2xl bg-white p-5 shadow-sm">
+    <div className="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
       {/* Encabezado */}
       <div className="flex items-start justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
           Ventas mensuales
         </p>
         {variacionGlobal !== null && (
@@ -58,21 +54,21 @@ export default function VentasMensuales({ data }: Props) {
       </div>
 
       {/* Valor del mes actual */}
-      <p className="mt-1 text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-neutral-900">
+      <p className="mt-1 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums text-neutral-900">
         {data.length > 0
           ? fmtPesos(mesActual?.cobrado ?? 0)
           : <span className="animate-pulse text-neutral-200">——</span>
         }
       </p>
 
-      {/* Gráfico con eje Y */}
+      {/* Gráfico */}
       {data.length > 0 ? (
-        <div className="mt-5 flex gap-2">
+        <div className="mt-5 flex gap-3">
           {/* Eje Y */}
-          <div className="flex flex-col justify-between pb-6 text-right" style={{ minWidth: 28 }}>
-            <span className="text-[9px] leading-none text-neutral-300">{fmtK(maxValor)}</span>
-            <span className="text-[9px] leading-none text-neutral-300">{fmtK(maxValor / 2)}</span>
-            <span className="text-[9px] leading-none text-neutral-300">0</span>
+          <div className="flex flex-col justify-between pb-6 text-right" style={{ minWidth: 32 }}>
+            <span className="text-[10px] tabular-nums leading-none text-neutral-400">{fmtK(maxValor)}</span>
+            <span className="text-[10px] tabular-nums leading-none text-neutral-300">{fmtK(maxValor / 2)}</span>
+            <span className="text-[10px] tabular-nums leading-none text-neutral-300">0</span>
           </div>
 
           {/* Barras */}
@@ -83,6 +79,10 @@ export default function VentasMensuales({ data }: Props) {
               const esActual = i === data.length - 1;
               const vp       = varPct(i);
 
+              const barStyle = esActual
+                ? { height: altPx, background: "linear-gradient(180deg, #818CF8 0%, #4F46E5 100%)" }
+                : { height: altPx, backgroundColor: esHover ? "#A5B4FC" : "#C7D2FE" };
+
               return (
                 <div
                   key={i}
@@ -92,9 +92,9 @@ export default function VentasMensuales({ data }: Props) {
                 >
                   {/* Tooltip */}
                   {esHover && (
-                    <div className="absolute bottom-full z-10 mb-2 whitespace-nowrap rounded-xl bg-neutral-900 px-3 py-2 text-center shadow-lg">
+                    <div className="absolute bottom-full z-10 mb-2 whitespace-nowrap rounded-xl bg-slate-900 px-3 py-2 text-center shadow-lg ring-1 ring-white/10">
                       <p className="text-xs font-semibold text-white">{fmtPesos(d.cobrado)}</p>
-                      <p className="text-[10px] text-neutral-400">{d.mes}</p>
+                      <p className="text-[10px] text-slate-400">{d.mes}</p>
                       {vp !== null && (
                         <p className={`mt-0.5 text-[10px] font-medium ${vp >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                           {vp >= 0 ? "▲" : "▼"} {Math.abs(vp).toFixed(0)}% vs anterior
@@ -106,14 +106,11 @@ export default function VentasMensuales({ data }: Props) {
                   {/* Barra */}
                   <div
                     className="w-full rounded-t-md transition-all duration-300"
-                    style={{
-                      height: altPx,
-                      backgroundColor: esActual ? "#111827" : esHover ? "#6B7280" : "#E5E7EB",
-                    }}
+                    style={barStyle}
                   />
 
                   {/* Etiqueta mes */}
-                  <span className={`text-[10px] ${esActual ? "font-semibold text-neutral-700" : "text-neutral-400"}`}>
+                  <span className={`text-[10px] ${esActual ? "font-semibold text-indigo-600" : "text-neutral-400"}`}>
                     {d.mes}
                   </span>
                 </div>
@@ -127,7 +124,7 @@ export default function VentasMensuales({ data }: Props) {
           <div className="flex flex-1 items-end gap-1.5" style={{ height: ALTURA_MAX + 24 }}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                <div className="w-full animate-pulse rounded-t-md bg-neutral-100" style={{ height: 20 + i * 10 }} />
+                <div className="w-full animate-pulse rounded-t-md bg-indigo-50" style={{ height: 20 + i * 10 }} />
                 <span className="h-2.5 w-4 animate-pulse rounded bg-neutral-100" />
               </div>
             ))}

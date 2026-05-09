@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
 import { actualizarTurno, eliminarTurno } from "@/lib/api";
 import type { TurnoResumen, EstadoTurno } from "@/lib/types";
+import { avatarCls, iniciales } from "@/lib/avatar";
 
 function fmtPesos(n: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -22,30 +23,6 @@ function fechaRel(iso: string): string {
   if (dias < 7)  return `Hace ${dias}d`;
   if (dias < 30) return `Hace ${Math.round(dias / 7)}sem`;
   return f.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
-}
-
-// Avatar con iniciales y color determinístico
-const AVATAR_PALETTES = [
-  "bg-violet-100 text-violet-700",
-  "bg-blue-100   text-blue-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-amber-100  text-amber-700",
-  "bg-pink-100   text-pink-700",
-  "bg-cyan-100   text-cyan-700",
-  "bg-orange-100 text-orange-700",
-  "bg-teal-100   text-teal-700",
-];
-
-function avatarCls(nombre: string): string {
-  let h = 0;
-  for (let i = 0; i < nombre.length; i++) h = (h * 31 + nombre.charCodeAt(i)) >>> 0;
-  return AVATAR_PALETTES[h % AVATAR_PALETTES.length];
-}
-
-function iniciales(nombre: string): string {
-  const p = nombre.trim().split(/\s+/);
-  if (p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
-  return nombre.slice(0, 2).toUpperCase();
 }
 
 function Chip({ estado }: { estado: EstadoTurno }) {
@@ -170,9 +147,9 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
       <div className="flex items-baseline justify-between px-5 py-4">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
           Últimos turnos
         </p>
         {!cargando && turnos.length > 0 && (
@@ -218,7 +195,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                         min={1}
                         value={editForm.monto}
                         onChange={(e) => setEditForm((f) => ({ ...f, monto: e.target.value }))}
-                        className="w-28 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums text-neutral-800 focus:border-neutral-400 focus:outline-none"
+                        className="w-28 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                       />
                     </div>
                     {/* Estado */}
@@ -250,7 +227,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                       <button
                         onClick={() => guardarEdicion(t.id)}
                         disabled={guardando}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
                       >
                         {guardando
                           ? <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white" />
@@ -302,7 +279,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
             /* ── Fila normal ── */
             return (
-              <div key={t.id} className="group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-neutral-50">
+              <div key={t.id} className="group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-indigo-50/30">
                 {/* Avatar */}
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                   {iniciales(t.paciente_nombre)}

@@ -39,7 +39,13 @@
       "Bash(pandoc \"C:\\\\Users\\\\nicol\\\\Downloads\\\\TOPICOS DE ECONOMIA DIGITAL - PRIMER PARCIAL DOMICILIARIO 2026 .docx\" -t plain)",
       "Bash(Remove-Item -Recurse -Force \"psicofinance-frontend\\\\.git\")",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git config *)",
+      "Bash(git commit -m ' *)",
+      "PowerShell(gh auth status 2>&1)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); gh --version 2>&1)",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__computer"
     ]
   }
 }

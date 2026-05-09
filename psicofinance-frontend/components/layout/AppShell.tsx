@@ -1,0 +1,138 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, Users, BrainCircuit, BarChart3 } from "lucide-react";
+import { getSemaforo } from "@/lib/api";
+import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
+
+const NAV_LINKS = [
+  { href: "/",          label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/pacientes", label: "Pacientes", Icon: Users },
+  { href: "/reportes",  label: "Reportes",  Icon: BarChart3 },
+];
+
+const DOT_CLS: Record<EstadoSemaforo, string> = {
+  VERDE:    "bg-emerald-400",
+  AMARILLO: "bg-amber-400",
+  ROJO:     "bg-red-400 animate-pulse",
+};
+
+const CHIP_CLS: Record<EstadoSemaforo, string> = {
+  VERDE:    "bg-emerald-500/10 text-emerald-400",
+  AMARILLO: "bg-amber-500/10 text-amber-400",
+  ROJO:     "bg-red-500/10 text-red-400",
+};
+
+export default function AppShell({ children }: { children: React.ReactNode }) {
+  const [semaforo, setSemaforo] = useState<ResultadoSemaforo | null>(null);
+  const pathname = usePathname();
+
+  useEffect(() => { getSemaforo().then(setSemaforo).catch(() => {}); }, []);
+
+  const today = new Date().toLocaleDateString("es-AR", {
+    weekday: "short", day: "numeric", month: "short",
+  });
+
+  return (
+    <div className="flex min-h-screen bg-background">
+
+      {/* ── Sidebar desktop ── */}
+      <aside className="hidden lg:flex w-56 shrink-0 flex-col bg-sidebar border-r border-sidebar-border fixed inset-y-0 left-0 z-50">
+
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 pt-6 pb-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/20 ring-1 ring-indigo-500/25">
+            <BrainCircuit className="h-4 w-4 text-indigo-400" strokeWidth={1.8} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white tracking-tight leading-none">PsicoFinance</p>
+            <p className="text-[10px] text-indigo-300/60 leading-none mt-1 tracking-wide uppercase">Consultorio</p>
+          </div>
+        </div>
+
+        <div className="mx-4 h-px bg-sidebar-border mb-3" />
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 space-y-0.5">
+          {NAV_LINKS.map(({ href, label, Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                  active
+                    ? "bg-indigo-500/15 text-indigo-400"
+                    : "text-white/40 hover:bg-sidebar-accent hover:text-white/80"
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${active ? "text-indigo-400" : "opacity-60"}`}
+                  strokeWidth={active ? 2 : 1.8}
+                />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom */}
+        <div className="px-3 pb-5 space-y-2">
+          {semaforo && (
+            <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${CHIP_CLS[semaforo.estado]}`}>
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT_CLS[semaforo.estado]}`} />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold leading-none">Cat. {semaforo.categoria_actual}</p>
+                <p className="text-[10px] opacity-70 leading-none mt-1">
+                  {semaforo.porcentaje_consumido.toFixed(0)}% del tope
+                </p>
+              </div>
+            </div>
+          )}
+          <p className="px-3 text-[11px] capitalize text-white/40">{today}</p>
+        </div>
+      </aside>
+
+      {/* ── Header móvil ── */}
+      <header className="lg:hidden fixed top-0 inset-x-0 z-50 flex h-12 items-center gap-2 border-b border-neutral-200/60 bg-white/90 px-3 backdrop-blur-xl">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100">
+            <BrainCircuit className="h-3.5 w-3.5 text-indigo-600" strokeWidth={1.8} />
+          </div>
+          <span className="text-sm font-bold text-neutral-900 tracking-tight">PsicoFinance</span>
+        </div>
+        <nav className="flex flex-1 items-center justify-end gap-0.5 overflow-x-auto">
+          {NAV_LINKS.map(({ href, label, Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link key={href} href={href}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors shrink-0 ${
+                  active
+                    ? "bg-indigo-50 text-indigo-600"
+                    : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 sm:hidden" strokeWidth={active ? 2 : 1.8} />
+                <span className="hidden sm:inline">{label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        {semaforo && (
+          <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs shrink-0 ${CHIP_CLS[semaforo.estado]}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLS[semaforo.estado]}`} />
+            Cat. {semaforo.categoria_actual}
+          </div>
+        )}
+      </header>
+
+      {/* ── Contenido principal ── */}
+      <div className="flex-1 lg:ml-56 min-w-0">
+        <div className="lg:hidden h-12" />
+        {children}
+      </div>
+    </div>
+  );
+}

@@ -7,7 +7,6 @@ import { useState, useEffect, useCallback } from "react";
 import { getMetricasDashboard } from "@/lib/api";
 import type { MetricasDashboard } from "@/lib/types";
 
-import Navbar             from "@/components/layout/Navbar";
 import NLPInput           from "@/components/dashboard/NLPInput";
 import CashFlowCards      from "@/components/dashboard/CashFlowCards";
 import VentasMensuales    from "@/components/dashboard/VentasMensuales";
@@ -32,11 +31,21 @@ export default function DashboardPage() {
 
   const handleTurnoCreado = () => setRefreshKey((k) => k + 1);
 
+  const fechaCompleta = new Date().toLocaleDateString("es-AR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
   return (
     <>
-      <Navbar />
+      <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
+        {/* Header del dashboard */}
+        <div className="mb-5 flex items-baseline justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900">Dashboard</h1>
+            <p className="text-xs text-neutral-500 capitalize">{fechaCompleta}</p>
+          </div>
+        </div>
 
-      <main className="mx-auto max-w-screen-lg px-4 py-6">
         <div className="flex flex-col gap-4">
 
           {/* Copiloto NLP */}
@@ -71,3 +80,4 @@ export default function DashboardPage() {
     </>
   );
 }
+

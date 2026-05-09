@@ -11,44 +11,50 @@ function fmtPesos(n: number): string {
 
 interface Props { metricas: MetricasDashboard | null }
 
-// Mini sparkline SVG usando los cobrados mensuales como proxy de evolución
 function Sparkline({ data }: { data: VentaMensual[] }) {
   if (data.length < 2) return null;
-  const W = 100, H = 28;
+  const W = 100, H = 32;
   const vals = data.map((d) => d.cobrado);
   const min  = Math.min(...vals);
   const max  = Math.max(...vals, min + 1);
-  const pts  = vals.map((v, i) => {
+  const points = vals.map((v, i) => {
     const x = (i / (vals.length - 1)) * W;
     const y = H - ((v - min) / (max - min)) * (H - 4) - 2;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
+    return [x, y] as const;
+  });
+  const linePath = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const areaPath =
+    `M${points[0][0].toFixed(1)},${H} ` +
+    points.map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(" ") +
+    ` L${points[points.length - 1][0].toFixed(1)},${H} Z`;
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="h-7 w-full overflow-visible"
-      preserveAspectRatio="none"
-    >
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-8 w-full overflow-visible" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#F59E0B" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#spark-fill)" />
       <polyline
-        points={pts}
+        points={linePath}
         fill="none"
-        stroke="#f59e0b"
+        stroke="#F59E0B"
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity="0.7"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );
 }
 
 export default function InflacionWidget({ metricas: m }: Props) {
-  const perdida   = m?.perdida_inflacion ?? 0;
-  const sesiones  = m?.sesiones_perdidas_equivalente ?? 0;
-  const ventas    = m?.ventas_mensuales ?? [];
+  const perdida  = m?.perdida_inflacion ?? 0;
+  const sesiones = m?.sesiones_perdidas_equivalente ?? 0;
+  const ventas   = m?.ventas_mensuales ?? [];
 
-  // Variación del cobrado: mes actual vs mes anterior (proxy de presión inflacionaria)
   const varPct =
     ventas.length >= 2 && ventas[ventas.length - 2].cobrado > 0
       ? ((ventas[ventas.length - 1].cobrado - ventas[ventas.length - 2].cobrado) /
@@ -56,10 +62,10 @@ export default function InflacionWidget({ metricas: m }: Props) {
       : null;
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
           Pérdida por inflación
         </p>
         {varPct !== null && (
@@ -72,7 +78,9 @@ export default function InflacionWidget({ metricas: m }: Props) {
       </div>
 
       {/* Valor principal */}
-      <p className={`mt-3 text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums ${perdida > 0 ? "text-amber-600" : "text-neutral-900"}`}>
+      <p className={`mt-3 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums ${
+        perdida > 0 ? "text-amber-600" : "text-neutral-900"
+      }`}>
         {m ? fmtPesos(perdida) : <span className="animate-pulse text-neutral-200">——</span>}
       </p>
 
@@ -93,7 +101,9 @@ export default function InflacionWidget({ metricas: m }: Props) {
             </span>{" "}
             de honorario.
           </>
-        ) : m ? "Sin pérdidas este período." : "Calculando…"}
+        ) : m ? (
+          <span className="text-emerald-500 font-medium">Sin pérdidas este período.</span>
+        ) : "Calculando…"}
       </p>
     </div>
   );
