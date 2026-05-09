@@ -1,6 +1,13 @@
+import socket as _socket
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.config import config
+
+# Forzar IPv4 en todas las conexiones (Render free no soporta IPv6)
+_orig_getaddrinfo = _socket.getaddrinfo
+def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, _socket.AF_INET, type, proto, flags)
+_socket.getaddrinfo = _ipv4_only
 
 # SQLite necesita check_same_thread=False para funcionar con FastAPI (multi-thread)
 is_sqlite = config.database_url.startswith("sqlite")
@@ -8,14 +15,9 @@ is_sqlite = config.database_url.startswith("sqlite")
 if is_sqlite:
     connect_args = {"check_same_thread": False}
 else:
-    # PostgreSQL (Supabase) requiere SSL y ajustes para connection pooler
     connect_args = {
         "sslmode": "require",
         "connect_timeout": 10,
-        "keepalives": 1,
-        "keepalives_idle": 30,
-        "keepalives_interval": 10,
-        "keepalives_count": 5,
     }
 
 engine = create_engine(
