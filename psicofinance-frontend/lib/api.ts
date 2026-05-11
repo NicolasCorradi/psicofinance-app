@@ -155,9 +155,9 @@ export function getTurnosDiferidos(): Promise<TurnoRead[]> {
   return get<TurnoRead[]>('/turnos/?estado=DIFERIDO&limit=200');
 }
 
-/** Lista turnos COBRADO del mes actual (filtro en frontend por fecha_cobro_efectivo). */
+/** Turnos COBRADO del mes actual — filtrado en backend por fecha_cobro_efectivo. */
 export function getTurnosCobradosMes(): Promise<TurnoRead[]> {
-  return get<TurnoRead[]>('/turnos/?estado=COBRADO&limit=200');
+  return get<TurnoRead[]>('/dashboard/turnos-cobrado-mes');
 }
 
 /** Actualiza parcialmente un turno (monto, estado, prepaga, etc.). */

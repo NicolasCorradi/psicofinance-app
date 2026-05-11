@@ -149,3 +149,54 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
         "ultimos_turnos":                ultimos_turnos,
         "ventas_mensuales":              ventas_mensuales,
     }
+
+
+@router.get("/turnos-cobrado-mes", response_model=list[dict])
+def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
+    """Turnos COBRADO con fecha_cobro_efectivo en el mes actual.
+    Usado por el sheet de desglose del dashboard."""
+    hoy = date.today()
+    primer_dia = hoy.replace(day=1)
+    primer_sig  = (hoy + relativedelta(months=1)).replace(day=1)
+
+    turnos = sb.select("turnos", {
+        "estado":                "eq.COBRADO",
+        "fecha_cobro_efectivo":  f"gte.{primer_dia.isoformat()}",
+        "order":                 "fecha_cobro_efectivo.desc",
+        "limit":                 "200",
+    })
+
+    # Filtrar también el límite superior en Python (PostgREST no acepta dos filtros del mismo campo)
+    turnos = [
+        t for t in turnos
+        if _parse_date(t.get("fecha_cobro_efectivo")) is not None
+        and _parse_date(t["fecha_cobro_efectivo"]) < primer_sig
+    ]
+
+    # Traer nombres de pacientes
+    pac_ids = list({t["paciente_id"] for t in turnos})
+    pac_map = {}
+    if pac_ids:
+        pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+        pac_map = {p["id"]: p for p in pacs}
+
+    result = []
+    for t in turnos:
+        pac = pac_map.get(t.get("paciente_id"), {})
+        ft  = _parse_date(t.get("fecha_turno"))
+        fe  = _parse_date(t.get("fecha_cobro_efectivo"))
+        fest = _parse_date(t.get("fecha_cobro_estimada"))
+        result.append({
+            "id":                   str(t["id"]),
+            "paciente_id":          str(t.get("paciente_id", "")),
+            "paciente_nombre":      f"{pac.get('nombre','')} {pac.get('apellido','')}".strip(),
+            "fecha_turno":          ft.isoformat() if ft else None,
+            "monto":                float(t.get("monto") or 0),
+            "estado":               t.get("estado"),
+            "origen_pago":          t.get("origen_pago"),
+            "prepaga":              t.get("prepaga"),
+            "fecha_cobro_estimada": fest.isoformat() if fest else None,
+            "fecha_cobro_efectivo": fe.isoformat() if fe else None,
+        })
+
+    return result
