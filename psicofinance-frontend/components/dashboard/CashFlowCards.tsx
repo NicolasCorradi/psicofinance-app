@@ -65,7 +65,11 @@ export default function CashFlowCards({ metricas: m }: Props) {
   });
 
   const turnosSinCobrar = diferidos.filter(t => {
-    if (!t.fecha_cobro_estimada) return true;
+    if (!t.fecha_cobro_estimada) {
+      // Sin fecha estimada: solo si la sesión es de un mes anterior
+      const ft = t.fecha_turno ? new Date(t.fecha_turno + "T00:00:00") : null;
+      return ft ? ft < primerDiaMes : false;
+    }
     const f = new Date(t.fecha_cobro_estimada + "T00:00:00");
     return f < primerDiaMes;
   });

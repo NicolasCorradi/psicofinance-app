@@ -68,6 +68,10 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
                     en_camino_mes += monto
                 elif fecha_cobro_est < primer_dia_mes:
                     deudores += monto
+            else:
+                # Sin fecha estimada: si la sesión es de un mes anterior → deudor
+                if fecha_turno and fecha_turno < primer_dia_mes:
+                    deudores += monto
             turnos_diferidos.append(t)
 
         if fecha_turno and primer_dia_mes <= fecha_turno < primer_dia_mes_sig:
