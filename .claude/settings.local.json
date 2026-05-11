@@ -45,7 +45,18 @@
       "PowerShell(gh auth status 2>&1)",
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); gh --version 2>&1)",
       "mcp__Claude_in_Chrome__browser_batch",
-      "mcp__Claude_in_Chrome__computer"
+      "mcp__Claude_in_Chrome__computer",
+      "Bash(python seed_via_api.py)",
+      "Bash(python -c ' *)",
+      "Bash(python gen_sql.py)",
+      "Bash(pip install *)",
+      "Bash(python seed_supabase.py)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "mcp__Claude_in_Chrome__navigate",
+      "Bash(npm install *)",
+      "Bash(node -e \"const p=require\\('./node_modules/recharts/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.dependencies, null, 2\\)\\)\")"
     ]
   }
 }

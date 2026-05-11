@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, BrainCircuit, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, BrainCircuit, BarChart3, LogOut } from "lucide-react";
 import { getSemaforo } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
 
 const NAV_LINKS = [
-  { href: "/",          label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/pacientes", label: "Pacientes", Icon: Users },
   { href: "/reportes",  label: "Reportes",  Icon: BarChart3 },
 ];
@@ -28,8 +29,16 @@ const CHIP_CLS: Record<EstadoSemaforo, string> = {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [semaforo, setSemaforo] = useState<ResultadoSemaforo | null>(null);
   const pathname = usePathname();
+  const router   = useRouter();
+  const supabase = createClient();
 
   useEffect(() => { getSemaforo().then(setSemaforo).catch(() => {}); }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
 
   const today = new Date().toLocaleDateString("es-AR", {
     weekday: "short", day: "numeric", month: "short",
@@ -57,7 +66,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Nav */}
         <nav className="flex-1 px-3 space-y-0.5">
           {NAV_LINKS.map(({ href, label, Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const active = pathname.startsWith(href);
             return (
               <Link
                 key={href}
@@ -92,6 +101,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
           <p className="px-3 text-[11px] capitalize text-white/40">{today}</p>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-white/30 transition-all hover:bg-white/5 hover:text-white/60"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Cerrar sesión
+          </button>
         </div>
       </aside>
 
@@ -105,7 +123,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex flex-1 items-center justify-end gap-0.5 overflow-x-auto">
           {NAV_LINKS.map(({ href, label, Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const active = pathname.startsWith(href);
             return (
               <Link key={href} href={href}
                 className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors shrink-0 ${
@@ -119,6 +137,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <button
+            onClick={handleLogout}
+            className="flex items-center rounded-lg px-2 py-1.5 text-neutral-400 transition-colors hover:bg-neutral-50 hover:text-neutral-600 shrink-0"
+            title="Cerrar sesión"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
         </nav>
         {semaforo && (
           <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs shrink-0 ${CHIP_CLS[semaforo.estado]}`}>
