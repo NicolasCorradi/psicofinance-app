@@ -110,6 +110,11 @@ export function getSemaforo(): Promise<ResultadoSemaforo> {
   return get<ResultadoSemaforo>('/monotributo/semaforo');
 }
 
+/** Último dato de IPC mensual desde INDEC via datos.gob.ar. */
+export function getInflacion(): Promise<{ valor: number; periodo: string; fuente: string }> {
+  return get('/dashboard/inflacion');
+}
+
 // ---------------------------------------------------------------------------
 // Copiloto NLP
 // ---------------------------------------------------------------------------

@@ -13,6 +13,41 @@ from app.config import config
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
+# ── INDEC IPC ────────────────────────────────────────────────────────────────
+
+_ipc_cache: dict = {}   # { "valor": float, "periodo": str, "ts": float }
+
+def _fetch_ipc_indec() -> dict:
+    """Trae la última variación mensual del IPC General desde datos.gob.ar.
+    Cachea el resultado 6 horas para no saturar la API."""
+    import time
+    ahora = time.time()
+    if _ipc_cache.get("ts") and ahora - _ipc_cache["ts"] < 21600:
+        return _ipc_cache
+
+    try:
+        url = (
+            "https://apis.datos.gob.ar/series/api/series/"
+            "?ids=148.3_INIVELGEN_DICI_M_26&limit=2&sort=desc&format=json"
+        )
+        r = httpx.get(url, timeout=8)
+        r.raise_for_status()
+        data = r.json().get("data", [])
+        if data:
+            periodo, valor = data[0][0], data[0][1]   # e.g. ["2026-03-01", 3.7]
+            _ipc_cache.update({"valor": float(valor), "periodo": periodo[:7], "ts": ahora})
+    except Exception as exc:
+        logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
+        # Fallback al valor del .env
+        if not _ipc_cache.get("valor"):
+            _ipc_cache.update({
+                "valor": config.inflacion_mensual * 100,
+                "periodo": "config",
+                "ts": ahora,
+            })
+
+    return _ipc_cache
+
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
 
@@ -83,7 +118,8 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
 
     # Pérdida por inflación en turnos DIFERIDO pendientes
     perdida_inflacion_total = 0.0
-    tasa = config.inflacion_mensual
+    ipc = _fetch_ipc_indec()
+    tasa = ipc["valor"] / 100   # INDEC devuelve porcentaje, e.g. 3.7 → 0.037
     for turno in turnos_diferidos:
         ft = _parse_date(turno.get("fecha_turno"))
         if not ft:
@@ -204,3 +240,15 @@ def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
         })
 
     return result
+
+
+@router.get("/inflacion", response_model=dict)
+def get_inflacion():
+    """Último dato de inflación mensual IPC General — fuente INDEC via datos.gob.ar.
+    Cachea 6 horas. Devuelve { valor: float (%), periodo: str 'YYYY-MM', fuente: str }."""
+    ipc = _fetch_ipc_indec()
+    return {
+        "valor":   round(ipc.get("valor", config.inflacion_mensual * 100), 2),
+        "periodo": ipc.get("periodo", "—"),
+        "fuente":  "INDEC — IPC Nacional Nivel General" if ipc.get("periodo") != "config" else "Valor de configuración",
+    }

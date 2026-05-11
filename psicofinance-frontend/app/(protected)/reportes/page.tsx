@@ -6,7 +6,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { getMetricasDashboard, getPacientes, getSemaforo } from "@/lib/api";
+import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion } from "@/lib/api";
 import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 
@@ -43,15 +43,15 @@ function CustomTooltip({ active, payload, label }: {
 }
 
 export default function ReportesPage() {
-  const [metricas,  setMetricas]  = useState<MetricasDashboard | null>(null);
-  const [pacientes, setPacientes] = useState<PacienteConStats[]>([]);
-  const [semaforo,  setSemaforo]  = useState<ResultadoSemaforo | null>(null);
-  const [cargando,  setCargando]  = useState(true);
-  const [infMensual, setInfMensual] = useState<string>("3.5");
+  const [metricas,   setMetricas]   = useState<MetricasDashboard | null>(null);
+  const [pacientes,  setPacientes]  = useState<PacienteConStats[]>([]);
+  const [semaforo,   setSemaforo]   = useState<ResultadoSemaforo | null>(null);
+  const [cargando,   setCargando]   = useState(true);
+  const [ipc, setIpc] = useState<{ valor: number; periodo: string; fuente: string } | null>(null);
 
   useEffect(() => {
-    Promise.all([getMetricasDashboard(), getPacientes(), getSemaforo()])
-      .then(([m, p, s]) => { setMetricas(m); setPacientes(p); setSemaforo(s); })
+    Promise.all([getMetricasDashboard(), getPacientes(), getSemaforo(), getInflacion()])
+      .then(([m, p, s, inf]) => { setMetricas(m); setPacientes(p); setSemaforo(s); setIpc(inf); })
       .catch(() => {})
       .finally(() => setCargando(false));
   }, []);
@@ -83,13 +83,13 @@ export default function ReportesPage() {
 
   const dataLineas = useMemo(() => {
     if (!metricas?.ventas_mensuales.length) return [];
-    const tasa = Math.max(0, Math.min(Number(infMensual) || 0, 100)) / 100;
+    const tasa = (ipc?.valor ?? 3.5) / 100;
     const primerValor = metricas.ventas_mensuales.find(v => v.cobrado > 0)?.cobrado ?? 0;
     return metricas.ventas_mensuales.map((v, i) => {
       const teorico = primerValor > 0 ? primerValor * Math.pow(1 + tasa, i) : 0;
       return { mes: v.mes, real: v.cobrado, teorico: Math.round(teorico) };
     });
-  }, [metricas, infMensual]);
+  }, [metricas, ipc]);
 
   const anioActual = new Date().getFullYear();
 
@@ -167,15 +167,18 @@ export default function ReportesPage() {
             </p>
             <p className="mt-1 text-sm text-neutral-600">¿Estás ganándole a la inflación?</p>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-1.5">
-            <span className="text-xs text-neutral-500">Inflación mensual:</span>
-            <input
-              type="number" min={0} max={100} step={0.5}
-              value={infMensual}
-              onChange={e => setInfMensual(e.target.value)}
-              className="w-14 bg-transparent text-xs font-semibold text-neutral-800 focus:outline-none tabular-nums text-right"
-            />
-            <span className="text-xs text-neutral-500">%</span>
+          <div className="flex flex-col items-end gap-0.5">
+            <div className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-1.5">
+              <span className="text-xs text-indigo-500">IPC mensual:</span>
+              <span className="text-xs font-bold tabular-nums text-indigo-700">
+                {ipc ? `${ipc.valor.toFixed(1)}%` : "…"}
+              </span>
+            </div>
+            {ipc && (
+              <span className="text-[10px] text-neutral-400">
+                INDEC · {ipc.periodo}
+              </span>
+            )}
           </div>
         </div>
         {cargando ? (
