@@ -7,13 +7,14 @@ import { useState, useEffect, useCallback } from "react";
 import { getMetricasDashboard } from "@/lib/api";
 import type { MetricasDashboard } from "@/lib/types";
 
-import NLPInput           from "@/components/dashboard/NLPInput";
-import CashFlowCards      from "@/components/dashboard/CashFlowCards";
-import VentasMensuales    from "@/components/dashboard/VentasMensuales";
+import NLPInput            from "@/components/dashboard/NLPInput";
+import CashFlowCards       from "@/components/dashboard/CashFlowCards";
+import VentasMensuales     from "@/components/dashboard/VentasMensuales";
 import MonotributoProgress from "@/components/dashboard/MonotributoProgress";
-import InflacionWidget    from "@/components/dashboard/InflacionWidget";
-import AlertasHonorarios  from "@/components/dashboard/AlertasHonorarios";
-import TurnosTable        from "@/components/dashboard/TurnosTable";
+import InflacionWidget     from "@/components/dashboard/InflacionWidget";
+import AlertasHonorarios   from "@/components/dashboard/AlertasHonorarios";
+import TurnosTable         from "@/components/dashboard/TurnosTable";
+import SimuladorHonorarios from "@/components/dashboard/SimuladorHonorarios";
 
 export default function DashboardPage() {
   const [metricas,    setMetricas]    = useState<MetricasDashboard | null>(null);
@@ -67,6 +68,9 @@ export default function DashboardPage() {
             <InflacionWidget    metricas={metricas} />
             <AlertasHonorarios />
           </div>
+
+          {/* Simulador de ajuste de honorarios */}
+          <SimuladorHonorarios />
 
           {/* Tabla de turnos */}
           <TurnosTable
