@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, Clock, AlertCircle, ChevronRight } from "lucide-react";
 import type { MetricasDashboard, TurnoRead } from "@/lib/types";
-import { getTurnosDiferidos } from "@/lib/api";
+import { getTurnosDiferidos, getTurnosCobradosMes } from "@/lib/api";
 import Sheet from "@/components/ui/Sheet";
 
 function fmtPesos(n: number): string {
@@ -20,7 +20,7 @@ function fmtFecha(s: string | null): string {
   });
 }
 
-type TipoSheet = "en_camino" | "sin_cobrar" | null;
+type TipoSheet = "cobrado_mes" | "en_camino" | "sin_cobrar" | null;
 
 interface Props { metricas: MetricasDashboard | null }
 
@@ -40,11 +40,25 @@ export default function CashFlowCards({ metricas: m }: Props) {
   useEffect(() => {
     if (!sheetTipo) return;
     setCargandoSheet(true);
-    getTurnosDiferidos()
-      .then(setDiferidos)
-      .catch(() => setDiferidos([]))
-      .finally(() => setCargandoSheet(false));
+    if (sheetTipo === "cobrado_mes") {
+      getTurnosCobradosMes()
+        .then(setDiferidos)
+        .catch(() => setDiferidos([]))
+        .finally(() => setCargandoSheet(false));
+    } else {
+      getTurnosDiferidos()
+        .then(setDiferidos)
+        .catch(() => setDiferidos([]))
+        .finally(() => setCargandoSheet(false));
+    }
   }, [sheetTipo]);
+
+  const turnosCobradosMes = diferidos.filter(t => {
+    const f = t.fecha_cobro_efectivo
+      ? new Date(t.fecha_cobro_efectivo + "T00:00:00")
+      : null;
+    return f && f >= primerDiaMes && f < primerSigMes;
+  });
 
   const turnosEnCamino = diferidos.filter(t => {
     if (!t.fecha_cobro_estimada) return false;
@@ -53,16 +67,19 @@ export default function CashFlowCards({ metricas: m }: Props) {
   });
 
   const turnosSinCobrar = diferidos.filter(t => {
-    if (!t.fecha_cobro_estimada) return true; // sin fecha = vencido
+    if (!t.fecha_cobro_estimada) return true;
     const f = new Date(t.fecha_cobro_estimada + "T00:00:00");
     return f < primerDiaMes;
   });
 
-  const turnosActivos = sheetTipo === "en_camino" ? turnosEnCamino : turnosSinCobrar;
+  const turnosActivos =
+    sheetTipo === "cobrado_mes" ? turnosCobradosMes :
+    sheetTipo === "en_camino"  ? turnosEnCamino :
+    turnosSinCobrar;
 
   const cards = [
     {
-      tipo:       null as TipoSheet,
+      tipo:       "cobrado_mes" as TipoSheet,
       titulo:     "Cobrado este mes",
       valor:      m?.cobrado_mes ?? null,
       sub:        m ? `${m.total_turnos_mes} sesión${m.total_turnos_mes !== 1 ? "es" : ""}` : "–",
@@ -71,7 +88,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
       iconColor:  "text-emerald-600",
       valorColor: "text-emerald-600",
       gradient:   "from-emerald-400 to-teal-500",
-      clickable:  false,
+      clickable:  true,
     },
     {
       tipo:       "en_camino" as TipoSheet,
@@ -99,9 +116,10 @@ export default function CashFlowCards({ metricas: m }: Props) {
     },
   ];
 
-  const sheetTitle = sheetTipo === "en_camino"
-    ? `En camino — ${fmtPesos(m?.en_camino_mes ?? 0)}`
-    : `Sin cobrar — ${fmtPesos(m?.deudores ?? 0)}`;
+  const sheetTitle =
+    sheetTipo === "cobrado_mes" ? `Cobrado este mes — ${fmtPesos(m?.cobrado_mes ?? 0)}` :
+    sheetTipo === "en_camino"   ? `En camino — ${fmtPesos(m?.en_camino_mes ?? 0)}` :
+    `Sin cobrar — ${fmtPesos(m?.deudores ?? 0)}`;
 
   return (
     <>
@@ -159,9 +177,9 @@ export default function CashFlowCards({ metricas: m }: Props) {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-3 text-3xl">🎉</div>
             <p className="text-sm font-medium text-neutral-600">
-              {sheetTipo === "en_camino"
-                ? "No hay prepagas pendientes este mes"
-                : "No hay pagos vencidos"}
+              {sheetTipo === "cobrado_mes" ? "Sin cobros registrados este mes"
+               : sheetTipo === "en_camino" ? "No hay prepagas pendientes este mes"
+               : "No hay pagos vencidos"}
             </p>
           </div>
         ) : (
@@ -170,7 +188,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
               {turnosActivos.length} turno{turnosActivos.length !== 1 ? "s" : ""}
             </p>
             {turnosActivos.map(t => (
-              <TurnoRow key={t.id} turno={t} tipo={sheetTipo!} />
+              <TurnoRow key={t.id} turno={t} tipo={sheetTipo ?? "sin_cobrar"} />
             ))}
           </div>
         )}
@@ -179,12 +197,11 @@ export default function CashFlowCards({ metricas: m }: Props) {
   );
 }
 
-function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: TipoSheet }) {
-  const fechaLabel = tipo === "en_camino"
-    ? `Cobro est. ${fmtFecha(t.fecha_cobro_estimada)}`
-    : t.fecha_cobro_estimada
-      ? `Vencido ${fmtFecha(t.fecha_cobro_estimada)}`
-      : "Sin fecha de cobro";
+function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoSheet, null> }) {
+  const fechaLabel =
+    tipo === "cobrado_mes" ? `Cobrado ${fmtFecha(t.fecha_cobro_efectivo)}` :
+    tipo === "en_camino"   ? `Cobro est. ${fmtFecha(t.fecha_cobro_estimada)}` :
+    t.fecha_cobro_estimada ? `Vencido ${fmtFecha(t.fecha_cobro_estimada)}` : "Sin fecha de cobro";
 
   const vencido = tipo === "sin_cobrar";
 
@@ -196,9 +213,10 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: TipoSheet }) {
             {t.prepaga ?? "Directo"}
           </span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            tipo === "cobrado_mes" ? "bg-emerald-100 text-emerald-700" :
             vencido ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"
           }`}>
-            {vencido ? "Vencido" : "En camino"}
+            {tipo === "cobrado_mes" ? "Cobrado" : vencido ? "Vencido" : "En camino"}
           </span>
         </div>
         <span className="text-xs text-neutral-400">
@@ -206,6 +224,7 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: TipoSheet }) {
         </span>
       </div>
       <span className={`text-sm font-bold tabular-nums ${
+        tipo === "cobrado_mes" ? "text-emerald-600" :
         vencido ? "text-red-600" : "text-amber-600"
       }`}>
         {new Intl.NumberFormat("es-AR", {

@@ -150,9 +150,14 @@ export function aprobarBorrador(datos: {
 // CRUD de turnos
 // ---------------------------------------------------------------------------
 
-/** Lista turnos filtrados por estado. */
+/** Lista turnos DIFERIDO. */
 export function getTurnosDiferidos(): Promise<TurnoRead[]> {
   return get<TurnoRead[]>('/turnos/?estado=DIFERIDO&limit=200');
+}
+
+/** Lista turnos COBRADO del mes actual (filtro en frontend por fecha_cobro_efectivo). */
+export function getTurnosCobradosMes(): Promise<TurnoRead[]> {
+  return get<TurnoRead[]>('/turnos/?estado=COBRADO&limit=200');
 }
 
 /** Actualiza parcialmente un turno (monto, estado, prepaga, etc.). */
