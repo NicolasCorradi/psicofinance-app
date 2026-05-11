@@ -5,6 +5,7 @@ import logging
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends
+import httpx
 
 from app.supabase_client import SupabaseClient, get_supabase
 from app.services.finanzas import calcular_valor_real
@@ -19,6 +20,8 @@ _ipc_cache: dict = {}   # { "valor": float, "periodo": str, "ts": float }
 
 def _fetch_ipc_indec() -> dict:
     """Trae la última variación mensual del IPC General desde datos.gob.ar.
+    Usa el índice de nivel general (103.1_I2N_2016_M_19) y calcula la
+    variación porcentual mensual entre los dos últimos períodos disponibles.
     Cachea el resultado 6 horas para no saturar la API."""
     import time
     ahora = time.time()
@@ -26,19 +29,25 @@ def _fetch_ipc_indec() -> dict:
         return _ipc_cache
 
     try:
+        # Serie: IPC Nacional Nivel General (base 2016=100) — devuelve nivel de índice.
+        # Pedimos 2 puntos para calcular la variación mensual: (idx_nuevo - idx_ant) / idx_ant * 100
         url = (
             "https://apis.datos.gob.ar/series/api/series/"
-            "?ids=148.3_INIVELGEN_DICI_M_26&limit=2&sort=desc&format=json"
+            "?ids=103.1_I2N_2016_M_19&limit=2&sort=desc&format=json"
         )
         r = httpx.get(url, timeout=8)
         r.raise_for_status()
         data = r.json().get("data", [])
-        if data:
-            periodo, valor = data[0][0], data[0][1]   # e.g. ["2026-03-01", 3.7]
-            _ipc_cache.update({"valor": float(valor), "periodo": periodo[:7], "ts": ahora})
+        if len(data) >= 2:
+            periodo   = data[0][0]          # e.g. "2026-03-01"
+            idx_nuevo = float(data[0][1])   # nivel más reciente
+            idx_ant   = float(data[1][1])   # nivel mes anterior
+            variacion = (idx_nuevo - idx_ant) / idx_ant * 100
+            _ipc_cache.update({"valor": round(variacion, 2), "periodo": periodo[:7], "ts": ahora})
+            logger.info("IPC INDEC %s: %.2f%% (%.4f → %.4f)", periodo[:7], variacion, idx_ant, idx_nuevo)
     except Exception as exc:
         logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
-        # Fallback al valor del .env
+        # Fallback al valor del .env solo si el caché está vacío
         if not _ipc_cache.get("valor"):
             _ipc_cache.update({
                 "valor": config.inflacion_mensual * 100,
