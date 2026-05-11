@@ -54,9 +54,9 @@ export default function CashFlowCards({ metricas: m }: Props) {
   }, [sheetTipo]);
 
   const turnosCobradosMes = diferidos.filter(t => {
-    const f = t.fecha_cobro_efectivo
-      ? new Date(t.fecha_cobro_efectivo + "T00:00:00")
-      : null;
+    // Usa fecha_cobro_efectivo si existe, sino cae a fecha_turno
+    const fechaRef = t.fecha_cobro_efectivo ?? t.fecha_turno;
+    const f = fechaRef ? new Date(fechaRef + "T00:00:00") : null;
     return f && f >= primerDiaMes && f < primerSigMes;
   });
 
