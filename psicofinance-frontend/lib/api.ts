@@ -150,6 +150,11 @@ export function aprobarBorrador(datos: {
 // CRUD de turnos
 // ---------------------------------------------------------------------------
 
+/** Lista turnos filtrados por estado. */
+export function getTurnosDiferidos(): Promise<TurnoRead[]> {
+  return get<TurnoRead[]>('/turnos/?estado=DIFERIDO&limit=200');
+}
+
 /** Actualiza parcialmente un turno (monto, estado, prepaga, etc.). */
 export function actualizarTurno(id: string, datos: TurnoUpdatePayload): Promise<TurnoRead> {
   return patch<TurnoRead>(`/turnos/${id}`, datos);

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { ArrowUp, Paperclip, X, Sparkles } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { ArrowUp, Paperclip, X, Sparkles, Command } from "lucide-react";
 import { enviarMensajeChat, procesarComprobante } from "@/lib/api";
 import type { ChatResponse, DatosBorrador } from "@/lib/types";
 import BorradorAprobacion from "./BorradorAprobacion";
@@ -14,6 +14,9 @@ const SUGERENCIAS = [
   "¿Cuánto cobré este mes?",
 ];
 
+// Detectar Mac para mostrar ⌘ o Ctrl
+const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+
 export default function NLPInput({ onTurnoCreado }: Props) {
   const [texto, setTexto]         = useState("");
   const [adjunto, setAdjunto]     = useState(false);
@@ -21,8 +24,21 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   const [respuesta, setRespuesta] = useState<ChatResponse | null>(null);
   const [borrador, setBorrador]   = useState<DatosBorrador | null>(null);
   const [error, setError]         = useState<string | null>(null);
+  const [focused, setFocused]     = useState(false);
   const inputFileRef = useRef<HTMLInputElement>(null);
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
+
+  // Atajo de teclado CMD+K / Ctrl+K para enfocar el input
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        textareaRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
@@ -71,26 +87,42 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   const idle = !respuesta && !error && !adjunto;
 
   return (
-    <section className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5">
-
-      {/* ── Cabecera con gradiente ── */}
-      <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-5 pt-4 pb-4">
+    <section
+      className={`overflow-hidden rounded-2xl transition-all duration-200 ${
+        focused
+          ? "shadow-lg shadow-indigo-500/10 ring-2 ring-indigo-400/40"
+          : "shadow-sm ring-1 ring-black/5"
+      }`}
+    >
+      {/* ── Cabecera CMD+K ── */}
+      <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/25 ring-1 ring-indigo-500/30">
-              <Sparkles className="h-4 w-4 text-indigo-400" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/20 ring-1 ring-indigo-400/30">
+              <Sparkles className="h-4 w-4 text-indigo-300" />
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Copiloto Financiero</p>
-              <p className="text-xs text-white/40">Registrá turnos o consultá tus finanzas</p>
+              <p className="text-[11px] text-white/40">Registrá turnos o consultá tus finanzas</p>
             </div>
           </div>
-          {cargando && (
-            <span className="flex items-center gap-1.5 text-xs text-white/40">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
-              Analizando…
-            </span>
-          )}
+
+          <div className="flex items-center gap-2">
+            {cargando && (
+              <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
+                Analizando…
+              </span>
+            )}
+            {/* Badge de atajo de teclado */}
+            <div className="hidden sm:flex items-center gap-0.5 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5">
+              {isMac
+                ? <Command className="h-2.5 w-2.5 text-white/30" />
+                : <span className="text-[10px] text-white/30 font-mono">Ctrl</span>
+              }
+              <span className="text-[10px] text-white/30 font-mono">K</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -99,12 +131,12 @@ export default function NLPInput({ onTurnoCreado }: Props) {
 
         {/* Chips de sugerencia */}
         {idle && (
-          <div className="flex flex-wrap gap-2 px-5 pt-4 pb-3">
+          <div className="flex flex-wrap gap-2 px-4 pt-3 pb-2">
             {SUGERENCIAS.map((s) => (
               <button
                 key={s}
                 onClick={() => usarSugerencia(s)}
-                className="rounded-full border border-indigo-100 bg-indigo-50/60 px-3 py-1.5 text-xs text-indigo-700/70 transition-colors hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700"
+                className="rounded-full border border-indigo-100 bg-indigo-50/60 px-3 py-1 text-xs text-indigo-600/70 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm"
               >
                 {s}
               </button>
@@ -167,8 +199,10 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           </div>
         )}
 
-        {/* Barra de input */}
-        <div className="flex items-end gap-2 border-t border-neutral-100 bg-white px-3 py-2.5">
+        {/* Barra de input — estilo command palette */}
+        <div className={`flex items-end gap-2 px-3 py-2.5 transition-colors ${
+          idle ? "border-t border-neutral-100" : "border-t border-neutral-100"
+        }`}>
           <button
             onClick={() => setAdjunto(v => !v)}
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
@@ -184,12 +218,21 @@ export default function NLPInput({ onTurnoCreado }: Props) {
             value={texto}
             onChange={e => { setTexto(e.target.value); autoResize(e.target); }}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }}}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder="Ej: ¿Cuánto cobré en marzo? ¿Cuándo vence Valentina?"
             rows={1}
             disabled={cargando}
             className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none disabled:opacity-40"
             style={{ maxHeight: "112px" }}
           />
+
+          {/* Hint Enter */}
+          {texto.trim() && !cargando && (
+            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
+              ↵
+            </span>
+          )}
 
           {cargando && (
             <span className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center">
