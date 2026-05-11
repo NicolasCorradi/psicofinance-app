@@ -47,7 +47,7 @@ def listar_turnos(
 ) -> list[dict]:
     params: dict = {"order": "fecha_turno.desc", "offset": str(offset), "limit": str(limit)}
     if estado:
-        params["estado"] = f"eq.{estado}"
+        params["estado"] = f"eq.{estado.value if hasattr(estado, 'value') else estado}"
     if desde:
         params["fecha_turno"] = f"gte.{desde.isoformat()}"
     if hasta:
