@@ -72,7 +72,7 @@ export default function InflacionWidget({ metricas: m }: Props) {
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
             varPct >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
           }`}>
-            {varPct >= 0 ? "+" : ""}{varPct.toFixed(0)}% cobrado
+            {varPct >= 0 ? "+" : ""}{varPct.toFixed(0)}% vs mes ant.
           </span>
         )}
       </div>

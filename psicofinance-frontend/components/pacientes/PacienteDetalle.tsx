@@ -65,6 +65,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   const [editando,  setEditando]  = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [form, setForm] = useState<EditForm>({ nombre: "", apellido: "", email: "", honorario: "" });
 
   useEffect(() => {
@@ -118,13 +119,14 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       onClose();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
-      alert(msg.includes("409") || msg.includes("turnos")
-        ? "No se puede eliminar: el paciente tiene turnos registrados."
-        : "Error al eliminar el paciente."
+      setErrorEliminar(
+        msg.includes("409") || msg.includes("turnos")
+          ? "No se puede eliminar: el paciente tiene turnos registrados."
+          : "Error al eliminar. Intentá de nuevo."
       );
+      setConfirmarEliminar(false);
     } finally {
       setGuardando(false);
-      setConfirmarEliminar(false);
     }
   }
 
@@ -347,7 +349,12 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
 
         {/* Footer */}
         {!cargando && detalle && (
-          <div className="border-t border-neutral-100 px-5 py-3 bg-white">
+          <div className="border-t border-neutral-100 px-5 py-3 bg-white space-y-2">
+            {errorEliminar && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-500 ring-1 ring-red-100">
+                {errorEliminar}
+              </p>
+            )}
             {confirmarEliminar ? (
               <div className="flex items-center gap-2">
                 <p className="flex-1 text-xs text-red-500">¿Eliminar a {detalle.nombre}? No se puede deshacer.</p>
@@ -367,7 +374,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
               </div>
             ) : (
               <button
-                onClick={() => setConfirmarEliminar(true)}
+                onClick={() => { setErrorEliminar(null); setConfirmarEliminar(true); }}
                 className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-red-500 transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5" />

@@ -39,6 +39,8 @@ export default function CashFlowCards({ metricas: m }: Props) {
 
   useEffect(() => {
     if (!sheetTipo) return;
+    // Reset inmediato para evitar flash de datos del sheet anterior
+    setDiferidos([]);
     setCargandoSheet(true);
     if (sheetTipo === "cobrado_mes") {
       getTurnosCobradosMes()

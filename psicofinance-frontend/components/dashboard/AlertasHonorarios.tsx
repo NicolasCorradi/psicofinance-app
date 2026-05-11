@@ -84,7 +84,7 @@ export default function AlertasHonorarios() {
               <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
                 a.alto ? "bg-red-50 text-red-500 ring-1 ring-red-100" : "bg-amber-50 text-amber-600 ring-1 ring-amber-100"
               }`}>
-                +{a.pct}%
+                +{Math.round(a.pct)}%
               </span>
             </div>
           ))}

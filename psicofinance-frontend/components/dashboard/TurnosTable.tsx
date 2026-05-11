@@ -101,6 +101,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
   const [editandoId,    setEditandoId]    = useState<string | null>(null);
   const [eliminandoId,  setEliminandoId]  = useState<string | null>(null);
   const [guardando,     setGuardando]     = useState(false);
+  const [errorMsg,      setErrorMsg]      = useState<string | null>(null);
   const [editForm,      setEditForm]      = useState<EditForm>({ monto: "", estado: "COBRADO", prepaga: "" });
 
   function iniciarEdicion(t: TurnoResumen) {
@@ -122,6 +123,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
     const monto = parseFloat(editForm.monto.replace(",", "."));
     if (isNaN(monto) || monto <= 0) return;
     setGuardando(true);
+    setErrorMsg(null);
     try {
       await actualizarTurno(id, {
         monto,
@@ -130,6 +132,8 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
       });
       setEditandoId(null);
       onRefresh();
+    } catch {
+      setErrorMsg("No se pudo guardar. Intentá de nuevo.");
     } finally {
       setGuardando(false);
     }
@@ -137,10 +141,14 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
   async function confirmarEliminacion(id: string) {
     setGuardando(true);
+    setErrorMsg(null);
     try {
       await eliminarTurno(id);
       setEliminandoId(null);
       onRefresh();
+    } catch {
+      setEliminandoId(null);
+      setErrorMsg("No se pudo eliminar el turno.");
     } finally {
       setGuardando(false);
     }
@@ -156,6 +164,11 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
           <span className="text-xs text-neutral-300">{turnos.length} registros</span>
         )}
       </div>
+      {errorMsg && (
+        <div className="mx-5 mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-500 ring-1 ring-red-100">
+          {errorMsg}
+        </div>
+      )}
 
       {cargando && (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-neutral-400">

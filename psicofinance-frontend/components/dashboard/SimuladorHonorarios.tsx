@@ -32,7 +32,7 @@ export default function SimuladorHonorarios() {
   const diferencia    = ingresoNuevo - ingresoActual;
 
   // Top pacientes para mostrar la tabla de simulación
-  const topPacientes = conHonorario
+  const topPacientes = [...conHonorario]
     .sort((a, b) => (b.honorario_actual ?? 0) - (a.honorario_actual ?? 0))
     .slice(0, 6);
 
