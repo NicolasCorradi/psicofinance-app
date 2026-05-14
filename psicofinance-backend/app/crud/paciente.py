@@ -75,13 +75,16 @@ def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
         if pid not in stats:
             stats[pid] = {"total": 0, "ultima": None, "cobrado": 0.0, "pendiente": 0.0, "mes": 0}
         s = stats[pid]
+        estado = t.get("estado", "")
+        monto = float(t.get("monto") or 0)
+        ft = _parse_date(t.get("fecha_turno"))
+        # total_sesiones excluye inasistencias sin cobro real
         if estado != "INCOBRABLE":
             s["total"] += 1
-        ft = _parse_date(t.get("fecha_turno"))
-        if ft and (s["ultima"] is None or ft > s["ultima"]):
-            s["ultima"] = ft
-        monto = float(t.get("monto") or 0)
-        estado = t.get("estado", "")
+        # ultima_sesion solo cuenta sesiones reales (no inasistencias)
+        if estado in ("COBRADO", "DIFERIDO"):
+            if ft and (s["ultima"] is None or ft > s["ultima"]):
+                s["ultima"] = ft
         if estado == "COBRADO":
             s["cobrado"] += monto
         elif estado == "DIFERIDO":
@@ -119,7 +122,9 @@ def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID) -> d
 
     hoy = date.today()
     mes_actual = hoy.strftime("%Y-%m")
-    ultima = _parse_date(turnos[0]["fecha_turno"]) if turnos else None
+    # ultima_sesion solo cuenta sesiones reales (COBRADO o DIFERIDO), no inasistencias
+    turnos_reales = [t for t in turnos if t.get("estado") in ("COBRADO", "DIFERIDO")]
+    ultima = _parse_date(turnos_reales[0]["fecha_turno"]) if turnos_reales else None
     dias = (hoy - ultima).days if ultima else None
 
     cobrado = sum(float(t["monto"] or 0) for t in turnos if t.get("estado") == "COBRADO")

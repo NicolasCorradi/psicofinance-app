@@ -75,9 +75,9 @@ export default function ReportesPage() {
   const totalRanking = topPacientes.reduce((s, p) => s + p.cobrado_total, 0);
 
   const distribucion = useMemo(() => ({
-    activos:   pacientes.filter(p => (p.dias_inactivo ?? 999) <= 30).length,
-    moderados: pacientes.filter(p => (p.dias_inactivo ?? 999) > 30 && (p.dias_inactivo ?? 0) <= 90).length,
-    inactivos: pacientes.filter(p => (p.dias_inactivo ?? 0) > 90).length,
+    activos:   pacientes.filter(p => p.sesiones_mes > 0).length,
+    moderados: pacientes.filter(p => p.sesiones_mes === 0 && (p.dias_inactivo ?? 999) <= 90).length,
+    inactivos: pacientes.filter(p => p.sesiones_mes === 0 && (p.dias_inactivo ?? 999) > 90).length,
     total:     pacientes.length,
   }), [pacientes]);
 
@@ -106,7 +106,7 @@ export default function ReportesPage() {
           { icon: DollarSign, label: "Facturado 12m",    value: kpis ? fmtPesos(kpis.cobradoAno)   : "—", gradient: "from-emerald-400 to-teal-500",  color: "text-emerald-600", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
           { icon: Calendar,   label: "Promedio mensual", value: kpis ? fmtPesos(kpis.promedioMes)  : "—", gradient: "from-indigo-400 to-violet-500",  color: "text-indigo-600",  iconBg: "bg-indigo-100",  iconColor: "text-indigo-600"  },
           { icon: TrendingUp, label: "Ticket promedio",  value: kpis ? fmtPesos(kpis.ticket)       : "—", gradient: "from-amber-400 to-orange-400",   color: "text-amber-600",   iconBg: "bg-amber-100",   iconColor: "text-amber-600"   },
-          { icon: Users,      label: "Pacientes activos",value: kpis ? `${kpis.activos} / ${pacientes.length}` : "—", gradient: "from-cyan-400 to-blue-500", color: "text-cyan-600", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" },
+          { icon: Users,      label: "Activos este mes", value: kpis ? `${kpis.activos} / ${pacientes.length}` : "—", gradient: "from-cyan-400 to-blue-500", color: "text-cyan-600", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" },
         ].map(({ icon: Icon, label, value, gradient, color, iconBg, iconColor }) => (
           <div key={label} className="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
             <div className={`h-1 bg-gradient-to-r ${gradient}`} />
@@ -265,9 +265,9 @@ function RankingPacientes({ top, total, cargando }: { top: PacienteConStats[]; t
 function DistribucionActividad({ d, cargando }: { d: { activos: number; moderados: number; inactivos: number; total: number }; cargando: boolean }) {
   const total = d.total || 1;
   const segs = [
-    { label: "Activos (≤30 días)",   n: d.activos,   color: "bg-emerald-500", text: "text-emerald-600", desc: "Vienen este mes" },
-    { label: "Moderados (31-90)",    n: d.moderados, color: "bg-amber-400",   text: "text-amber-600",   desc: "Hace tiempo no vienen" },
-    { label: "Inactivos (>90 días)", n: d.inactivos, color: "bg-red-400",     text: "text-red-500",     desc: "Posiblemente perdidos" },
+    { label: "Activos este mes",     n: d.activos,   color: "bg-emerald-500", text: "text-emerald-600", desc: "Tuvieron sesión este mes" },
+    { label: "Sin sesión (<90d)",    n: d.moderados, color: "bg-amber-400",   text: "text-amber-600",   desc: "Sin sesión este mes, pero recientes" },
+    { label: "Inactivos (>90 días)", n: d.inactivos, color: "bg-red-400",     text: "text-red-500",     desc: "Sin sesión hace más de 3 meses" },
   ];
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
