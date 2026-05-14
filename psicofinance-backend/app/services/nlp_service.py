@@ -68,9 +68,9 @@ Reglas:
 Ejemplo: {"paciente":"Martín","monto":10000,"es_prepaga":false,"obra_social":null,"fecha":"2025-04-24","confianza":"alta"}"""
 
 PROMPT_CONSULTA = """Sos el copiloto financiero de PsicoFinance, una app para psicólogos independientes en Argentina.
-Respondé la pregunta del psicólogo de forma clara, concisa y en español rioplatense (tuteá).
+Respondé la pregunta del psicólogo de forma clara y útil, en español rioplatense (tuteá).
 Usá los datos financieros provistos como contexto. Si la pregunta no tiene respuesta en los datos, decilo honestamente.
-No inventes datos. Respondé en 1-3 oraciones máximo. Sin markdown."""
+No inventes datos. Podés responder en hasta 4 oraciones. Sin markdown."""
 
 
 # ── Función de clasificación ──────────────────────────────────────────────────
@@ -133,7 +133,7 @@ def responder_consulta(texto: str, contexto: dict) -> str:
             config=types.GenerateContentConfig(
                 system_instruction=PROMPT_CONSULTA,
                 temperature=0.3,
-                max_output_tokens=256,
+                max_output_tokens=600,
             ),
         )
         return resp.text.strip()

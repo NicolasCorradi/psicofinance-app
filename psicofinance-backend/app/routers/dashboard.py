@@ -76,7 +76,7 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
 
     # Traer todos los turnos de una sola llamada
     turnos = sb.select("turnos", {
-        "select": "id,paciente_id,fecha_turno,monto,estado,origen_pago,prepaga,fecha_cobro_estimada,fecha_cobro_efectivo",
+        "select": "id,paciente_id,fecha_turno,monto,estado,origen_pago,prepaga,fecha_cobro_estimada,fecha_cobro_efectivo,medio_pago,tipo_sesion",
     })
 
     # Traer pacientes para join en Python
@@ -107,18 +107,17 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
                 honorario_count += 1
 
         if estado == "DIFERIDO":
-            if fecha_cobro_est:
-                if primer_dia_mes <= fecha_cobro_est < primer_dia_mes_sig:
+            # "En camino": sesión de este mes, todavía puede pagar
+            # "Sin cobrar": sesión de meses anteriores, vencida
+            if fecha_turno:
+                if primer_dia_mes <= fecha_turno < primer_dia_mes_sig:
                     en_camino_mes += monto
-                elif fecha_cobro_est < primer_dia_mes:
-                    deudores += monto
-            else:
-                # Sin fecha estimada: si la sesión es de un mes anterior → deudor
-                if fecha_turno and fecha_turno < primer_dia_mes:
+                elif fecha_turno < primer_dia_mes:
                     deudores += monto
             turnos_diferidos.append(t)
 
-        if fecha_turno and primer_dia_mes <= fecha_turno < primer_dia_mes_sig:
+        # Sesiones del mes (excluye INCOBRABLE — no fue sesión real)
+        if estado != "INCOBRABLE" and fecha_turno and primer_dia_mes <= fecha_turno < primer_dia_mes_sig:
             total_turnos_mes += 1
 
         ultimos_turnos_raw.append(t)
@@ -169,6 +168,8 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
             "prepaga": t.get("prepaga"),
             "fecha_cobro_estimada": fest.isoformat() if fest else None,
             "fecha_cobro_efectivo": fe.isoformat() if fe else None,
+            "medio_pago": t.get("medio_pago"),
+            "tipo_sesion": t.get("tipo_sesion") or "SESION",
         })
 
     # Ventas de los últimos 6 meses

@@ -75,7 +75,10 @@ function EditarHonorario({
     if (!num || num <= 0) { setError("Ingresá un monto válido"); return; }
     setGuardando(true);
     try {
-      await actualizarPaciente(paciente.id, { honorario_actual: num });
+      await actualizarPaciente(paciente.id, {
+        honorario_actual: num,
+        fecha_ultimo_ajuste_honorario: new Date().toISOString().split("T")[0],
+      });
       onGuardado();
       onCerrar();
     } catch {
@@ -143,7 +146,7 @@ function EditarHonorario({
 
 // ── Tipos de orden ────────────────────────────────────────────────────────────
 
-type OrdenCampo = "apellido" | "pendiente" | "ultima_sesion";
+type OrdenCampo = "apellido" | "pendiente" | "ultima_sesion" | "honorario_actual" | "total_sesiones";
 type OrdenDir   = "asc" | "desc";
 
 // ── Página principal ──────────────────────────────────────────────────────────
@@ -197,6 +200,12 @@ export default function PacientesPage() {
         if (!a.ultima_sesion) return 1;
         if (!b.ultima_sesion) return -1;
         return mult * (new Date(a.ultima_sesion).getTime() - new Date(b.ultima_sesion).getTime());
+      }
+      if (ordenCampo === "honorario_actual") {
+        return mult * ((a.honorario_actual ?? 0) - (b.honorario_actual ?? 0));
+      }
+      if (ordenCampo === "total_sesiones") {
+        return mult * (a.total_sesiones - b.total_sesiones);
       }
       return 0;
     });
@@ -278,7 +287,7 @@ export default function PacientesPage() {
         ) : (
           <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
             {/* Header de tabla */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
               <button
                 onClick={() => toggleOrden("apellido")}
                 className="flex items-center gap-1 hover:text-neutral-700 transition-colors text-left"
@@ -287,10 +296,16 @@ export default function PacientesPage() {
               </button>
               <span className="hidden sm:block">Estado</span>
               <button
-                onClick={() => toggleOrden("ultima_sesion")}
-                className="hidden sm:flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                onClick={() => toggleOrden("total_sesiones")}
+                className="hidden md:flex items-center gap-1 hover:text-neutral-700 transition-colors"
               >
-                Última sesión <SortIcon campo="ultima_sesion" />
+                Sesiones <SortIcon campo="total_sesiones" />
+              </button>
+              <button
+                onClick={() => toggleOrden("honorario_actual")}
+                className="hidden md:flex items-center gap-1 hover:text-neutral-700 transition-colors"
+              >
+                Honorario <SortIcon campo="honorario_actual" />
               </button>
               <button
                 onClick={() => toggleOrden("pendiente")}
@@ -305,7 +320,7 @@ export default function PacientesPage() {
             {filtradosOrdenados.map(p => (
               <div
                 key={p.id}
-                className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-50 px-4 py-3 transition-colors last:border-0 hover:bg-neutral-50/60"
+                className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-50 px-4 py-3 transition-colors last:border-0 hover:bg-neutral-50/60"
               >
                 {/* Paciente */}
                 <button
@@ -331,9 +346,14 @@ export default function PacientesPage() {
                   <EstadoBadge p={p} />
                 </div>
 
-                {/* Última sesión */}
-                <span className="hidden sm:block text-xs text-neutral-500 tabular-nums whitespace-nowrap">
-                  {fechaRel(p.ultima_sesion)}
+                {/* Sesiones totales */}
+                <span className="hidden md:block text-xs text-neutral-500 tabular-nums text-center">
+                  {p.total_sesiones}
+                </span>
+
+                {/* Honorario */}
+                <span className="hidden md:block text-xs text-neutral-500 tabular-nums whitespace-nowrap">
+                  {p.honorario_actual ? fmtPesosExacto(p.honorario_actual) : "—"}
                 </span>
 
                 {/* Pendiente */}

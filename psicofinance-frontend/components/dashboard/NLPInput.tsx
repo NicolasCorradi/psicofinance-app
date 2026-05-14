@@ -1,12 +1,20 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Paperclip, X, Sparkles, Command } from "lucide-react";
+import { ArrowUp, Paperclip, X, Sparkles, Command, RotateCcw } from "lucide-react";
 import { enviarMensajeChat, procesarComprobante } from "@/lib/api";
-import type { ChatResponse, DatosBorrador } from "@/lib/types";
+import type { ChatResponse, DatosBorrador, DatosExtraidos } from "@/lib/types";
 import BorradorAprobacion from "./BorradorAprobacion";
 
 interface Props { onTurnoCreado?: () => void }
+
+type Mensaje = {
+  tipo:           "user" | "bot";
+  texto:          string;
+  accion?:        string;
+  datos?:         DatosExtraidos | null;
+  pacienteNuevo?: boolean;
+};
 
 const SUGERENCIAS = [
   "Atendí a Valentina hoy, $22.000 en efectivo",
@@ -14,21 +22,22 @@ const SUGERENCIAS = [
   "¿Cuánto cobré este mes?",
 ];
 
-// Detectar Mac para mostrar ⌘ o Ctrl
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 
 export default function NLPInput({ onTurnoCreado }: Props) {
-  const [texto, setTexto]         = useState("");
-  const [adjunto, setAdjunto]     = useState(false);
-  const [cargando, setCargando]   = useState(false);
-  const [respuesta, setRespuesta] = useState<ChatResponse | null>(null);
-  const [borrador, setBorrador]   = useState<DatosBorrador | null>(null);
-  const [error, setError]         = useState<string | null>(null);
-  const [focused, setFocused]     = useState(false);
+  const [texto,    setTexto]    = useState("");
+  const [adjunto,  setAdjunto]  = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
+  const [borrador, setBorrador] = useState<DatosBorrador | null>(null);
+  const [error,    setError]    = useState<string | null>(null);
+  const [focused,  setFocused]  = useState(false);
+
   const inputFileRef = useRef<HTMLInputElement>(null);
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
+  const chatEndRef   = useRef<HTMLDivElement>(null);
 
-  // Atajo de teclado CMD+K / Ctrl+K para enfocar el input
+  // CMD+K / Ctrl+K para enfocar
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -40,6 +49,13 @@ export default function NLPInput({ onTurnoCreado }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Auto-scroll al último mensaje
+  useEffect(() => {
+    if (mensajes.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [mensajes]);
+
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
@@ -48,22 +64,45 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   const enviar = async () => {
     const msg = texto.trim();
     if (!msg || cargando) return;
-    setCargando(true); setError(null);
+
+    const msgUsuario: Mensaje = { tipo: "user", texto: msg };
+    setMensajes(prev => [...prev, msgUsuario]);
+    setTexto("");
+    setError(null);
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    setCargando(true);
     try {
-      const res = await enviarMensajeChat(msg);
-      setRespuesta(res); setTexto("");
-      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      const res: ChatResponse = await enviarMensajeChat(msg);
+      const msgBot: Mensaje = {
+        tipo:           "bot",
+        texto:          res.confirmacion,
+        accion:         res.accion,
+        datos:          res.datos_extraidos,
+        pacienteNuevo:  res.paciente_nuevo,
+      };
+      setMensajes(prev => [...prev, msgBot]);
       if (res.accion === "turno_registrado") onTurnoCreado?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al conectar.");
-    } finally { setCargando(false); }
+      // Quitar el mensaje del usuario si falló
+      setMensajes(prev => prev.slice(0, -1));
+    } finally {
+      setCargando(false);
+    }
   };
 
   const procesarArchivo = useCallback(async (f: File) => {
     setCargando(true); setError(null); setAdjunto(false);
-    try { setBorrador(await procesarComprobante(f)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Error al analizar."); }
-    finally { setCargando(false); }
+    try {
+      const b = await procesarComprobante(f);
+      setBorrador(b);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error al analizar el comprobante.";
+      setError(`No se pudo leer el comprobante: ${msg}`);
+    } finally {
+      setCargando(false);
+    }
   }, []);
 
   const usarSugerencia = (s: string) => {
@@ -76,6 +115,12 @@ export default function NLPInput({ onTurnoCreado }: Props) {
     }, 0);
   };
 
+  const limpiar = () => {
+    setMensajes([]);
+    setError(null);
+    textareaRef.current?.focus();
+  };
+
   if (borrador) return (
     <BorradorAprobacion
       borrador={borrador}
@@ -84,7 +129,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
     />
   );
 
-  const idle = !respuesta && !error && !adjunto;
+  const hayConversacion = mensajes.length > 0;
 
   return (
     <section
@@ -94,7 +139,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           : "shadow-sm ring-1 ring-black/5"
       }`}
     >
-      {/* ── Cabecera CMD+K ── */}
+      {/* Cabecera */}
       <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -114,7 +159,15 @@ export default function NLPInput({ onTurnoCreado }: Props) {
                 Analizando…
               </span>
             )}
-            {/* Badge de atajo de teclado */}
+            {hayConversacion && !cargando && (
+              <button
+                onClick={limpiar}
+                className="flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                title="Limpiar conversación"
+              >
+                <RotateCcw className="h-2.5 w-2.5" /> Limpiar
+              </button>
+            )}
             <div className="hidden sm:flex items-center gap-0.5 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5">
               {isMac
                 ? <Command className="h-2.5 w-2.5 text-white/30" />
@@ -126,11 +179,39 @@ export default function NLPInput({ onTurnoCreado }: Props) {
         </div>
       </div>
 
-      {/* ── Cuerpo ── */}
+      {/* Cuerpo */}
       <div className="bg-white">
 
-        {/* Chips de sugerencia */}
-        {idle && (
+        {/* Historial de conversación */}
+        {hayConversacion && (
+          <div className="max-h-72 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+            {mensajes.map((m, i) => (
+              <div key={i} className={`flex ${m.tipo === "user" ? "justify-end" : "justify-start"}`}>
+                {m.tipo === "user" ? (
+                  <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-indigo-600 px-3.5 py-2.5">
+                    <p className="text-sm text-white">{m.texto}</p>
+                  </div>
+                ) : (
+                  <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-indigo-50 px-3.5 py-2.5 ring-1 ring-indigo-100">
+                    <p className="text-sm leading-relaxed text-neutral-800">{m.texto}</p>
+                    {m.accion === "turno_registrado" && m.datos && m.datos.paciente !== "Sin identificar" && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Tag>{m.datos.paciente}</Tag>
+                        <Tag color="emerald">${m.datos.monto.toLocaleString("es-AR")}</Tag>
+                        {m.datos.obra_social && <Tag>{m.datos.obra_social}</Tag>}
+                        {m.pacienteNuevo && <Tag color="blue">Paciente nuevo</Tag>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+        )}
+
+        {/* Chips de sugerencia (solo si no hay conversación) */}
+        {!hayConversacion && (
           <div className="flex flex-wrap gap-2 px-4 pt-3 pb-2">
             {SUGERENCIAS.map((s) => (
               <button
@@ -144,37 +225,11 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           </div>
         )}
 
-        {/* Burbuja de respuesta */}
-        {respuesta && (
-          <div className="px-4 pt-4 pb-2">
-            <div className="max-w-[92%] rounded-2xl rounded-tl-sm bg-indigo-50 px-4 py-3 ring-1 ring-indigo-100">
-              <p className="text-sm leading-relaxed text-neutral-800">{respuesta.confirmacion}</p>
-              {respuesta.accion === "turno_registrado" && respuesta.datos_extraidos && respuesta.datos_extraidos.paciente !== "Sin identificar" && (
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  <Tag>{respuesta.datos_extraidos.paciente}</Tag>
-                  <Tag color="emerald">
-                    ${respuesta.datos_extraidos.monto.toLocaleString("es-AR")}
-                  </Tag>
-                  {respuesta.datos_extraidos.obra_social && (
-                    <Tag>{respuesta.datos_extraidos.obra_social}</Tag>
-                  )}
-                  {respuesta.paciente_nuevo && <Tag color="blue">Paciente nuevo</Tag>}
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => setRespuesta(null)}
-              className="mt-1.5 text-xs text-neutral-400 hover:text-neutral-600"
-            >
-              Nuevo mensaje
-            </button>
-          </div>
-        )}
-
         {/* Error */}
         {error && (
           <div className="mx-4 mt-3 mb-1 rounded-xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100">
-            <p className="text-xs text-red-500">{error}</p>
+            <p className="text-xs text-red-600">{error}</p>
+            <button onClick={() => setError(null)} className="mt-1 text-[10px] text-red-400 hover:text-red-600">Cerrar</button>
           </div>
         )}
 
@@ -199,10 +254,8 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           </div>
         )}
 
-        {/* Barra de input — estilo command palette */}
-        <div className={`flex items-end gap-2 px-3 py-2.5 transition-colors ${
-          idle ? "border-t border-neutral-100" : "border-t border-neutral-100"
-        }`}>
+        {/* Barra de input */}
+        <div className={`flex items-end gap-2 px-3 py-2.5 border-t ${hayConversacion ? "border-neutral-100" : "border-neutral-100"}`}>
           <button
             onClick={() => setAdjunto(v => !v)}
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
@@ -220,14 +273,13 @@ export default function NLPInput({ onTurnoCreado }: Props) {
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }}}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Ej: ¿Cuánto cobré en marzo? ¿Cuándo vence Valentina?"
+            placeholder={hayConversacion ? "Continuá la consulta…" : "Ej: ¿Cuánto cobré en marzo?"}
             rows={1}
             disabled={cargando}
             className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none disabled:opacity-40"
             style={{ maxHeight: "112px" }}
           />
 
-          {/* Hint Enter */}
           {texto.trim() && !cargando && (
             <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
               ↵

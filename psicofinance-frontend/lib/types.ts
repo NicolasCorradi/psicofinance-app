@@ -4,6 +4,8 @@ export type EstadoTurno   = 'COBRADO' | 'DIFERIDO' | 'INCOBRABLE';
 export type OrigenPago    = 'DIRECTO' | 'PREPAGA';
 export type Confianza     = 'alta' | 'media' | 'baja';
 export type EstadoSemaforo = 'VERDE' | 'AMARILLO' | 'ROJO';
+export type MedioPago     = 'EFECTIVO' | 'TRANSFERENCIA' | 'MERCADO_PAGO' | 'TARJETA' | 'OTRO';
+export type TipoSesion    = 'SESION' | 'INASISTENCIA_JUSTIFICADA' | 'INASISTENCIA_INJUSTIFICADA' | 'CANCELACION_PROFESIONAL';
 
 // ── Semáforo Monotributo ─────────────────────────────────────────────────────
 export interface ResultadoSemaforo {
@@ -45,6 +47,8 @@ export interface TurnoRead {
   fecha_cobro_estimada:  string | null;
   fecha_cobro_efectivo:  string | null;
   prepaga:               string | null;
+  medio_pago:            MedioPago | null;
+  tipo_sesion:           TipoSesion;
   created_at:            string;
   updated_at:            string;
 }
@@ -60,6 +64,8 @@ export interface TurnoResumen {
   prepaga:               string | null;
   fecha_cobro_estimada:  string | null;
   fecha_cobro_efectivo:  string | null;
+  medio_pago:            MedioPago | null;
+  tipo_sesion:           TipoSesion;
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -121,6 +127,8 @@ export interface TurnoEnDetalle {
   prepaga:              string | null;
   fecha_cobro_estimada: string | null;
   fecha_cobro_efectivo: string | null;
+  medio_pago:           MedioPago | null;
+  tipo_sesion:          TipoSesion;
   created_at:           string;
 }
 
@@ -151,6 +159,8 @@ export interface TurnoUpdatePayload {
   prepaga?:              string | null;
   fecha_cobro_efectivo?: string | null;
   fecha_cobro_estimada?: string | null;
+  medio_pago?:           MedioPago | null;
+  tipo_sesion?:          TipoSesion;
 }
 
 // ── Comprobantes ─────────────────────────────────────────────────────────────

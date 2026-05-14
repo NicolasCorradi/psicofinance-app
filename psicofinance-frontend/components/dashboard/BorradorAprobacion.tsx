@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Check, AlertTriangle } from "lucide-react";
+import { FileText, Check, AlertTriangle, Pencil } from "lucide-react";
 import { aprobarBorrador } from "@/lib/api";
 import type { DatosBorrador } from "@/lib/types";
 
@@ -9,13 +9,6 @@ interface Props {
   borrador:    DatosBorrador;
   onAprobar:   () => void;
   onDescartar: () => void;
-}
-
-function fmtPesos(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
 }
 
 const CONFIANZA_CFG: Record<string, { label: string; cls: string; dot: string }> = {
@@ -27,14 +20,25 @@ const CONFIANZA_CFG: Record<string, { label: string; cls: string; dot: string }>
 export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }: Props) {
   const [aprobando, setAprobando] = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  const [editando, setEditando]   = useState(false);
+
+  // Campos editables
+  const [emisor, setEmisor] = useState(borrador.nombre_emisor || "");
+  const [monto,  setMonto]  = useState(String(borrador.monto));
+  const [fecha,  setFecha]  = useState(borrador.fecha);
 
   const aprobar = async () => {
+    const montoNum = parseFloat(monto.replace(",", "."));
+    if (!emisor.trim()) { setError("El nombre del paciente no puede estar vacío."); return; }
+    if (isNaN(montoNum) || montoNum <= 0) { setError("Ingresá un monto válido mayor a 0."); return; }
+    if (!fecha) { setError("La fecha no puede estar vacía."); return; }
+
     setAprobando(true); setError(null);
     try {
       await aprobarBorrador({
-        nombre_emisor: borrador.nombre_emisor,
-        monto:         borrador.monto,
-        fecha:         borrador.fecha,
+        nombre_emisor: emisor.trim(),
+        monto:         montoNum,
+        fecha,
       });
       onAprobar();
     } catch (e) {
@@ -58,30 +62,78 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Revisar comprobante</p>
-              <p className="text-[11px] text-white/40">Confirmá los datos extraídos</p>
+              <p className="text-[11px] text-white/40">Confirmá o editá los datos extraídos</p>
             </div>
           </div>
-          <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${conf.cls}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${conf.dot}`} />
-            Confianza {conf.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setEditando(v => !v)}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors ${
+                editando ? "bg-indigo-500/20 text-indigo-300" : "text-white/30 hover:text-white/60"
+              }`}
+            >
+              <Pencil className="h-3 w-3" /> Editar
+            </button>
+            <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${conf.cls}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${conf.dot}`} />
+              Confianza {conf.label}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Body */}
       <div className="bg-white p-5">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { l: "Emisor", v: borrador.nombre_emisor || "Sin detectar" },
-            { l: "Monto",  v: fmtPesos(borrador.monto), highlight: true },
-            { l: "Fecha",  v: new Date(borrador.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) },
-          ].map(({ l, v, highlight }) => (
-            <div key={l} className={`rounded-xl p-3 ring-1 ${highlight ? "bg-indigo-50 ring-indigo-100" : "bg-slate-50 ring-slate-100"}`}>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">{l}</p>
-              <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700" : "text-neutral-800"}`}>{v}</p>
+        {editando ? (
+          /* Modo edición */
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Paciente / Emisor</label>
+              <input
+                value={emisor}
+                onChange={e => setEmisor(e.target.value)}
+                className="rounded-xl border border-neutral-200 px-3 py-2 text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                placeholder="Nombre del paciente"
+              />
             </div>
-          ))}
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Monto $</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={monto}
+                  onChange={e => setMonto(e.target.value)}
+                  className="rounded-xl border border-neutral-200 px-3 py-2 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Fecha</label>
+                <input
+                  type="date"
+                  value={fecha}
+                  onChange={e => setFecha(e.target.value)}
+                  className="rounded-xl border border-neutral-200 px-3 py-2 text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Vista de datos extraídos */
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { l: "Paciente",  v: emisor || "Sin detectar" },
+              { l: "Monto",     v: `$ ${parseFloat(monto || "0").toLocaleString("es-AR")}`, highlight: true },
+              { l: "Fecha",     v: fecha ? new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "—" },
+            ].map(({ l, v, highlight }) => (
+              <div key={l} className={`rounded-xl p-3 ring-1 ${highlight ? "bg-indigo-50 ring-indigo-100" : "bg-slate-50 ring-slate-100"}`}>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">{l}</p>
+                <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700" : "text-neutral-800"}`}>{v}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {borrador.advertencia_monto && (
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 ring-1 ring-amber-100">

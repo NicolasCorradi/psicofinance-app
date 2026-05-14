@@ -58,19 +58,17 @@ export default function CashFlowCards({ metricas: m }: Props) {
   // cobrado_mes: el backend ya filtra por fecha_cobro_efectivo del mes actual
   const turnosCobradosMes = diferidos;
 
+  // "En camino" = sesión de este mes que todavía no cobró (el mes no terminó)
   const turnosEnCamino = diferidos.filter(t => {
-    if (!t.fecha_cobro_estimada) return false;
-    const f = new Date(t.fecha_cobro_estimada + "T00:00:00");
+    if (!t.fecha_turno) return false;
+    const f = new Date(t.fecha_turno + "T00:00:00");
     return f >= primerDiaMes && f < primerSigMes;
   });
 
+  // "Sin cobrar" = sesión de meses anteriores que no cobró (vencida)
   const turnosSinCobrar = diferidos.filter(t => {
-    if (!t.fecha_cobro_estimada) {
-      // Sin fecha estimada: solo si la sesión es de un mes anterior
-      const ft = t.fecha_turno ? new Date(t.fecha_turno + "T00:00:00") : null;
-      return ft ? ft < primerDiaMes : false;
-    }
-    const f = new Date(t.fecha_cobro_estimada + "T00:00:00");
+    if (!t.fecha_turno) return false;
+    const f = new Date(t.fecha_turno + "T00:00:00");
     return f < primerDiaMes;
   });
 
@@ -96,7 +94,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
       tipo:       "en_camino" as TipoSheet,
       titulo:     "En camino",
       valor:      m?.en_camino_mes ?? null,
-      sub:        "Prepagas pendientes",
+      sub:        "Sesiones pendientes de cobro",
       Icon:       Clock,
       iconBg:     "bg-amber-100",
       iconColor:  "text-amber-600",
@@ -108,7 +106,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
       tipo:       "sin_cobrar" as TipoSheet,
       titulo:     "Sin cobrar",
       valor:      m?.deudores ?? null,
-      sub:        hayDeuda ? "Pagos vencidos" : "Todo al día ✓",
+      sub:        hayDeuda ? "De meses anteriores" : "Todo al día ✓",
       Icon:       AlertCircle,
       iconBg:     hayDeuda ? "bg-red-100"     : "bg-emerald-100",
       iconColor:  hayDeuda ? "text-red-500"   : "text-emerald-600",
@@ -202,8 +200,8 @@ export default function CashFlowCards({ metricas: m }: Props) {
 function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoSheet, null> }) {
   const fechaLabel =
     tipo === "cobrado_mes" ? `Cobrado ${fmtFecha(t.fecha_cobro_efectivo)}` :
-    tipo === "en_camino"   ? `Cobro est. ${fmtFecha(t.fecha_cobro_estimada)}` :
-    t.fecha_cobro_estimada ? `Vencido ${fmtFecha(t.fecha_cobro_estimada)}` : "Sin fecha de cobro";
+    tipo === "en_camino"   ? `Sesión del mes en curso` :
+    `Sesión vencida`;
 
   const vencido = tipo === "sin_cobrar";
 
@@ -212,17 +210,18 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoShee
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-neutral-800">
-            {t.prepaga ?? "Directo"}
+            {t.paciente_nombre ?? t.prepaga ?? "Directo"}
           </span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
             tipo === "cobrado_mes" ? "bg-emerald-100 text-emerald-700" :
             vencido ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"
           }`}>
-            {tipo === "cobrado_mes" ? "Cobrado" : vencido ? "Vencido" : "En camino"}
+            {tipo === "cobrado_mes" ? "Cobrado" : vencido ? "Vencido" : "Este mes"}
           </span>
         </div>
         <span className="text-xs text-neutral-400">
-          Sesión {fmtFecha(t.fecha_turno)} · {fechaLabel}
+          {fmtFecha(t.fecha_turno)} · {fechaLabel}
+          {t.prepaga && <span className="ml-1">· {t.prepaga}</span>}
         </span>
       </div>
       <span className={`text-sm font-bold tabular-nums ${

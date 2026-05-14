@@ -5,18 +5,20 @@
 import uuid
 from datetime import date, datetime
 from pydantic import BaseModel, Field, model_validator
-from app.models.enums import EstadoTurno, OrigenPago
+from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion
 
 
 class TurnoBase(BaseModel):
     """Campos comunes a todas las operaciones sobre turnos."""
     paciente_id: uuid.UUID
     fecha_turno: date
-    monto: float = Field(gt=0, description="Monto en pesos, debe ser mayor a cero")
+    monto: float = Field(ge=0, description="Monto en pesos (0 para inasistencias no cobradas)")
     estado: EstadoTurno = EstadoTurno.DIFERIDO
     origen_pago: OrigenPago = OrigenPago.DIRECTO
     fecha_cobro_estimada: date | None = None
     prepaga: str | None = None
+    medio_pago: MedioPago | None = None
+    tipo_sesion: TipoSesion = TipoSesion.SESION
 
 
 class TurnoCreate(TurnoBase):
@@ -39,8 +41,10 @@ class TurnoUpdate(BaseModel):
     estado: EstadoTurno | None = None
     fecha_cobro_efectivo: date | None = None
     fecha_cobro_estimada: date | None = None
-    monto: float | None = Field(default=None, gt=0)
+    monto: float | None = Field(default=None, ge=0)
     prepaga: str | None = None
+    medio_pago: MedioPago | None = None
+    tipo_sesion: TipoSesion | None = None
 
 
 class TurnoRead(TurnoBase):

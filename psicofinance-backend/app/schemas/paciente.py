@@ -5,7 +5,7 @@
 import uuid
 from datetime import date, datetime
 from pydantic import BaseModel, Field
-from app.models.enums import EstadoTurno, OrigenPago
+from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion
 
 
 # ── Sub-schema de turno (para el historial dentro del detalle de paciente) ───
@@ -19,6 +19,8 @@ class TurnoEnDetalle(BaseModel):
     prepaga:              str | None
     fecha_cobro_estimada: date | None
     fecha_cobro_efectivo: date | None
+    medio_pago:           MedioPago | None = None
+    tipo_sesion:          TipoSesion = TipoSesion.SESION
     created_at:           datetime
 
     model_config = {"from_attributes": True}

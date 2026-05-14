@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
 import { actualizarTurno, eliminarTurno } from "@/lib/api";
-import type { TurnoResumen, EstadoTurno } from "@/lib/types";
+import type { TurnoResumen, EstadoTurno, MedioPago, TipoSesion } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 
 function fmtPesos(n: number): string {
@@ -85,10 +85,27 @@ function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: (
   );
 }
 
+const MEDIO_PAGO_LABELS: Record<MedioPago, string> = {
+  EFECTIVO:      "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  MERCADO_PAGO:  "Mercado Pago",
+  TARJETA:       "Tarjeta",
+  OTRO:          "Otro",
+};
+
+const TIPO_SESION_LABELS: Record<TipoSesion, string> = {
+  SESION:                    "Sesión normal",
+  INASISTENCIA_JUSTIFICADA:  "Inasistencia justificada",
+  INASISTENCIA_INJUSTIFICADA: "Inasistencia injustificada",
+  CANCELACION_PROFESIONAL:   "Cancelación profesional",
+};
+
 interface EditForm {
-  monto:   string;
-  estado:  EstadoTurno;
-  prepaga: string;
+  monto:      string;
+  estado:     EstadoTurno;
+  prepaga:    string;
+  medio_pago: MedioPago | "";
+  tipo_sesion: TipoSesion;
 }
 
 interface Props {
@@ -102,13 +119,17 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
   const [eliminandoId,  setEliminandoId]  = useState<string | null>(null);
   const [guardando,     setGuardando]     = useState(false);
   const [errorMsg,      setErrorMsg]      = useState<string | null>(null);
-  const [editForm,      setEditForm]      = useState<EditForm>({ monto: "", estado: "COBRADO", prepaga: "" });
+  const [editForm, setEditForm] = useState<EditForm>({
+    monto: "", estado: "COBRADO", prepaga: "", medio_pago: "", tipo_sesion: "SESION",
+  });
 
   function iniciarEdicion(t: TurnoResumen) {
     setEditForm({
-      monto:   String(t.monto),
-      estado:  t.estado,
-      prepaga: t.prepaga ?? "",
+      monto:       String(t.monto),
+      estado:      t.estado,
+      prepaga:     t.prepaga ?? "",
+      medio_pago:  (t.medio_pago as MedioPago | null) ?? "",
+      tipo_sesion: (t.tipo_sesion as TipoSesion | undefined) ?? "SESION",
     });
     setEditandoId(t.id);
     setEliminandoId(null);
@@ -127,8 +148,10 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
     try {
       await actualizarTurno(id, {
         monto,
-        estado:  editForm.estado,
-        prepaga: editForm.prepaga.trim() || null,
+        estado:      editForm.estado,
+        prepaga:     editForm.prepaga.trim() || null,
+        medio_pago:  editForm.medio_pago as MedioPago || null,
+        tipo_sesion: editForm.tipo_sesion,
       });
       setEditandoId(null);
       onRefresh();
@@ -235,6 +258,33 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                         className="w-36 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
                       />
                     </div>
+                    {/* Medio de pago */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-medium uppercase text-neutral-400">Medio de pago</label>
+                      <select
+                        value={editForm.medio_pago}
+                        onChange={(e) => setEditForm((f) => ({ ...f, medio_pago: e.target.value as MedioPago | "" }))}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none"
+                      >
+                        <option value="">Sin especificar</option>
+                        {(Object.keys(MEDIO_PAGO_LABELS) as MedioPago[]).map(k => (
+                          <option key={k} value={k}>{MEDIO_PAGO_LABELS[k]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Tipo de sesión */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-medium uppercase text-neutral-400">Tipo de sesión</label>
+                      <select
+                        value={editForm.tipo_sesion}
+                        onChange={(e) => setEditForm((f) => ({ ...f, tipo_sesion: e.target.value as TipoSesion }))}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none"
+                      >
+                        {(Object.keys(TIPO_SESION_LABELS) as TipoSesion[]).map(k => (
+                          <option key={k} value={k}>{TIPO_SESION_LABELS[k]}</option>
+                        ))}
+                      </select>
+                    </div>
                     {/* Botones */}
                     <div className="flex gap-1.5">
                       <button
@@ -304,6 +354,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                   <p className="text-xs text-neutral-400">
                     {fechaRel(t.fecha_turno)}
                     {t.prepaga && <span className="ml-1.5 text-neutral-300">· {t.prepaga}</span>}
+                    {t.medio_pago && <span className="ml-1.5 text-neutral-300">· {MEDIO_PAGO_LABELS[t.medio_pago as MedioPago]}</span>}
                   </p>
                 </div>
 
