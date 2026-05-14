@@ -21,12 +21,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DatosTurnoNLP:
-    paciente:   str
-    monto:      float
-    es_prepaga: bool
+    paciente:    str
+    monto:       float
+    es_prepaga:  bool
     obra_social: str | None
-    fecha:      date
-    confianza:  str  # "alta" | "media" | "baja"
+    fecha:       date
+    confianza:   str        # "alta" | "media" | "baja"
+    medio_pago:  str | None  # "EFECTIVO" | "TRANSFERENCIA" | "MERCADO_PAGO" | "TARJETA" | "OTRO" | None
+    tipo_sesion: str         # "SESION" | "INASISTENCIA_JUSTIFICADA" | "INASISTENCIA_INJUSTIFICADA" | "CANCELACION_PROFESIONAL"
 
 
 class ErrorNLP(Exception):
@@ -57,6 +59,8 @@ Campos a extraer:
 - "es_prepaga": boolean — true si el pago viene de obra social o prepaga
 - "obra_social": string o null — nombre de la prepaga (null si es_prepaga es false)
 - "fecha": string ISO 8601 (YYYY-MM-DD). Resolver fechas relativas con la fecha actual provista
+- "medio_pago": string o null — uno de: "EFECTIVO", "TRANSFERENCIA", "MERCADO_PAGO", "TARJETA", "OTRO". null si no se menciona
+- "tipo_sesion": string — uno de: "SESION", "INASISTENCIA_JUSTIFICADA", "INASISTENCIA_INJUSTIFICADA", "CANCELACION_PROFESIONAL". Default "SESION"
 - "confianza": "alta" si todos los datos son claros, "media" si algo fue inferido, "baja" si hay ambigüedad
 
 Reglas:
@@ -64,8 +68,11 @@ Reglas:
 - Si no hay fecha, usá la fecha actual
 - Si no se menciona paciente, devolvé paciente: "Sin identificar"
 - Jerga argentina: "lucas"=miles, "palo"=millón, "k"=miles
+- "efectivo"/"cash"/"en mano" → EFECTIVO; "transferencia"/"transfe" → TRANSFERENCIA; "mercado pago"/"MP" → MERCADO_PAGO; "tarjeta"/"débito"/"crédito" → TARJETA
+- "no vino"/"faltó"/"inasistencia" → INASISTENCIA_INJUSTIFICADA (monto puede ser 0); "avisó"/"canceló con aviso"/"justificada" → INASISTENCIA_JUSTIFICADA
+- "cancelé yo"/"no pude atender" → CANCELACION_PROFESIONAL
 
-Ejemplo: {"paciente":"Martín","monto":10000,"es_prepaga":false,"obra_social":null,"fecha":"2025-04-24","confianza":"alta"}"""
+Ejemplo: {"paciente":"Martín","monto":10000,"es_prepaga":false,"obra_social":null,"fecha":"2025-04-24","medio_pago":"EFECTIVO","tipo_sesion":"SESION","confianza":"alta"}"""
 
 PROMPT_CONSULTA = """Sos el copiloto financiero de PsicoFinance, una app para psicólogos independientes en Argentina.
 Respondé la pregunta del psicólogo de forma clara y útil, en español rioplatense (tuteá).
@@ -200,6 +207,14 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
     except (ValueError, TypeError):
         monto = 0.0
 
+    medios_validos = {"EFECTIVO", "TRANSFERENCIA", "MERCADO_PAGO", "TARJETA", "OTRO"}
+    medio_raw = str(datos.get("medio_pago") or "").upper().strip()
+    medio_pago = medio_raw if medio_raw in medios_validos else None
+
+    tipos_validos = {"SESION", "INASISTENCIA_JUSTIFICADA", "INASISTENCIA_INJUSTIFICADA", "CANCELACION_PROFESIONAL"}
+    tipo_raw = str(datos.get("tipo_sesion") or "SESION").upper().strip()
+    tipo_sesion = tipo_raw if tipo_raw in tipos_validos else "SESION"
+
     return DatosTurnoNLP(
         paciente=str(datos["paciente"]).strip(),
         monto=monto,
@@ -207,4 +222,6 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
         obra_social=datos.get("obra_social") or None,
         fecha=fecha_extraida,
         confianza=str(datos.get("confianza", "media")),
+        medio_pago=medio_pago,
+        tipo_sesion=tipo_sesion,
     )

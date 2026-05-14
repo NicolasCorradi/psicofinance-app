@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock, Mail } from "lucide-react";
+import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock, Mail, Banknote, CreditCard, Smartphone, ArrowLeftRight, HelpCircle } from "lucide-react";
 import { getPacienteDetalle, actualizarPaciente, eliminarPaciente } from "@/lib/api";
-import type { PacienteDetalle as Detalle, TurnoEnDetalle, EstadoTurno, PacienteUpdatePayload } from "@/lib/types";
+import type { PacienteDetalle as Detalle, TurnoEnDetalle, EstadoTurno, MedioPago, TipoSesion, PacienteUpdatePayload } from "@/lib/types";
 import { avatarCls } from "@/lib/avatar";
 
 function fmtPesos(n: number): string {
@@ -30,13 +30,15 @@ function fechaRel(iso: string): string {
   return fmtFecha(iso);
 }
 
+// ── Estado del turno ─────────────────────────────────────────────────────────
+
 const CHIP_CFG: Record<EstadoTurno, { dot: string; label: string; cls: string }> = {
   COBRADO:    { dot: "bg-emerald-500", label: "Cobrado",    cls: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
   DIFERIDO:   { dot: "bg-amber-400",   label: "Pendiente",  cls: "bg-amber-50  text-amber-700  ring-1 ring-amber-200" },
   INCOBRABLE: { dot: "bg-red-400",     label: "Incobrable", cls: "bg-red-50    text-red-600    ring-1 ring-red-200" },
 };
 
-function Chip({ estado }: { estado: EstadoTurno }) {
+function EstadoChip({ estado }: { estado: EstadoTurno }) {
   const { dot, label, cls } = CHIP_CFG[estado];
   return (
     <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>
@@ -45,6 +47,46 @@ function Chip({ estado }: { estado: EstadoTurno }) {
     </span>
   );
 }
+
+// ── Tipo de sesión ────────────────────────────────────────────────────────────
+
+const TIPO_CFG: Record<TipoSesion, { label: string; cls: string }> = {
+  SESION:                    { label: "",              cls: "" },
+  INASISTENCIA_JUSTIFICADA:  { label: "Canceló",       cls: "bg-amber-50 text-amber-600 ring-1 ring-amber-200" },
+  INASISTENCIA_INJUSTIFICADA:{ label: "Faltó",         cls: "bg-red-50 text-red-600 ring-1 ring-red-200" },
+  CANCELACION_PROFESIONAL:   { label: "Cancelé",       cls: "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200" },
+};
+
+function TipoChip({ tipo }: { tipo: TipoSesion }) {
+  const { label, cls } = TIPO_CFG[tipo];
+  if (!label) return null;
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>{label}</span>;
+}
+
+// ── Medio de pago ─────────────────────────────────────────────────────────────
+
+const MEDIO_ICONS: Record<MedioPago, React.ReactNode> = {
+  EFECTIVO:     <Banknote className="h-3 w-3" />,
+  TRANSFERENCIA:<ArrowLeftRight className="h-3 w-3" />,
+  MERCADO_PAGO: <Smartphone className="h-3 w-3" />,
+  TARJETA:      <CreditCard className="h-3 w-3" />,
+  OTRO:         <HelpCircle className="h-3 w-3" />,
+};
+const MEDIO_LABELS: Record<MedioPago, string> = {
+  EFECTIVO: "Efectivo", TRANSFERENCIA: "Transfe", MERCADO_PAGO: "MP", TARJETA: "Tarjeta", OTRO: "Otro",
+};
+
+function MedioBadge({ medio }: { medio: MedioPago | null }) {
+  if (!medio) return null;
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
+      {MEDIO_ICONS[medio]}
+      {MEDIO_LABELS[medio]}
+    </span>
+  );
+}
+
+// ── Props e interfaces ───────────────────────────────────────────────────────
 
 interface Props {
   pacienteId: string;
@@ -58,6 +100,8 @@ interface EditForm {
   email:     string;
   honorario: string;
 }
+
+// ── Componente principal ─────────────────────────────────────────────────────
 
 export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Props) {
   const [detalle,   setDetalle]   = useState<Detalle | null>(null);
@@ -130,21 +174,27 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
     }
   }
 
-  const nombreCompleto = detalle ? `${detalle.nombre} ${detalle.apellido}` : "";
+  // ── Stats derivadas ────────────────────────────────────────────────────────
+
+  const sesionesReales = detalle?.turnos.filter(t => t.tipo_sesion === "SESION").length ?? 0;
+  const inasistencias  = detalle?.turnos.filter(t =>
+    t.tipo_sesion === "INASISTENCIA_INJUSTIFICADA" || t.tipo_sesion === "INASISTENCIA_JUSTIFICADA"
+  ).length ?? 0;
+  const totalConSesion = sesionesReales + inasistencias;
+  const tasaAsistencia = totalConSesion > 0 ? Math.round((sesionesReales / totalConSesion) * 100) : null;
+
+  const nombreCompleto  = detalle ? `${detalle.nombre} ${detalle.apellido}` : "";
   const inicialesAvatar = detalle ? `${detalle.nombre[0] ?? ""}${detalle.apellido[0] ?? ""}`.toUpperCase() : "";
 
   return (
     <>
       {/* Overlay */}
-      <div
-        className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
       <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
 
-        {/* Header con gradiente */}
+        {/* Header */}
         <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-5 pt-5 pb-6 text-white">
           <div className="flex items-start justify-between">
             {cargando ? (
@@ -176,21 +226,45 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
 
         {/* Stats rápidas */}
         {!cargando && detalle && (
-          <div className="grid grid-cols-3 gap-px bg-neutral-100 border-b border-neutral-100">
-            {[
-              { icon: TrendingUp, label: "Cobrado",    value: fmtPesos(detalle.cobrado_total), color: "text-emerald-600", iconBg: "bg-emerald-50" },
-              { icon: Clock,      label: "Pendiente",  value: fmtPesos(detalle.pendiente),     color: "text-amber-600",   iconBg: "bg-amber-50"   },
-              { icon: Calendar,   label: "Sesiones",   value: String(detalle.total_sesiones),  color: "text-indigo-600",  iconBg: "bg-indigo-50"  },
-            ].map(({ icon: Icon, label, value, color, iconBg }) => (
-              <div key={label} className="flex flex-col items-center gap-1.5 bg-white px-3 py-4">
-                <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg}`}>
-                  <Icon className={`h-3.5 w-3.5 ${color}`} strokeWidth={2} />
+          <>
+            <div className="grid grid-cols-3 gap-px bg-neutral-100 border-b border-neutral-100">
+              {[
+                { icon: TrendingUp, label: "Cobrado",    value: fmtPesos(detalle.cobrado_total), color: "text-emerald-600", iconBg: "bg-emerald-50" },
+                { icon: Clock,      label: "Pendiente",  value: fmtPesos(detalle.pendiente),     color: "text-amber-600",   iconBg: "bg-amber-50"   },
+                { icon: Calendar,   label: "Sesiones",   value: String(detalle.total_sesiones),  color: "text-indigo-600",  iconBg: "bg-indigo-50"  },
+              ].map(({ icon: Icon, label, value, color, iconBg }) => (
+                <div key={label} className="flex flex-col items-center gap-1.5 bg-white px-3 py-4">
+                  <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg}`}>
+                    <Icon className={`h-3.5 w-3.5 ${color}`} strokeWidth={2} />
+                  </div>
+                  <p className={`text-base font-bold tabular-nums ${color}`}>{value}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-neutral-400">{label}</p>
                 </div>
-                <p className={`text-base font-bold tabular-nums ${color}`}>{value}</p>
-                <p className="text-[10px] uppercase tracking-wider text-neutral-400">{label}</p>
+              ))}
+            </div>
+
+            {/* Barra de asistencia */}
+            {tasaAsistencia !== null && totalConSesion > 0 && (
+              <div className="border-b border-neutral-100 bg-white px-4 py-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-neutral-400 font-medium">Tasa de asistencia</span>
+                  <span className={`text-[11px] font-bold tabular-nums ${tasaAsistencia >= 80 ? "text-emerald-600" : tasaAsistencia >= 60 ? "text-amber-600" : "text-red-500"}`}>
+                    {tasaAsistencia}%
+                  </span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${tasaAsistencia >= 80 ? "bg-emerald-400" : tasaAsistencia >= 60 ? "bg-amber-400" : "bg-red-400"}`}
+                    style={{ width: `${tasaAsistencia}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 flex gap-3 text-[10px] text-neutral-400">
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{sesionesReales} sesiones</span>
+                  {inasistencias > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-300" />{inasistencias} inasistencias</span>}
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {/* Contenido scrollable */}
@@ -324,19 +398,30 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                 ) : (
                   <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-100 bg-white">
                     {detalle.turnos.map((t: TurnoEnDetalle) => (
-                      <div key={t.id} className="flex items-center justify-between px-3.5 py-3 transition-colors hover:bg-indigo-50/30">
-                        <div>
-                          <p className="text-sm font-medium text-neutral-800">{fechaRel(t.fecha_turno)}</p>
-                          <p className="text-xs text-neutral-400">
-                            {fmtFecha(t.fecha_turno)}
-                            {t.prepaga && <span className="ml-1.5 text-neutral-300">· {t.prepaga}</span>}
-                          </p>
+                      <div
+                        key={t.id}
+                        className={`flex items-center justify-between px-3.5 py-3 transition-colors hover:bg-indigo-50/30 ${
+                          t.tipo_sesion !== "SESION" ? "opacity-70" : ""
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-medium text-neutral-800">{fechaRel(t.fecha_turno)}</p>
+                            <TipoChip tipo={t.tipo_sesion} />
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs text-neutral-400">{fmtFecha(t.fecha_turno)}</p>
+                            {t.prepaga && <span className="text-xs text-neutral-300">· {t.prepaga}</span>}
+                            <MedioBadge medio={t.medio_pago} />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-sm font-semibold tabular-nums text-neutral-800">
-                            {fmtPesos(t.monto)}
-                          </span>
-                          <Chip estado={t.estado} />
+                        <div className="flex items-center gap-2 ml-2 shrink-0">
+                          {t.monto > 0 && (
+                            <span className="text-sm font-semibold tabular-nums text-neutral-800">
+                              {fmtPesos(t.monto)}
+                            </span>
+                          )}
+                          <EstadoChip estado={t.estado} />
                         </div>
                       </div>
                     ))}

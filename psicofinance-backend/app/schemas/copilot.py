@@ -21,12 +21,14 @@ class ChatRequest(BaseModel):
 
 class DatosExtraidos(BaseModel):
     """Datos estructurados que el NLP extrae del texto libre."""
-    paciente: str
-    monto: float
-    es_prepaga: bool
+    paciente:    str
+    monto:       float
+    es_prepaga:  bool
     obra_social: str | None
-    fecha: date
-    confianza: str  # "alta" | "media" | "baja"
+    fecha:       date
+    confianza:   str        # "alta" | "media" | "baja"
+    medio_pago:  str | None = None
+    tipo_sesion: str        = "SESION"
 
 
 class ChatResponse(BaseModel):

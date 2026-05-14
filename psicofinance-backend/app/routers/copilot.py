@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from dateutil.relativedelta import relativedelta
 
 from app.supabase_client import SupabaseClient, get_supabase
-from app.models.enums import EstadoTurno, OrigenPago
+from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion
 from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos, MensajeHistorial
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
 from app.schemas.turno import TurnoCreate, TurnoRead
@@ -132,15 +132,25 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         logger.error("Error BD al gestionar paciente: %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
 
-    origen = OrigenPago.PREPAGA if datos.es_prepaga else OrigenPago.DIRECTO
-    estado = EstadoTurno.DIFERIDO if datos.es_prepaga else EstadoTurno.COBRADO
-
-    fecha_cobro_estimada = None
-    fecha_cobro_efectivo = None
-    if datos.es_prepaga:
-        fecha_cobro_estimada = datos.fecha + timedelta(days=60)
+    # Inasistencias y cancelaciones se registran como INCOBRABLE si monto=0
+    es_inasistencia = datos.tipo_sesion in ("INASISTENCIA_INJUSTIFICADA", "INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL")
+    if es_inasistencia and datos.monto == 0:
+        estado = EstadoTurno.INCOBRABLE
+        origen = OrigenPago.DIRECTO
+        fecha_cobro_estimada = None
+        fecha_cobro_efectivo = None
     else:
-        fecha_cobro_efectivo = datos.fecha
+        origen = OrigenPago.PREPAGA if datos.es_prepaga else OrigenPago.DIRECTO
+        estado = EstadoTurno.DIFERIDO if datos.es_prepaga else EstadoTurno.COBRADO
+        fecha_cobro_estimada = None
+        fecha_cobro_efectivo = None
+        if datos.es_prepaga:
+            fecha_cobro_estimada = datos.fecha + timedelta(days=60)
+        else:
+            fecha_cobro_efectivo = datos.fecha
+
+    medio = MedioPago(datos.medio_pago) if datos.medio_pago else None
+    tipo = TipoSesion(datos.tipo_sesion)
 
     datos_turno = TurnoCreate(
         paciente_id=paciente["id"],
@@ -150,6 +160,8 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         origen_pago=origen,
         fecha_cobro_estimada=fecha_cobro_estimada,
         prepaga=datos.obra_social,
+        medio_pago=medio,
+        tipo_sesion=tipo,
     )
 
     try:
@@ -164,12 +176,25 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
     monto_fmt = f"${datos.monto:,.0f}".replace(",", ".")
     fecha_fmt = datos.fecha.strftime("%d/%m/%Y")
     prepaga_txt = f" ({datos.obra_social})" if datos.obra_social else ""
-    estado_txt = "pendiente de cobro de la prepaga" if datos.es_prepaga else "registrado como cobrado"
+    medio_txt = f" · {datos.medio_pago.replace('_', ' ').title()}" if datos.medio_pago else ""
     nuevo_txt = " (paciente nuevo creado)" if fue_creado else ""
 
+    TIPO_LABELS = {
+        "SESION": "registrada como cobrada",
+        "INASISTENCIA_JUSTIFICADA": "inasistencia justificada",
+        "INASISTENCIA_INJUSTIFICADA": "inasistencia injustificada",
+        "CANCELACION_PROFESIONAL": "cancelación del profesional",
+    }
+    if es_inasistencia and datos.monto == 0:
+        estado_txt = TIPO_LABELS.get(datos.tipo_sesion, "registrada")
+    elif datos.es_prepaga:
+        estado_txt = "pendiente de cobro de la prepaga"
+    else:
+        estado_txt = "registrada como cobrada"
+
     confirmacion = (
-        f"Listo! Registre el turno de {datos.paciente}{nuevo_txt}: "
-        f"{monto_fmt}{prepaga_txt} el {fecha_fmt}. "
+        f"Listo! Registré la sesión de {datos.paciente}{nuevo_txt}: "
+        f"{monto_fmt}{prepaga_txt}{medio_txt} el {fecha_fmt}. "
         f"Estado: {estado_txt}."
     )
 
@@ -190,6 +215,8 @@ def _a_schema(datos) -> DatosExtraidos:
         obra_social=datos.obra_social,
         fecha=datos.fecha,
         confianza=datos.confianza,
+        medio_pago=datos.medio_pago,
+        tipo_sesion=datos.tipo_sesion,
     )
 
 

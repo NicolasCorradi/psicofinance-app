@@ -75,7 +75,8 @@ def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
         if pid not in stats:
             stats[pid] = {"total": 0, "ultima": None, "cobrado": 0.0, "pendiente": 0.0, "mes": 0}
         s = stats[pid]
-        s["total"] += 1
+        if estado != "INCOBRABLE":
+            s["total"] += 1
         ft = _parse_date(t.get("fecha_turno"))
         if ft and (s["ultima"] is None or ft > s["ultima"]):
             s["ultima"] = ft
@@ -129,10 +130,11 @@ def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID) -> d
         and _parse_date(t.get("fecha_turno")) is not None
         and _parse_date(t["fecha_turno"]).strftime("%Y-%m") == mes_actual
     )
+    total_sesiones_reales = sum(1 for t in turnos if t.get("estado") != "INCOBRABLE")
 
     return {
         "paciente": paciente,
-        "total_sesiones": len(turnos),
+        "total_sesiones": total_sesiones_reales,
         "ultima_sesion": ultima,
         "dias_inactivo": dias,
         "cobrado_total": cobrado,
