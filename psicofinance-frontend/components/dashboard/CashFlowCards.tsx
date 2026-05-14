@@ -210,7 +210,7 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoShee
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-neutral-800">
-            {t.paciente_nombre ?? t.prepaga ?? "Directo"}
+            {t.prepaga ?? "Directo"}
           </span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
             tipo === "cobrado_mes" ? "bg-emerald-100 text-emerald-700" :
