@@ -120,8 +120,11 @@ export function getInflacion(): Promise<{ valor: number; periodo: string; fuente
 // ---------------------------------------------------------------------------
 
 /** Envía texto libre al copiloto y registra el turno automáticamente. */
-export function enviarMensajeChat(mensaje: string): Promise<ChatResponse> {
-  return post<ChatResponse>('/copilot/chat', { mensaje });
+export function enviarMensajeChat(
+  mensaje: string,
+  historial: { rol: string; texto: string }[] = [],
+): Promise<ChatResponse> {
+  return post<ChatResponse>('/copilot/chat', { mensaje, historial });
 }
 
 /**

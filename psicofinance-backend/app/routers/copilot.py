@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from app.supabase_client import SupabaseClient, get_supabase
 from app.models.enums import EstadoTurno, OrigenPago
-from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos
+from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos, MensajeHistorial
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
 from app.schemas.turno import TurnoCreate, TurnoRead
 from app.services.nlp_service import extraer_datos_turno, clasificar_intencion, responder_consulta, ErrorNLP
@@ -103,7 +103,8 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
 
     # Registro de turno
     try:
-        datos = extraer_datos_turno(body.mensaje)
+        historial_dicts = [m.model_dump() for m in body.historial] if body.historial else None
+        datos = extraer_datos_turno(body.mensaje, historial=historial_dicts)
     except ErrorNLP as e:
         logger.error("Error NLP: %s", e)
         return ChatResponse(

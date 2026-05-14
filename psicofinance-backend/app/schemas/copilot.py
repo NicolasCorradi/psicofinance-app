@@ -5,12 +5,18 @@ from pydantic import BaseModel, Field
 from app.schemas.turno import TurnoRead
 
 
+class MensajeHistorial(BaseModel):
+    rol: str   # "user" | "assistant"
+    texto: str
+
+
 class ChatRequest(BaseModel):
     """Body del POST /copilot/chat."""
     mensaje: str = Field(
         min_length=3,
         description="Mensaje de voz/texto del psicólogo (ej: 'Vino Martín, pagó 10k con OSDE')",
     )
+    historial: list[MensajeHistorial] = []
 
 
 class DatosExtraidos(BaseModel):

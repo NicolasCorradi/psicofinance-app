@@ -33,9 +33,9 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   const [error,    setError]    = useState<string | null>(null);
   const [focused,  setFocused]  = useState(false);
 
-  const inputFileRef = useRef<HTMLInputElement>(null);
-  const textareaRef  = useRef<HTMLTextAreaElement>(null);
-  const chatEndRef   = useRef<HTMLDivElement>(null);
+  const inputFileRef  = useRef<HTMLInputElement>(null);
+  const textareaRef   = useRef<HTMLTextAreaElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // CMD+K / Ctrl+K para enfocar
   useEffect(() => {
@@ -49,10 +49,10 @@ export default function NLPInput({ onTurnoCreado }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Auto-scroll al último mensaje
+  // Auto-scroll al último mensaje — solo dentro del contenedor, sin afectar la página
   useEffect(() => {
-    if (mensajes.length > 0) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (mensajes.length > 0 && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [mensajes]);
 
@@ -73,7 +73,11 @@ export default function NLPInput({ onTurnoCreado }: Props) {
 
     setCargando(true);
     try {
-      const res: ChatResponse = await enviarMensajeChat(msg);
+      const historialParaApi = [...mensajes, msgUsuario].map(m => ({
+        rol: m.tipo === "user" ? "user" : "assistant",
+        texto: m.texto,
+      }));
+      const res: ChatResponse = await enviarMensajeChat(msg, historialParaApi);
       const msgBot: Mensaje = {
         tipo:           "bot",
         texto:          res.confirmacion,
@@ -184,7 +188,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
 
         {/* Historial de conversación */}
         {hayConversacion && (
-          <div className="max-h-72 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          <div ref={chatContainerRef} className="max-h-72 overflow-y-auto px-4 py-3 flex flex-col gap-3">
             {mensajes.map((m, i) => (
               <div key={i} className={`flex ${m.tipo === "user" ? "justify-end" : "justify-start"}`}>
                 {m.tipo === "user" ? (
@@ -206,7 +210,6 @@ export default function NLPInput({ onTurnoCreado }: Props) {
                 )}
               </div>
             ))}
-            <div ref={chatEndRef} />
           </div>
         )}
 

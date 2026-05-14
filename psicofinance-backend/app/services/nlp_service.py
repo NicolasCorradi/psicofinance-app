@@ -144,14 +144,24 @@ def responder_consulta(texto: str, contexto: dict) -> str:
 
 # ── Extracción de datos de turno ──────────────────────────────────────────────
 
-def extraer_datos_turno(texto: str) -> DatosTurnoNLP:
+def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> DatosTurnoNLP:
     """
     Llama a Gemini con el mensaje del psicólogo y devuelve los datos estructurados del turno.
     """
     cliente = genai.Client(api_key=config.gemini_api_key)
 
+    # Incluir historial reciente para dar contexto (máx últimos 4 mensajes)
+    contexto_historial = ""
+    if historial:
+        ultimos = historial[-4:]
+        contexto_historial = "Conversación previa:\n" + "\n".join(
+            f"{'Psicólogo' if m['rol'] == 'user' else 'Sistema'}: {m['texto']}"
+            for m in ultimos
+        ) + "\n\n"
+
     prompt_con_fecha = (
         f"Fecha actual: {date.today().isoformat()}\n\n"
+        f"{contexto_historial}"
         f"Mensaje del psicólogo: {texto}"
     )
 
