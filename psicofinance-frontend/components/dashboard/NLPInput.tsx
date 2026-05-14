@@ -18,8 +18,8 @@ type Mensaje = {
 
 const SUGERENCIAS = [
   "Atendí a Valentina hoy, $22.000 en efectivo",
-  "Sesión con Diego, OSDE, $10.000",
   "¿Cuánto cobré este mes?",
+  "¿Quién me debe plata?",
 ];
 
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);

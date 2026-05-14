@@ -42,8 +42,10 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         sig_mes = (hoy + relativedelta(months=1)).replace(day=1)
 
         turnos = sb.select("turnos", {
-            "select": "monto,estado,fecha_turno,fecha_cobro_efectivo,fecha_cobro_estimada",
+            "select": "paciente_id,monto,estado,fecha_turno,fecha_cobro_efectivo,fecha_cobro_estimada,medio_pago,tipo_sesion",
         })
+        pacientes_raw = sb.select("pacientes", {"select": "id,nombre,apellido"})
+        pac_map = {p["id"]: f"{p.get('nombre','')} {p.get('apellido','')}".strip() for p in pacientes_raw}
 
         cobrado_mes = sum(
             float(t.get("monto") or 0) for t in turnos
@@ -54,18 +56,25 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         en_camino = sum(
             float(t.get("monto") or 0) for t in turnos
             if t.get("estado") == "DIFERIDO"
-            and _parse_date(t.get("fecha_cobro_estimada")) is not None
-            and primer_dia <= _parse_date(t["fecha_cobro_estimada"]) < sig_mes
+            and _parse_date(t.get("fecha_turno")) is not None
+            and primer_dia <= _parse_date(t["fecha_turno"]) < sig_mes
         )
         deudores = sum(
             float(t.get("monto") or 0) for t in turnos
             if t.get("estado") == "DIFERIDO"
-            and _parse_date(t.get("fecha_cobro_estimada")) is not None
-            and _parse_date(t["fecha_cobro_estimada"]) < primer_dia
+            and _parse_date(t.get("fecha_turno")) is not None
+            and _parse_date(t["fecha_turno"]) < primer_dia
         )
         total_turnos = sum(
             1 for t in turnos
-            if _parse_date(t.get("fecha_turno")) is not None
+            if t.get("estado") != "INCOBRABLE"
+            and _parse_date(t.get("fecha_turno")) is not None
+            and primer_dia <= _parse_date(t["fecha_turno"]) < sig_mes
+        )
+        inasistencias_mes = sum(
+            1 for t in turnos
+            if t.get("estado") == "INCOBRABLE"
+            and _parse_date(t.get("fecha_turno")) is not None
             and primer_dia <= _parse_date(t["fecha_turno"]) < sig_mes
         )
         cobrados_mes_list = [
@@ -88,14 +97,35 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
             )
             ventas.append({"mes": MESES_ES[ini.month - 1], "cobrado": float(c)})
 
+        # Deudores por nombre (turnos DIFERIDO vencidos)
+        deudores_detalle: dict[str, float] = {}
+        for t in turnos:
+            if t.get("estado") == "DIFERIDO":
+                ft = _parse_date(t.get("fecha_turno"))
+                if ft and ft < primer_dia:
+                    nombre = pac_map.get(t.get("paciente_id"), "Desconocido")
+                    deudores_detalle[nombre] = deudores_detalle.get(nombre, 0) + float(t.get("monto") or 0)
+        top_deudores = sorted(deudores_detalle.items(), key=lambda x: -x[1])[:5]
+
+        # Distribución de medio_pago este mes
+        medios: dict[str, int] = {}
+        for t in turnos:
+            ft = _parse_date(t.get("fecha_turno"))
+            if ft and primer_dia <= ft < sig_mes and t.get("estado") != "INCOBRABLE":
+                m = t.get("medio_pago") or "SIN_ESPECIFICAR"
+                medios[m] = medios.get(m, 0) + 1
+
         contexto = {
-            "cobrado_mes":       float(cobrado_mes),
-            "en_camino_mes":     float(en_camino),
-            "deudores":          float(deudores),
-            "total_turnos_mes":  int(total_turnos),
+            "cobrado_mes":        float(cobrado_mes),
+            "en_camino_mes":      float(en_camino),
+            "deudores":           float(deudores),
+            "total_turnos_mes":   int(total_turnos),
+            "inasistencias_mes":  int(inasistencias_mes),
             "honorario_promedio": float(honorario_prom),
-            "perdida_inflacion": 0,
-            "ventas_mensuales":  ventas,
+            "perdida_inflacion":  0,
+            "ventas_mensuales":   ventas,
+            "top_deudores":       [{"nombre": n, "monto": m} for n, m in top_deudores],
+            "medios_pago_mes":    medios,
         }
 
         respuesta_texto = responder_consulta(body.mensaje, contexto)

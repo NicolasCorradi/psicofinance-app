@@ -122,14 +122,25 @@ def responder_consulta(texto: str, contexto: dict) -> str:
         f"{m['mes']}: ${m['cobrado']:,.0f}" for m in meses
     ) if meses else "sin datos"
 
+    top_deudores = contexto.get("top_deudores", [])
+    deudores_txt = ", ".join(
+        f"{d['nombre']} (${d['monto']:,.0f})" for d in top_deudores
+    ) if top_deudores else "ninguno"
+
+    medios = contexto.get("medios_pago_mes", {})
+    medios_txt = ", ".join(f"{k}: {v}" for k, v in medios.items()) if medios else "sin datos"
+
     contexto_txt = f"""Datos financieros actuales (fecha: {date.today().strftime('%d/%m/%Y')}):
 - Cobrado este mes: ${contexto.get('cobrado_mes', 0):,.0f}
-- En camino (prepagas pendientes): ${contexto.get('en_camino_mes', 0):,.0f}
-- Sin cobrar (vencido): ${contexto.get('deudores', 0):,.0f}
+- En camino (prepagas pendientes este mes): ${contexto.get('en_camino_mes', 0):,.0f}
+- Sin cobrar (meses anteriores vencido): ${contexto.get('deudores', 0):,.0f}
 - Sesiones este mes: {contexto.get('total_turnos_mes', 0)}
+- Inasistencias este mes: {contexto.get('inasistencias_mes', 0)}
 - Honorario promedio: ${contexto.get('honorario_promedio', 0):,.0f}
 - Pérdida por inflación (DIFERIDO): ${contexto.get('perdida_inflacion', 0):,.0f}
-- Historial 6 meses: {historial}"""
+- Historial 6 meses: {historial}
+- Pacientes con deuda vencida: {deudores_txt}
+- Medios de pago (sesiones del mes): {medios_txt}"""
 
     prompt = f"{contexto_txt}\n\nPregunta del psicólogo: {texto}"
 
