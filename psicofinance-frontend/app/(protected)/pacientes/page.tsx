@@ -331,11 +331,19 @@ export default function PacientesPage() {
                     {iniciales(p.nombre, p.apellido)}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-neutral-800 group-hover:text-indigo-600">
-                      {p.nombre} {p.apellido}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-neutral-800">
+                        {p.nombre} {p.apellido}
+                      </p>
+                      {p.sesiones_mes > 0 && (
+                        <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                          {p.sesiones_mes} este mes
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-neutral-400 tabular-nums">
                       {p.total_sesiones} ses. · {fmtPesos(p.cobrado_total)}
+                      {p.ultima_sesion && <span> · {fechaRel(p.ultima_sesion)}</span>}
                     </p>
                   </div>
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-300" />

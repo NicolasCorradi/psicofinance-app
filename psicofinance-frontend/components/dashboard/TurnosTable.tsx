@@ -142,13 +142,16 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
   async function guardarEdicion(id: string) {
     const monto = parseFloat(editForm.monto.replace(",", "."));
-    if (isNaN(monto) || monto <= 0) return;
+    if (isNaN(monto) || monto < 0) return;
     setGuardando(true);
     setErrorMsg(null);
+    // Si es inasistencia sin monto, forzar INCOBRABLE
+    const esInasistencia = ["INASISTENCIA_INJUSTIFICADA", "INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL"].includes(editForm.tipo_sesion);
+    const estadoFinal = esInasistencia && monto === 0 ? "INCOBRABLE" as EstadoTurno : editForm.estado;
     try {
       await actualizarTurno(id, {
         monto,
-        estado:      editForm.estado,
+        estado:      estadoFinal,
         prepaga:     editForm.prepaga.trim() || null,
         medio_pago:  editForm.medio_pago as MedioPago || null,
         tipo_sesion: editForm.tipo_sesion,
@@ -341,8 +344,14 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
             }
 
             /* ── Fila normal ── */
+            const esInasistencia = t.tipo_sesion && t.tipo_sesion !== "SESION";
+            const TIPO_BADGE: Record<string, { label: string; cls: string }> = {
+              INASISTENCIA_JUSTIFICADA:   { label: "Canceló",  cls: "bg-amber-50 text-amber-600 ring-1 ring-amber-200" },
+              INASISTENCIA_INJUSTIFICADA: { label: "Faltó",    cls: "bg-red-50 text-red-500 ring-1 ring-red-200" },
+              CANCELACION_PROFESIONAL:    { label: "Cancelé",  cls: "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200" },
+            };
             return (
-              <div key={t.id} className="group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-indigo-50/30">
+              <div key={t.id} className={`group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-indigo-50/30 ${esInasistencia ? "opacity-75" : ""}`}>
                 {/* Avatar */}
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                   {iniciales(t.paciente_nombre)}
@@ -350,7 +359,14 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
                 {/* Info */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-neutral-800">{t.paciente_nombre}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="truncate text-sm font-medium text-neutral-800">{t.paciente_nombre}</p>
+                    {esInasistencia && t.tipo_sesion && TIPO_BADGE[t.tipo_sesion] && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TIPO_BADGE[t.tipo_sesion].cls}`}>
+                        {TIPO_BADGE[t.tipo_sesion].label}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-neutral-400">
                     {fechaRel(t.fecha_turno)}
                     {t.prepaga && <span className="ml-1.5 text-neutral-300">· {t.prepaga}</span>}
@@ -360,9 +376,11 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
                 {/* Monto + estado + menú */}
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-sm font-semibold tabular-nums text-neutral-800">
-                    {fmtPesos(t.monto)}
-                  </span>
+                  {t.monto > 0 && (
+                    <span className="text-sm font-semibold tabular-nums text-neutral-800">
+                      {fmtPesos(t.monto)}
+                    </span>
+                  )}
                   <Chip estado={t.estado} />
                   <div className="opacity-0 transition-opacity group-hover:opacity-100">
                     <RowMenu

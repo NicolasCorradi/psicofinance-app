@@ -26,6 +26,8 @@ export interface DatosExtraidos {
   obra_social: string | null;
   fecha:       string;
   confianza:   Confianza;
+  medio_pago:  MedioPago | null;
+  tipo_sesion: TipoSesion;
 }
 
 export interface ChatResponse {
