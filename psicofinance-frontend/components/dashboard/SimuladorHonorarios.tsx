@@ -26,10 +26,20 @@ export default function SimuladorHonorarios() {
 
   const conHonorario = pacientes.filter(p => p.honorario_actual && p.honorario_actual > 0);
 
-  const ingresoActual = conHonorario.reduce((s, p) => s + (p.honorario_actual ?? 0), 0);
-  const ajuste        = Math.max(0, Math.min(Number(pct) || 0, 500));
-  const ingresoNuevo  = ingresoActual * (1 + ajuste / 100);
-  const diferencia    = ingresoNuevo - ingresoActual;
+  const ajuste = Math.max(0, Math.min(Number(pct) || 0, 500));
+
+  // Ingreso mensual realista = honorario × sesiones de este mes
+  // Si el paciente no tiene sesiones este mes usamos 1 como referencia
+  const calcIngreso = (p: PacienteConStats, honorario: number) =>
+    honorario * Math.max(p.sesiones_mes, 1);
+
+  const ingresoActual = conHonorario.reduce(
+    (s, p) => s + calcIngreso(p, p.honorario_actual ?? 0), 0
+  );
+  const ingresoNuevo = conHonorario.reduce(
+    (s, p) => s + calcIngreso(p, (p.honorario_actual ?? 0) * (1 + ajuste / 100)), 0
+  );
+  const diferencia = ingresoNuevo - ingresoActual;
 
   // Top pacientes para mostrar la tabla de simulación
   const topPacientes = [...conHonorario]
@@ -117,12 +127,15 @@ export default function SimuladorHonorarios() {
           </div>
 
           {/* Diferencia mensual */}
-          <div className="mb-4 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-2.5 ring-1 ring-emerald-200/50">
+          <div className="mb-3 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-2.5 ring-1 ring-emerald-200/50">
             <span className="text-xs font-medium text-emerald-700">Ingreso adicional mensual</span>
             <span className="text-sm font-bold tabular-nums text-emerald-700">
               +{fmtPesos(diferencia)}
             </span>
           </div>
+          <p className="mb-3 text-[10px] text-neutral-400">
+            Proyección basada en sesiones del mes actual × honorario ajustado.
+          </p>
 
           {/* Tabla de pacientes */}
           <div className="overflow-hidden rounded-xl border border-neutral-100">
@@ -133,12 +146,17 @@ export default function SimuladorHonorarios() {
             </div>
             {topPacientes.map(p => (
               <div key={p.id} className="grid grid-cols-3 border-b border-neutral-50 px-3 py-2 text-xs last:border-0">
-                <span className="font-medium text-neutral-700 truncate">{p.nombre} {p.apellido[0]}.</span>
+                <div className="truncate">
+                  <span className="font-medium text-neutral-700">{p.nombre} {p.apellido[0]}.</span>
+                  {p.sesiones_mes > 0 && (
+                    <span className="ml-1 text-[10px] text-neutral-400">×{p.sesiones_mes}</span>
+                  )}
+                </div>
                 <span className="text-right tabular-nums text-neutral-500">
-                  {fmtPesos(p.honorario_actual ?? 0)}
+                  {fmtPesos(calcIngreso(p, p.honorario_actual ?? 0))}
                 </span>
                 <span className="text-right tabular-nums font-semibold text-violet-700">
-                  {fmtPesos((p.honorario_actual ?? 0) * (1 + ajuste / 100))}
+                  {fmtPesos(calcIngreso(p, (p.honorario_actual ?? 0) * (1 + ajuste / 100)))}
                 </span>
               </div>
             ))}
