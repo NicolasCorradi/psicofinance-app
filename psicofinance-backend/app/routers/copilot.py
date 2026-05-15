@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from dateutil.relativedelta import relativedelta
 
 from app.supabase_client import SupabaseClient, get_supabase
-from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion
+from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion, Moneda
+from app.services.dolar_service import get_dolar_blue
 from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos, MensajeHistorial
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
 from app.schemas.turno import TurnoCreate, TurnoRead
@@ -181,6 +182,12 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
 
     medio = MedioPago(datos.medio_pago) if datos.medio_pago else None
     tipo = TipoSesion(datos.tipo_sesion)
+    moneda = Moneda(datos.moneda) if datos.moneda in ("ARS", "USD") else Moneda.ARS
+
+    # Obtener tipo de cambio si es USD
+    tipo_cambio: float | None = None
+    if moneda == Moneda.USD:
+        tipo_cambio = get_dolar_blue()
 
     datos_turno = TurnoCreate(
         paciente_id=paciente["id"],
@@ -192,6 +199,8 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         prepaga=datos.obra_social,
         medio_pago=medio,
         tipo_sesion=tipo,
+        moneda=moneda,
+        tipo_cambio=tipo_cambio,
     )
 
     try:
@@ -203,7 +212,14 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         logger.error("Error BD al crear turno: %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
 
-    monto_fmt = f"${datos.monto:,.0f}".replace(",", ".")
+    # Formatear monto según moneda
+    if moneda == Moneda.USD:
+        monto_fmt = f"USD {datos.monto:,.0f}"
+        if tipo_cambio:
+            monto_ars = datos.monto * tipo_cambio
+            monto_fmt += f" (≈ ${monto_ars:,.0f} al blue)".replace(",", ".")
+    else:
+        monto_fmt = f"${datos.monto:,.0f}".replace(",", ".")
     fecha_fmt = datos.fecha.strftime("%d/%m/%Y")
     prepaga_txt = f" ({datos.obra_social})" if datos.obra_social else ""
     medio_txt = f" · {datos.medio_pago.replace('_', ' ').title()}" if datos.medio_pago else ""
@@ -247,6 +263,7 @@ def _a_schema(datos) -> DatosExtraidos:
         confianza=datos.confianza,
         medio_pago=datos.medio_pago,
         tipo_sesion=datos.tipo_sesion,
+        moneda=datos.moneda,
     )
 
 

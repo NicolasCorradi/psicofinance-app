@@ -21,6 +21,11 @@ class MedioPago(str, enum.Enum):
     OTRO           = "OTRO"
 
 
+class Moneda(str, enum.Enum):
+    ARS = "ARS"
+    USD = "USD"
+
+
 class TipoSesion(str, enum.Enum):
     SESION                   = "SESION"               # sesión normal
     INASISTENCIA_JUSTIFICADA = "INASISTENCIA_JUSTIFICADA"   # paciente avisó → no se cobra

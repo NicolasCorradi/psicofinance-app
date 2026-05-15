@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
 import { actualizarTurno, eliminarTurno } from "@/lib/api";
-import type { TurnoResumen, EstadoTurno, MedioPago, TipoSesion } from "@/lib/types";
+import type { TurnoResumen, EstadoTurno, MedioPago, TipoSesion, Moneda } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 
 function fmtPesos(n: number): string {
@@ -377,9 +377,24 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                 {/* Monto + estado + menú */}
                 <div className="flex shrink-0 items-center gap-3">
                   {t.monto > 0 && (
-                    <span className="text-sm font-semibold tabular-nums text-neutral-800">
-                      {fmtPesos(t.monto)}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {t.moneda === "USD" && (
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          USD
+                        </span>
+                      )}
+                      <span className="text-sm font-semibold tabular-nums text-neutral-800">
+                        {t.moneda === "USD"
+                          ? `${t.monto.toLocaleString("es-AR")}`
+                          : fmtPesos(t.monto)
+                        }
+                      </span>
+                      {t.moneda === "USD" && t.tipo_cambio && (
+                        <span className="text-xs text-neutral-400" title="Equivalente en ARS al momento del registro">
+                          ≈ {fmtPesos(t.monto * t.tipo_cambio)}
+                        </span>
+                      )}
+                    </div>
                   )}
                   <Chip estado={t.estado} />
                   <div className="opacity-0 transition-opacity group-hover:opacity-100">

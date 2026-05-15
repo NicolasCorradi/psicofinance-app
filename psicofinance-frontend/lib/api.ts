@@ -115,6 +115,11 @@ export function getInflacion(): Promise<{ valor: number; periodo: string; fuente
   return get('/dashboard/inflacion');
 }
 
+/** Tipo de cambio dólar blue actual (dolarapi.com, cachea 30 min). */
+export function getDolarBlue(): Promise<{ valor: number; fuente: string }> {
+  return get('/dashboard/dolar');
+}
+
 // ---------------------------------------------------------------------------
 // Copiloto NLP
 // ---------------------------------------------------------------------------

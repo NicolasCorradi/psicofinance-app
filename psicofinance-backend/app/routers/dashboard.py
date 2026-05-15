@@ -9,6 +9,7 @@ import httpx
 
 from app.supabase_client import SupabaseClient, get_supabase
 from app.services.finanzas import calcular_valor_real
+from app.services.dolar_service import get_dolar_blue
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,15 @@ def _parse_date(val):
     return date.fromisoformat(str(val)[:10])
 
 
+def _monto_ars(t: dict) -> float:
+    """Convierte monto del turno a ARS usando el tipo_cambio guardado."""
+    monto = float(t.get("monto") or 0)
+    if t.get("moneda") == "USD":
+        tc = float(t.get("tipo_cambio") or 1)
+        return monto * tc
+    return monto
+
+
 @router.get("/metricas", response_model=dict)
 def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
     hoy = date.today()
@@ -76,7 +86,7 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
 
     # Traer todos los turnos de una sola llamada
     turnos = sb.select("turnos", {
-        "select": "id,paciente_id,fecha_turno,monto,estado,origen_pago,prepaga,fecha_cobro_estimada,fecha_cobro_efectivo,medio_pago,tipo_sesion",
+        "select": "id,paciente_id,fecha_turno,monto,estado,origen_pago,prepaga,fecha_cobro_estimada,fecha_cobro_efectivo,medio_pago,tipo_sesion,moneda,tipo_cambio",
     })
 
     # Traer pacientes para join en Python
@@ -94,10 +104,9 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
 
     for t in turnos:
         estado = t.get("estado", "")
-        monto = float(t.get("monto") or 0)
+        monto = _monto_ars(t)  # siempre en ARS (convierte USD si aplica)
         fecha_turno = _parse_date(t.get("fecha_turno"))
         fecha_cobro_ef = _parse_date(t.get("fecha_cobro_efectivo"))
-        fecha_cobro_est = _parse_date(t.get("fecha_cobro_estimada"))
 
         if estado == "COBRADO":
             if fecha_cobro_ef and primer_dia_mes <= fecha_cobro_ef < primer_dia_mes_sig:
@@ -137,7 +146,7 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
         if meses_retraso <= 0:
             continue
         resultado = calcular_valor_real(
-            monto=float(turno.get("monto") or 0),
+            monto=_monto_ars(turno),
             tasa_inflacion_mensual=tasa,
             meses_retraso=meses_retraso,
         )
@@ -170,6 +179,8 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
             "fecha_cobro_efectivo": fe.isoformat() if fe else None,
             "medio_pago": t.get("medio_pago"),
             "tipo_sesion": t.get("tipo_sesion") or "SESION",
+            "moneda": t.get("moneda") or "ARS",
+            "tipo_cambio": float(t.get("tipo_cambio") or 0) or None,
         })
 
     # Ventas de los últimos 6 meses
@@ -178,7 +189,7 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
         inicio_mes = (hoy - relativedelta(months=i)).replace(day=1)
         fin_mes = inicio_mes + relativedelta(months=1)
         cobrado_i = sum(
-            float(t.get("monto") or 0) for t in turnos
+            _monto_ars(t) for t in turnos
             if t.get("estado") == "COBRADO"
             and _parse_date(t.get("fecha_cobro_efectivo")) is not None
             and inicio_mes <= _parse_date(t["fecha_cobro_efectivo"]) < fin_mes
@@ -247,9 +258,18 @@ def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
             "prepaga":              t.get("prepaga"),
             "fecha_cobro_estimada": fest.isoformat() if fest else None,
             "fecha_cobro_efectivo": fe.isoformat() if fe else None,
+            "moneda":               t.get("moneda") or "ARS",
+            "tipo_cambio":          float(t.get("tipo_cambio") or 0) or None,
         })
 
     return result
+
+
+@router.get("/dolar", response_model=dict)
+def get_dolar():
+    """Tipo de cambio dólar blue actual — fuente dolarapi.com. Cachea 30 min."""
+    valor = get_dolar_blue()
+    return {"valor": round(valor, 2), "fuente": "dolarapi.com · Blue"}
 
 
 @router.get("/inflacion", response_model=dict)

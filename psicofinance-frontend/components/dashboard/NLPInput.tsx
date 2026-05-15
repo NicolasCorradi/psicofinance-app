@@ -201,7 +201,14 @@ export default function NLPInput({ onTurnoCreado }: Props) {
                     {m.accion === "turno_registrado" && m.datos && m.datos.paciente !== "Sin identificar" && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <Tag>{m.datos.paciente}</Tag>
-                        {m.datos.monto > 0 && <Tag color="emerald">${m.datos.monto.toLocaleString("es-AR")}</Tag>}
+                        {m.datos.monto > 0 && (
+                          <Tag color="emerald">
+                            {m.datos.moneda === "USD"
+                              ? `USD ${m.datos.monto.toLocaleString("es-AR")}`
+                              : `$${m.datos.monto.toLocaleString("es-AR")}`
+                            }
+                          </Tag>
+                        )}
                         {m.datos.obra_social && <Tag>{m.datos.obra_social}</Tag>}
                         {m.datos.medio_pago && (
                           <Tag>{{ EFECTIVO: "Efectivo", TRANSFERENCIA: "Transfe", MERCADO_PAGO: "MP", TARJETA: "Tarjeta", OTRO: "Otro" }[m.datos.medio_pago] ?? m.datos.medio_pago}</Tag>

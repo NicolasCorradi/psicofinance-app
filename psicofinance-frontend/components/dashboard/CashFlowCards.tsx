@@ -224,14 +224,27 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoShee
           {t.prepaga && <span className="ml-1">· {t.prepaga}</span>}
         </span>
       </div>
-      <span className={`text-sm font-bold tabular-nums ${
-        tipo === "cobrado_mes" ? "text-emerald-600" :
-        vencido ? "text-red-600" : "text-amber-600"
-      }`}>
-        {new Intl.NumberFormat("es-AR", {
-          style: "currency", currency: "ARS", maximumFractionDigits: 0,
-        }).format(t.monto)}
-      </span>
+      <div className="flex flex-col items-end">
+        {t.moneda === "USD" && (
+          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 mb-0.5">USD</span>
+        )}
+        <span className={`text-sm font-bold tabular-nums ${
+          tipo === "cobrado_mes" ? "text-emerald-600" :
+          vencido ? "text-red-600" : "text-amber-600"
+        }`}>
+          {t.moneda === "USD"
+            ? `${t.monto.toLocaleString("es-AR")} USD`
+            : new Intl.NumberFormat("es-AR", {
+                style: "currency", currency: "ARS", maximumFractionDigits: 0,
+              }).format(t.monto)
+          }
+        </span>
+        {t.moneda === "USD" && t.tipo_cambio && (
+          <span className="text-[10px] text-neutral-400">
+            ≈ {new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(t.monto * t.tipo_cambio)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

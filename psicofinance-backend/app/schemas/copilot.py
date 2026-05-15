@@ -29,6 +29,7 @@ class DatosExtraidos(BaseModel):
     confianza:   str        # "alta" | "media" | "baja"
     medio_pago:  str | None = None
     tipo_sesion: str        = "SESION"
+    moneda:      str        = "ARS"
 
 
 class ChatResponse(BaseModel):

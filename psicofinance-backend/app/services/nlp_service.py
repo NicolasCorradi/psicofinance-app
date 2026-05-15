@@ -29,6 +29,7 @@ class DatosTurnoNLP:
     confianza:   str        # "alta" | "media" | "baja"
     medio_pago:  str | None  # "EFECTIVO" | "TRANSFERENCIA" | "MERCADO_PAGO" | "TARJETA" | "OTRO" | None
     tipo_sesion: str         # "SESION" | "INASISTENCIA_JUSTIFICADA" | "INASISTENCIA_INJUSTIFICADA" | "CANCELACION_PROFESIONAL"
+    moneda:      str = "ARS"  # "ARS" | "USD"
 
 
 class ErrorNLP(Exception):
@@ -61,6 +62,7 @@ Campos a extraer:
 - "fecha": string ISO 8601 (YYYY-MM-DD). Resolver fechas relativas con la fecha actual provista
 - "medio_pago": string o null — uno de: "EFECTIVO", "TRANSFERENCIA", "MERCADO_PAGO", "TARJETA", "OTRO". null si no se menciona
 - "tipo_sesion": string — uno de: "SESION", "INASISTENCIA_JUSTIFICADA", "INASISTENCIA_INJUSTIFICADA", "CANCELACION_PROFESIONAL". Default "SESION"
+- "moneda": string — "USD" si el monto es en dólares (se menciona "dólares", "USD", "usd", "us$", "u$s"), sino "ARS"
 - "confianza": "alta" si todos los datos son claros, "media" si algo fue inferido, "baja" si hay ambigüedad
 
 Reglas:
@@ -71,8 +73,10 @@ Reglas:
 - "efectivo"/"cash"/"en mano" → EFECTIVO; "transferencia"/"transfe" → TRANSFERENCIA; "mercado pago"/"MP" → MERCADO_PAGO; "tarjeta"/"débito"/"crédito" → TARJETA
 - "no vino"/"faltó"/"inasistencia" → INASISTENCIA_INJUSTIFICADA (monto puede ser 0); "avisó"/"canceló con aviso"/"justificada" → INASISTENCIA_JUSTIFICADA
 - "cancelé yo"/"no pude atender" → CANCELACION_PROFESIONAL
+- Si el monto es en dólares, devolvé el número tal cual (ej: "cobré USD 100" → monto: 100, moneda: "USD")
 
-Ejemplo: {"paciente":"Martín","monto":10000,"es_prepaga":false,"obra_social":null,"fecha":"2025-04-24","medio_pago":"EFECTIVO","tipo_sesion":"SESION","confianza":"alta"}"""
+Ejemplo ARS: {"paciente":"Martín","monto":10000,"es_prepaga":false,"obra_social":null,"fecha":"2025-04-24","medio_pago":"EFECTIVO","tipo_sesion":"SESION","moneda":"ARS","confianza":"alta"}
+Ejemplo USD: {"paciente":"Laura","monto":80,"es_prepaga":false,"obra_social":null,"fecha":"2025-04-24","medio_pago":"TRANSFERENCIA","tipo_sesion":"SESION","moneda":"USD","confianza":"alta"}"""
 
 PROMPT_CONSULTA = """Sos el copiloto financiero de PsicoFinance, una app para psicólogos independientes en Argentina.
 Respondé la pregunta del psicólogo de forma clara y útil, en español rioplatense (tuteá).
@@ -226,6 +230,9 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
     tipo_raw = str(datos.get("tipo_sesion") or "SESION").upper().strip()
     tipo_sesion = tipo_raw if tipo_raw in tipos_validos else "SESION"
 
+    moneda_raw = str(datos.get("moneda") or "ARS").upper().strip()
+    moneda = moneda_raw if moneda_raw in {"ARS", "USD"} else "ARS"
+
     return DatosTurnoNLP(
         paciente=str(datos["paciente"]).strip(),
         monto=monto,
@@ -235,4 +242,5 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
         confianza=str(datos.get("confianza", "media")),
         medio_pago=medio_pago,
         tipo_sesion=tipo_sesion,
+        moneda=moneda,
     )

@@ -417,9 +417,17 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                         </div>
                         <div className="flex items-center gap-2 ml-2 shrink-0">
                           {t.monto > 0 && (
-                            <span className="text-sm font-semibold tabular-nums text-neutral-800">
-                              {fmtPesos(t.monto)}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              {t.moneda === "USD" && (
+                                <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">USD</span>
+                              )}
+                              <span className="text-sm font-semibold tabular-nums text-neutral-800">
+                                {t.moneda === "USD"
+                                  ? `${t.monto.toLocaleString("es-AR")}`
+                                  : fmtPesos(t.monto)
+                                }
+                              </span>
+                            </div>
                           )}
                           <EstadoChip estado={t.estado} />
                         </div>

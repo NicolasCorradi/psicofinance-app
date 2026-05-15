@@ -6,6 +6,7 @@ export type Confianza     = 'alta' | 'media' | 'baja';
 export type EstadoSemaforo = 'VERDE' | 'AMARILLO' | 'ROJO';
 export type MedioPago     = 'EFECTIVO' | 'TRANSFERENCIA' | 'MERCADO_PAGO' | 'TARJETA' | 'OTRO';
 export type TipoSesion    = 'SESION' | 'INASISTENCIA_JUSTIFICADA' | 'INASISTENCIA_INJUSTIFICADA' | 'CANCELACION_PROFESIONAL';
+export type Moneda        = 'ARS' | 'USD';
 
 // ── Semáforo Monotributo ─────────────────────────────────────────────────────
 export interface ResultadoSemaforo {
@@ -28,6 +29,7 @@ export interface DatosExtraidos {
   confianza:   Confianza;
   medio_pago:  MedioPago | null;
   tipo_sesion: TipoSesion;
+  moneda:      Moneda;
 }
 
 export interface ChatResponse {
@@ -51,6 +53,8 @@ export interface TurnoRead {
   prepaga:               string | null;
   medio_pago:            MedioPago | null;
   tipo_sesion:           TipoSesion;
+  moneda:                Moneda;
+  tipo_cambio:           number | null;
   created_at:            string;
   updated_at:            string;
 }
@@ -68,6 +72,8 @@ export interface TurnoResumen {
   fecha_cobro_efectivo:  string | null;
   medio_pago:            MedioPago | null;
   tipo_sesion:           TipoSesion;
+  moneda:                Moneda;
+  tipo_cambio:           number | null;
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -131,6 +137,8 @@ export interface TurnoEnDetalle {
   fecha_cobro_efectivo: string | null;
   medio_pago:           MedioPago | null;
   tipo_sesion:          TipoSesion;
+  moneda:               Moneda;
+  tipo_cambio:          number | null;
   created_at:           string;
 }
 
@@ -163,6 +171,8 @@ export interface TurnoUpdatePayload {
   fecha_cobro_estimada?: string | null;
   medio_pago?:           MedioPago | null;
   tipo_sesion?:          TipoSesion;
+  moneda?:               Moneda;
+  tipo_cambio?:          number | null;
 }
 
 // ── Comprobantes ─────────────────────────────────────────────────────────────
