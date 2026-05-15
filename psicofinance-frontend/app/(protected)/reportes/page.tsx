@@ -176,7 +176,9 @@ export default function ReportesPage() {
             </div>
             {ipc && (
               <span className="text-[10px] text-neutral-400">
-                INDEC · {ipc.periodo}
+                {ipc.periodo === "config"
+                  ? "Valor manual · pendiente INDEC"
+                  : `INDEC · ${ipc.periodo}`}
               </span>
             )}
           </div>

@@ -14,12 +14,17 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 _ipc_cache: dict = {}
-_IPC_CACHE_TTL = 21600  # 6 horas
+_IPC_CACHE_TTL = 21600  # 6 horas para datos reales
+_FALLBACK_TTL  = 300    # 5 minutos cuando falla — reintenta pronto
+
+# IPC Nacional Nivel General base dic 2016 (serie oficial INDEC)
+_IPC_SERIES_ID = "148.3_INIVELNAL_DICI_M_26"
 
 
 def fetch_ipc_indec() -> dict:
-    """Trae los últimos 13 meses de IPC General (INDEC) desde datos.gob.ar.
-    Construye un dict {YYYY-MM: tasa_decimal}. Cachea 6 horas."""
+    """Trae los últimos 13 meses de IPC Nacional (INDEC) desde datos.gob.ar.
+    Si el mes actual aún no está publicado, lo completa con config.inflacion_mensual.
+    Cachea 6 horas para datos reales, 5 minutos para fallback."""
     ahora = time.time()
     if _ipc_cache.get("ts") and ahora - _ipc_cache["ts"] < _IPC_CACHE_TTL:
         return _ipc_cache
@@ -27,7 +32,7 @@ def fetch_ipc_indec() -> dict:
     try:
         url = (
             "https://apis.datos.gob.ar/series/api/series/"
-            "?ids=103.1_I2N_2016_M_19&limit=14&sort=desc&format=json"
+            f"?ids={_IPC_SERIES_ID}&limit=14&sort=desc&format=json"
         )
         r = httpx.get(url, timeout=8)
         r.raise_for_status()
@@ -46,6 +51,18 @@ def fetch_ipc_indec() -> dict:
 
             ultimo_periodo = data[0][0][:7]
             ultimo_valor   = tasas[ultimo_periodo] * 100
+
+            # Si el mes actual no está en la API (dato pendiente de publicación),
+            # lo inyectamos con el valor del config hasta que INDEC lo publique.
+            hoy = date.today()
+            mes_actual = hoy.strftime("%Y-%m")
+            if mes_actual not in tasas:
+                tasas[mes_actual] = config.inflacion_mensual
+                ultimo_periodo = mes_actual
+                ultimo_valor   = config.inflacion_mensual * 100
+                logger.info("IPC %s no publicado aún — usando config: %.2f%%",
+                            mes_actual, ultimo_valor)
+
             _ipc_cache.update({
                 "tasas":            tasas,
                 "ultimo_periodo":   ultimo_periodo,
@@ -63,11 +80,12 @@ def fetch_ipc_indec() -> dict:
             for i in range(13):
                 mes = (hoy - relativedelta(months=i)).strftime("%Y-%m")
                 tasas_fb[mes] = tasa_fb
+            # TTL corto: reintenta en 5 min en vez de bloquear 6 horas
             _ipc_cache.update({
                 "tasas":            tasas_fb,
                 "ultimo_periodo":   "config",
                 "ultimo_valor_pct": round(tasa_fb * 100, 2),
-                "ts":               ahora,
+                "ts":               ahora - _IPC_CACHE_TTL + _FALLBACK_TTL,
             })
 
     return _ipc_cache
