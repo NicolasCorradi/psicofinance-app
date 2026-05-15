@@ -52,16 +52,18 @@ def fetch_ipc_indec() -> dict:
             ultimo_periodo = data[0][0][:7]
             ultimo_valor   = tasas[ultimo_periodo] * 100
 
-            # Si el mes actual no está en la API (dato pendiente de publicación),
-            # lo inyectamos con el valor del config hasta que INDEC lo publique.
+            # INDEC publica el mes N alrededor del día 12-15 del mes N+1.
+            # datos.gob.ar puede tardar unos días más en actualizar.
+            # Si el mes anterior no está en la API, lo completamos con config
+            # hasta que datos.gob.ar lo suba. El mes actual nunca existe.
             hoy = date.today()
-            mes_actual = hoy.strftime("%Y-%m")
-            if mes_actual not in tasas:
-                tasas[mes_actual] = config.inflacion_mensual
-                ultimo_periodo = mes_actual
+            mes_anterior = (hoy - relativedelta(months=1)).strftime("%Y-%m")
+            if mes_anterior not in tasas:
+                tasas[mes_anterior] = config.inflacion_mensual
+                ultimo_periodo = mes_anterior
                 ultimo_valor   = config.inflacion_mensual * 100
-                logger.info("IPC %s no publicado aún — usando config: %.2f%%",
-                            mes_actual, ultimo_valor)
+                logger.info("IPC %s no publicado en API aún — usando config: %.2f%%",
+                            mes_anterior, ultimo_valor)
 
             _ipc_cache.update({
                 "tasas":            tasas,
