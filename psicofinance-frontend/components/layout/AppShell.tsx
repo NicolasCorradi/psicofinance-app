@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, LogOut } from "lucide-react";
-import { getSemaforo } from "@/lib/api";
+import { getSemaforo, getSemanaModelo } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
 import { ToastProvider } from "@/lib/toast";
@@ -29,12 +29,20 @@ const CHIP_CLS: Record<EstadoSemaforo, string> = {
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const [semaforo, setSemaforo] = useState<ResultadoSemaforo | null>(null);
+  const [semaforo,       setSemaforo]       = useState<ResultadoSemaforo | null>(null);
+  const [sesionesHoy,    setSesionesHoy]    = useState(0);
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
 
-  useEffect(() => { getSemaforo().then(setSemaforo).catch(() => {}); }, []);
+  useEffect(() => {
+    getSemaforo().then(setSemaforo).catch(() => {});
+    // Badge agenda: contar slots del modelo para el día de hoy
+    getSemanaModelo().then(({ slots }) => {
+      const diaMod = new Date().getDay() === 0 ? 7 : new Date().getDay();
+      setSesionesHoy(slots.filter(s => s.dia === diaMod).length);
+    }).catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -70,6 +78,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 space-y-0.5">
           {NAV_LINKS.map(({ href, label, Icon }) => {
             const active = pathname.startsWith(href);
+            const esAgenda = href === "/agenda";
             return (
               <Link
                 key={href}
@@ -80,10 +89,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     : "text-white/40 hover:bg-sidebar-accent hover:text-white/80"
                 }`}
               >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${active ? "text-indigo-400" : "opacity-60"}`}
-                  strokeWidth={active ? 2 : 1.8}
-                />
+                <div className="relative">
+                  <Icon
+                    className={`h-4 w-4 shrink-0 ${active ? "text-indigo-400" : "opacity-60"}`}
+                    strokeWidth={active ? 2 : 1.8}
+                  />
+                  {esAgenda && sesionesHoy > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white">
+                      {sesionesHoy}
+                    </span>
+                  )}
+                </div>
                 {label}
               </Link>
             );

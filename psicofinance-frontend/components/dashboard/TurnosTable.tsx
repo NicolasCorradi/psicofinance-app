@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Check, X, CheckCircle2 } from "lucide-react";
 import { actualizarTurno, eliminarTurno } from "@/lib/api";
-import type { TurnoResumen, EstadoTurno, MedioPago, TipoSesion, Moneda } from "@/lib/types";
+import type { TurnoResumen, EstadoTurno, MedioPago, TipoSesion } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
+import { useToast } from "@/lib/toast";
 
 function fmtPesos(n: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -40,7 +41,6 @@ function Chip({ estado }: { estado: EstadoTurno }) {
   );
 }
 
-// Menú contextual con cierre al hacer click fuera
 function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -56,28 +56,19 @@ function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: (
 
   return (
     <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
-      >
+      <button onClick={() => setOpen(v => !v)}
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-600">
         <MoreHorizontal className="h-4 w-4" />
       </button>
-
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl border border-neutral-100 bg-white py-1 shadow-lg">
-          <button
-            onClick={() => { setOpen(false); onEditar(); }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
-          >
-            <Pencil className="h-3.5 w-3.5 text-neutral-400" />
-            Editar
+          <button onClick={() => { setOpen(false); onEditar(); }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50">
+            <Pencil className="h-3.5 w-3.5 text-neutral-400" />Editar
           </button>
-          <button
-            onClick={() => { setOpen(false); onEliminar(); }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-red-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Eliminar
+          <button onClick={() => { setOpen(false); onEliminar(); }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-red-50">
+            <Trash2 className="h-3.5 w-3.5" />Eliminar
           </button>
         </div>
       )}
@@ -86,25 +77,28 @@ function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: (
 }
 
 const MEDIO_PAGO_LABELS: Record<MedioPago, string> = {
-  EFECTIVO:      "Efectivo",
-  TRANSFERENCIA: "Transferencia",
-  MERCADO_PAGO:  "Mercado Pago",
-  TARJETA:       "Tarjeta",
-  OTRO:          "Otro",
+  EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia",
+  MERCADO_PAGO: "Mercado Pago", TARJETA: "Tarjeta", OTRO: "Otro",
 };
 
 const TIPO_SESION_LABELS: Record<TipoSesion, string> = {
-  SESION:                    "Sesión normal",
+  SESION: "Sesión normal",
   INASISTENCIA_JUSTIFICADA:  "Inasistencia justificada",
   INASISTENCIA_INJUSTIFICADA: "Inasistencia injustificada",
   CANCELACION_PROFESIONAL:   "Cancelación profesional",
 };
 
+const TIPO_BADGE: Record<string, { label: string; cls: string }> = {
+  INASISTENCIA_JUSTIFICADA:   { label: "Canceló", cls: "bg-amber-50 text-amber-600 ring-1 ring-amber-200" },
+  INASISTENCIA_INJUSTIFICADA: { label: "Faltó",   cls: "bg-red-50 text-red-500 ring-1 ring-red-200" },
+  CANCELACION_PROFESIONAL:    { label: "Cancelé", cls: "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200" },
+};
+
 interface EditForm {
-  monto:      string;
-  estado:     EstadoTurno;
-  prepaga:    string;
-  medio_pago: MedioPago | "";
+  monto:       string;
+  estado:      EstadoTurno;
+  prepaga:     string;
+  medio_pago:  MedioPago | "";
   tipo_sesion: TipoSesion;
 }
 
@@ -115,10 +109,11 @@ interface Props {
 }
 
 export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
-  const [editandoId,    setEditandoId]    = useState<string | null>(null);
-  const [eliminandoId,  setEliminandoId]  = useState<string | null>(null);
-  const [guardando,     setGuardando]     = useState(false);
-  const [errorMsg,      setErrorMsg]      = useState<string | null>(null);
+  const toast = useToast();
+  const [editandoId,   setEditandoId]   = useState<string | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+  const [cobrandoId,   setCobrandoId]   = useState<string | null>(null);  // ← nuevo
+  const [guardando,    setGuardando]    = useState(false);
   const [editForm, setEditForm] = useState<EditForm>({
     monto: "", estado: "COBRADO", prepaga: "", medio_pago: "", tipo_sesion: "SESION",
   });
@@ -135,71 +130,77 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
     setEliminandoId(null);
   }
 
-  function iniciarEliminacion(t: TurnoResumen) {
-    setEliminandoId(t.id);
-    setEditandoId(null);
-  }
-
   async function guardarEdicion(id: string) {
     const monto = parseFloat(editForm.monto.replace(",", "."));
     if (isNaN(monto) || monto < 0) return;
     setGuardando(true);
-    setErrorMsg(null);
-    // Si es inasistencia sin monto, forzar INCOBRABLE
     const esInasistencia = ["INASISTENCIA_INJUSTIFICADA", "INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL"].includes(editForm.tipo_sesion);
     const estadoFinal = esInasistencia && monto === 0 ? "INCOBRABLE" as EstadoTurno : editForm.estado;
     try {
       await actualizarTurno(id, {
-        monto,
-        estado:      estadoFinal,
+        monto, estado: estadoFinal,
         prepaga:     editForm.prepaga.trim() || null,
         medio_pago:  editForm.medio_pago as MedioPago || null,
         tipo_sesion: editForm.tipo_sesion,
       });
       setEditandoId(null);
+      toast.success("Turno actualizado");
       onRefresh();
     } catch {
-      setErrorMsg("No se pudo guardar. Intentá de nuevo.");
-    } finally {
-      setGuardando(false);
-    }
+      toast.error("No se pudo guardar. Intentá de nuevo.");
+    } finally { setGuardando(false); }
   }
 
   async function confirmarEliminacion(id: string) {
     setGuardando(true);
-    setErrorMsg(null);
     try {
       await eliminarTurno(id);
       setEliminandoId(null);
+      toast.success("Turno eliminado");
       onRefresh();
     } catch {
       setEliminandoId(null);
-      setErrorMsg("No se pudo eliminar el turno.");
-    } finally {
-      setGuardando(false);
-    }
+      toast.error("No se pudo eliminar el turno.");
+    } finally { setGuardando(false); }
+  }
+
+  // ── Cobro rápido ─────────────────────────────────────────────────────────────
+  async function cobrarRapido(t: TurnoResumen) {
+    setCobrandoId(t.id);
+    try {
+      const hoy = new Date().toISOString().slice(0, 10);
+      await actualizarTurno(t.id, {
+        estado:               "COBRADO",
+        fecha_cobro_efectivo: hoy,
+      });
+      toast.success(`${t.paciente_nombre} — cobrado ✓`);
+      onRefresh();
+    } catch {
+      toast.error("No se pudo marcar como cobrado.");
+    } finally { setCobrandoId(null); }
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: "300ms" }}>
       <div className="flex items-baseline justify-between px-5 py-4">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-          Últimos turnos
-        </p>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Últimos turnos</p>
         {!cargando && turnos.length > 0 && (
           <span className="text-xs text-neutral-300">{turnos.length} registros</span>
         )}
       </div>
-      {errorMsg && (
-        <div className="mx-5 mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-500 ring-1 ring-red-100">
-          {errorMsg}
-        </div>
-      )}
 
       {cargando && (
-        <div className="flex items-center justify-center gap-2 py-10 text-xs text-neutral-400">
-          <span className="h-3 w-3 animate-spin rounded-full border border-neutral-200 border-t-neutral-500" />
-          Cargando…
+        <div className="divide-y divide-neutral-100">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3.5 px-5 py-3.5">
+              <div className="h-8 w-8 animate-pulse rounded-full bg-neutral-100" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-32 animate-pulse rounded bg-neutral-100" />
+                <div className="h-2.5 w-20 animate-pulse rounded bg-neutral-100" />
+              </div>
+              <div className="h-6 w-16 animate-pulse rounded-full bg-neutral-100" />
+            </div>
+          ))}
         </div>
       )}
 
@@ -212,99 +213,68 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
       {!cargando && turnos.length > 0 && (
         <div className="divide-y divide-neutral-100">
-          {turnos.map((t) => {
+          {turnos.map(t => {
 
-            /* ── Fila en modo edición ── */
+            /* ── Fila edición ── */
             if (editandoId === t.id) {
               return (
                 <div key={t.id} className="bg-slate-50 px-5 py-3">
                   <div className="flex items-center gap-2">
-                    {/* Avatar pequeño */}
                     <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                       {iniciales(t.paciente_nombre)}
                     </div>
                     <p className="text-sm font-medium text-neutral-700">{t.paciente_nombre}</p>
                   </div>
                   <div className="mt-3 flex flex-wrap items-end gap-2">
-                    {/* Monto */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Monto $</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editForm.monto}
-                        onChange={(e) => setEditForm((f) => ({ ...f, monto: e.target.value }))}
-                        className="w-28 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                      />
+                      <input type="number" min={1} value={editForm.monto}
+                        onChange={e => setEditForm(f => ({ ...f, monto: e.target.value }))}
+                        className="w-28 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
                     </div>
-                    {/* Estado */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Estado</label>
-                      <select
-                        value={editForm.estado}
-                        onChange={(e) => setEditForm((f) => ({ ...f, estado: e.target.value as EstadoTurno }))}
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none"
-                      >
+                      <select value={editForm.estado} onChange={e => setEditForm(f => ({ ...f, estado: e.target.value as EstadoTurno }))}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none">
                         <option value="COBRADO">Cobrado</option>
                         <option value="DIFERIDO">Pendiente</option>
                         <option value="INCOBRABLE">Incobrable</option>
                       </select>
                     </div>
-                    {/* Prepaga */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Prepaga (opcional)</label>
-                      <input
-                        type="text"
-                        placeholder="OSDE, Swiss Medical…"
-                        value={editForm.prepaga}
-                        onChange={(e) => setEditForm((f) => ({ ...f, prepaga: e.target.value }))}
-                        className="w-36 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
-                      />
+                      <input type="text" placeholder="OSDE, Swiss Medical…" value={editForm.prepaga}
+                        onChange={e => setEditForm(f => ({ ...f, prepaga: e.target.value }))}
+                        className="w-36 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none" />
                     </div>
-                    {/* Medio de pago */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Medio de pago</label>
-                      <select
-                        value={editForm.medio_pago}
-                        onChange={(e) => setEditForm((f) => ({ ...f, medio_pago: e.target.value as MedioPago | "" }))}
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none"
-                      >
+                      <select value={editForm.medio_pago} onChange={e => setEditForm(f => ({ ...f, medio_pago: e.target.value as MedioPago | "" }))}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none">
                         <option value="">Sin especificar</option>
                         {(Object.keys(MEDIO_PAGO_LABELS) as MedioPago[]).map(k => (
                           <option key={k} value={k}>{MEDIO_PAGO_LABELS[k]}</option>
                         ))}
                       </select>
                     </div>
-                    {/* Tipo de sesión */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Tipo de sesión</label>
-                      <select
-                        value={editForm.tipo_sesion}
-                        onChange={(e) => setEditForm((f) => ({ ...f, tipo_sesion: e.target.value as TipoSesion }))}
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none"
-                      >
+                      <select value={editForm.tipo_sesion} onChange={e => setEditForm(f => ({ ...f, tipo_sesion: e.target.value as TipoSesion }))}
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none">
                         {(Object.keys(TIPO_SESION_LABELS) as TipoSesion[]).map(k => (
                           <option key={k} value={k}>{TIPO_SESION_LABELS[k]}</option>
                         ))}
                       </select>
                     </div>
-                    {/* Botones */}
                     <div className="flex gap-1.5">
-                      <button
-                        onClick={() => guardarEdicion(t.id)}
-                        disabled={guardando}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
-                      >
+                      <button onClick={() => guardarEdicion(t.id)} disabled={guardando}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:opacity-40">
                         {guardando
                           ? <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white" />
-                          : <Check className="h-3.5 w-3.5" />
-                        }
+                          : <Check className="h-3.5 w-3.5" />}
                       </button>
-                      <button
-                        onClick={() => setEditandoId(null)}
-                        disabled={guardando}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition-colors hover:bg-neutral-100"
-                      >
+                      <button onClick={() => setEditandoId(null)} disabled={guardando}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition-colors hover:bg-neutral-100">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -313,7 +283,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
               );
             }
 
-            /* ── Fila en modo confirmación de eliminación ── */
+            /* ── Fila eliminación ── */
             if (eliminandoId === t.id) {
               return (
                 <div key={t.id} className="flex items-center gap-3 bg-red-50 px-5 py-3.5">
@@ -324,18 +294,12 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                     ¿Eliminar el turno de <strong>{t.paciente_nombre}</strong>?
                   </p>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => confirmarEliminacion(t.id)}
-                      disabled={guardando}
-                      className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-40"
-                    >
+                    <button onClick={() => confirmarEliminacion(t.id)} disabled={guardando}
+                      className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-40">
                       {guardando ? "Eliminando…" : "Sí, eliminar"}
                     </button>
-                    <button
-                      onClick={() => setEliminandoId(null)}
-                      disabled={guardando}
-                      className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white"
-                    >
+                    <button onClick={() => setEliminandoId(null)} disabled={guardando}
+                      className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white">
                       Cancelar
                     </button>
                   </div>
@@ -345,13 +309,11 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
             /* ── Fila normal ── */
             const esInasistencia = t.tipo_sesion && t.tipo_sesion !== "SESION";
-            const TIPO_BADGE: Record<string, { label: string; cls: string }> = {
-              INASISTENCIA_JUSTIFICADA:   { label: "Canceló",  cls: "bg-amber-50 text-amber-600 ring-1 ring-amber-200" },
-              INASISTENCIA_INJUSTIFICADA: { label: "Faltó",    cls: "bg-red-50 text-red-500 ring-1 ring-red-200" },
-              CANCELACION_PROFESIONAL:    { label: "Cancelé",  cls: "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200" },
-            };
+            const esDiferido = t.estado === "DIFERIDO";
+            const cobrando = cobrandoId === t.id;
+
             return (
-              <div key={t.id} className={`group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-indigo-50/30 ${esInasistencia ? "opacity-75" : ""}`}>
+              <div key={t.id} className={`group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-neutral-50/80 ${esInasistencia ? "opacity-75" : ""}`}>
                 {/* Avatar */}
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                   {iniciales(t.paciente_nombre)}
@@ -374,33 +336,44 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                   </p>
                 </div>
 
-                {/* Monto + estado + menú */}
-                <div className="flex shrink-0 items-center gap-3">
+                {/* Monto + estado + acciones */}
+                <div className="flex shrink-0 items-center gap-2">
                   {t.monto > 0 && (
                     <div className="flex items-center gap-1.5">
                       {t.moneda === "USD" && (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                          USD
-                        </span>
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">USD</span>
                       )}
                       <span className="text-sm font-semibold tabular-nums text-neutral-800">
-                        {t.moneda === "USD"
-                          ? `${t.monto.toLocaleString("es-AR")}`
-                          : fmtPesos(t.monto)
-                        }
+                        {t.moneda === "USD" ? t.monto.toLocaleString("es-AR") : fmtPesos(t.monto)}
                       </span>
                       {t.moneda === "USD" && t.tipo_cambio && (
-                        <span className="text-xs text-neutral-400" title="Equivalente en ARS al momento del registro">
-                          ≈ {fmtPesos(t.monto * t.tipo_cambio)}
-                        </span>
+                        <span className="text-xs text-neutral-400">≈ {fmtPesos(t.monto * t.tipo_cambio)}</span>
                       )}
                     </div>
                   )}
+
                   <Chip estado={t.estado} />
+
+                  {/* Botón cobrar rápido — solo para DIFERIDO */}
+                  {esDiferido && (
+                    <button
+                      onClick={() => cobrarRapido(t)}
+                      disabled={cobrando}
+                      title="Marcar como cobrado"
+                      className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 opacity-0 transition-all hover:bg-emerald-100 group-hover:opacity-100 disabled:opacity-60"
+                    >
+                      {cobrando
+                        ? <span className="h-3 w-3 animate-spin rounded-full border border-emerald-300 border-t-emerald-700" />
+                        : <CheckCircle2 className="h-3 w-3" />
+                      }
+                      Cobrar
+                    </button>
+                  )}
+
                   <div className="opacity-0 transition-opacity group-hover:opacity-100">
                     <RowMenu
                       onEditar={() => iniciarEdicion(t)}
-                      onEliminar={() => iniciarEliminacion(t)}
+                      onEliminar={() => { setEliminandoId(t.id); setEditandoId(null); }}
                     />
                   </div>
                 </div>

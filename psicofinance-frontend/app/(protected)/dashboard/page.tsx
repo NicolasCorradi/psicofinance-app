@@ -130,16 +130,20 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-4">
 
           {/* Copiloto NLP */}
-          <NLPInput onTurnoCreado={handleTurnoCreado} />
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
+            <NLPInput onTurnoCreado={handleTurnoCreado} />
+          </div>
 
-          {/* Empty state solo si cargó y no hay nada */}
+          {/* Empty state */}
           {esVacio && <EmptyState />}
 
-          {/* Métricas — siempre visibles (muestran skeleton si cargando) */}
-          <CashFlowCards metricas={metricas} />
+          {/* Métricas */}
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "80ms" }}>
+            <CashFlowCards metricas={metricas} />
+          </div>
 
           {/* Gráfico + Monotributo */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "150ms" }}>
             <div className="lg:col-span-2">
               <VentasMensuales data={metricas?.ventas_mensuales ?? []} />
             </div>
@@ -147,13 +151,15 @@ export default function DashboardPage() {
           </div>
 
           {/* Inflación + Alertas */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "220ms" }}>
             <InflacionWidget    metricas={metricas} />
             <AlertasHonorarios />
           </div>
 
           {/* Simulador */}
-          <SimuladorHonorarios />
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "280ms" }}>
+            <SimuladorHonorarios />
+          </div>
 
           {/* Tabla de turnos */}
           {!esVacio && (
