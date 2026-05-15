@@ -38,6 +38,20 @@ const TIPO_LABEL: Record<string, string> = {
 // Horas disponibles para agregar a la semana modelo
 const HORAS_OPCIONES = Array.from({ length: 15 }, (_, i) => `${String(i + 7).padStart(2,"0")}:00`);
 
+// ── Card placeholder (slot modelo sin turno real) ─────────────────────────────
+
+function SlotPlaceholder({ nombre }: { nombre: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-2.5 py-2 text-xs opacity-60">
+      <div className="flex items-center gap-1.5">
+        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(nombre)}`}>{iniciales(nombre)}</div>
+        <p className="truncate font-medium text-neutral-400">{nombre}</p>
+      </div>
+      <p className="mt-1 text-[9px] text-neutral-300">Sin registrar</p>
+    </div>
+  );
+}
+
 // ── Card turno real ───────────────────────────────────────────────────────────
 
 function TurnoCard({ t }: { t: TurnoAgenda }) {
@@ -72,19 +86,34 @@ function TurnoCard({ t }: { t: TurnoAgenda }) {
 function VistaSemana() {
   const [lunes, setLunes]       = useState<Date>(() => lunesDe(new Date()));
   const [turnos, setTurnos]     = useState<TurnoAgenda[]>([]);
+  const [modelo, setModelo]     = useState<SlotModelo[]>([]);
   const [cargando, setCargando] = useState(false);
   const hoyIso = isoDate(new Date());
 
   const cargar = useCallback(async (ini: Date) => {
     setCargando(true);
-    try { setTurnos(await getTurnosAgenda(isoDate(ini), isoDate(addDays(ini, 6)))); }
-    catch { /* silencioso */ } finally { setCargando(false); }
+    try {
+      const [t, m] = await Promise.all([
+        getTurnosAgenda(isoDate(ini), isoDate(addDays(ini, 6))),
+        getSemanaModelo(),
+      ]);
+      setTurnos(t);
+      setModelo(m.slots);
+    } catch { /* silencioso */ } finally { setCargando(false); }
   }, []);
   useEffect(() => { cargar(lunes); }, [lunes, cargar]);
 
+  // dia modelo: 1=Lun…7=Dom, getDay(): 0=Dom,1=Lun…6=Sáb
+  function diaModelo(d: Date): number { return d.getDay() === 0 ? 7 : d.getDay(); }
+
   const dias = Array.from({length:7},(_,i)=>{
     const d = addDays(lunes,i), iso = isoDate(d);
-    return { d, iso, label: DIAS_CORTO[i], td: turnos.filter(t=>t.fecha_turno===iso) };
+    const td = turnos.filter(t=>t.fecha_turno===iso);
+    // Slots del modelo para este día que NO tienen turno real del mismo paciente
+    const dm = diaModelo(d);
+    const placeholders = modelo
+      .filter(s => s.dia === dm && !td.some(t => t.paciente_id === s.paciente_id));
+    return { d, iso, label: DIAS_CORTO[i], td, placeholders };
   });
   const totalSes = turnos.filter(t=>t.estado!=="INCOBRABLE").length;
   const cobrado  = turnos.filter(t=>t.estado==="COBRADO").reduce((a,t)=>a+(t.moneda==="USD"&&t.tipo_cambio?t.monto*t.tipo_cambio:t.monto),0);
@@ -116,18 +145,20 @@ function VistaSemana() {
       : <>
           {/* Desktop */}
           <div className="hidden md:grid grid-cols-7 gap-2">
-            {dias.map(({d,iso,label,td})=>{
+            {dias.map(({d,iso,label,td,placeholders})=>{
               const esHoy=iso===hoyIso, esFin=d.getDay()===0||d.getDay()===6;
+              const total = td.length + placeholders.length;
               return (
                 <div key={iso} className={`min-h-[200px] rounded-2xl p-2.5 ${esHoy?"bg-indigo-50 ring-2 ring-indigo-300/60":esFin?"bg-white/60 ring-1 ring-black/5":"bg-white ring-1 ring-black/5"}`}>
                   <div className="mb-2 flex items-center gap-1">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">{label}</span>
                     <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${esHoy?"bg-indigo-600 text-white":"text-neutral-500"}`}>{d.getDate()}</span>
-                    {td.length>0 && <span className="ml-auto rounded-full bg-neutral-100 px-1.5 py-0.5 text-[9px] font-semibold text-neutral-500">{td.length}</span>}
+                    {total>0 && <span className="ml-auto rounded-full bg-neutral-100 px-1.5 py-0.5 text-[9px] font-semibold text-neutral-500">{total}</span>}
                   </div>
                   <div className="space-y-1.5">
-                    {td.length===0&&<p className="pt-4 text-center text-[10px] text-neutral-300">—</p>}
+                    {total===0&&<p className="pt-4 text-center text-[10px] text-neutral-300">—</p>}
                     {td.map(t=><TurnoCard key={t.id} t={t}/>)}
+                    {placeholders.map(s=><SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} nombre={s.paciente_nombre}/>)}
                   </div>
                 </div>
               );
@@ -135,23 +166,26 @@ function VistaSemana() {
           </div>
           {/* Mobile */}
           <div className="md:hidden space-y-2">
-            {dias.map(({d,iso,label,td})=>{
+            {dias.map(({d,iso,label,td,placeholders})=>{
               const esHoy=iso===hoyIso, esFin=d.getDay()===0||d.getDay()===6;
+              const total = td.length + placeholders.length;
               return (
                 <div key={iso} className={`overflow-hidden rounded-2xl ${esHoy?"ring-2 ring-indigo-300/60":"ring-1 ring-black/5"}`}>
                   <div className={`flex items-center gap-2 px-4 py-2.5 ${esHoy?"bg-indigo-600":esFin?"bg-neutral-100":"bg-white"}`}>
                     <span className={`text-[11px] font-bold uppercase tracking-wider ${esHoy?"text-white/70":"text-neutral-400"}`}>{label}</span>
                     <span className={`text-sm font-bold ${esHoy?"text-white":"text-neutral-700"}`}>{d.getDate()} {MESES_ES[d.getMonth()]}</span>
-                    {td.length>0&&<span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${esHoy?"bg-white/20 text-white":"bg-neutral-200 text-neutral-600"}`}>{td.length}</span>}
+                    {total>0&&<span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${esHoy?"bg-white/20 text-white":"bg-neutral-200 text-neutral-600"}`}>{total}</span>}
                   </div>
                   <div className={`px-3 py-2 space-y-1.5 ${esHoy?"bg-indigo-50/40":"bg-white"}`}>
-                    {td.length===0?<p className="py-2 text-center text-xs text-neutral-300">Sin turnos</p>:td.map(t=><TurnoCard key={t.id} t={t}/>)}
+                    {total===0?<p className="py-2 text-center text-xs text-neutral-300">Sin turnos</p>:null}
+                    {td.map(t=><TurnoCard key={t.id} t={t}/>)}
+                    {placeholders.map(s=><SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} nombre={s.paciente_nombre}/>)}
                   </div>
                 </div>
               );
             })}
           </div>
-          {turnos.length===0&&(
+          {turnos.length===0&&modelo.length===0&&(
             <div className="mt-8 flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="h-10 w-10 text-neutral-200"/>
               <p className="text-sm font-medium text-neutral-400">Sin turnos esta semana</p>
