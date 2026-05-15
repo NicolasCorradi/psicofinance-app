@@ -51,6 +51,9 @@ export default function ReportesPage() {
   const [ipc, setIpc] = useState<{ valor: number; periodo: string; fuente: string } | null>(null);
   const [exportando,   setExportando]   = useState(false);
   const [errorExport,  setErrorExport]  = useState<string | null>(null);
+  const hoyISO = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const [exportDesde, setExportDesde]  = useState(`${new Date().getFullYear()}-01`);
+  const [exportHasta, setExportHasta]  = useState(hoyISO);
 
   useEffect(() => {
     Promise.all([getMetricasDashboard(), getPacientes(), getSemaforo(), getInflacion()])
@@ -103,37 +106,65 @@ export default function ReportesPage() {
           <h1 className="text-xl font-bold tracking-tight text-neutral-900">Reportes</h1>
           <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={async () => {
-              setExportando(true);
-              setErrorExport(null);
-              try {
-                const rows = await getExportIngresos();
-                exportCSV(`ingresos_${anioActual}.csv`, [
-                  { key: "fecha_sesion", label: "Fecha sesión"   },
-                  { key: "fecha_cobro",  label: "Fecha cobro"    },
-                  { key: "paciente",     label: "Paciente"       },
-                  { key: "monto",        label: "Monto"          },
-                  { key: "moneda",       label: "Moneda"         },
-                  { key: "medio_pago",   label: "Medio de pago"  },
-                  { key: "origen_pago",  label: "Origen pago"    },
-                  { key: "prepaga",      label: "Prepaga"        },
-                ], rows);
-              } catch (e) {
-                setErrorExport(e instanceof Error ? e.message : "Error al exportar");
-              } finally {
-                setExportando(false);
-              }
-            }}
-            disabled={exportando || cargando}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {exportando
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <Download className="h-3.5 w-3.5" />}
-            Exportar ingresos
-          </button>
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-neutral-400">Desde</span>
+            <input
+              type="month"
+              value={exportDesde}
+              max={exportHasta}
+              onChange={e => setExportDesde(e.target.value)}
+              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <span className="text-[11px] text-neutral-400">hasta</span>
+            <input
+              type="month"
+              value={exportHasta}
+              min={exportDesde}
+              max={hoyISO}
+              onChange={e => setExportHasta(e.target.value)}
+              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button
+              onClick={async () => {
+                setExportando(true);
+                setErrorExport(null);
+                try {
+                  const rows = await getExportIngresos();
+                  // Filtrar por período seleccionado usando fecha_cobro
+                  const filtradas = rows.filter(r => {
+                    const f = String(r.fecha_cobro ?? "").slice(0, 7);
+                    return f >= exportDesde && f <= exportHasta;
+                  });
+                  if (filtradas.length === 0) {
+                    setErrorExport("Sin registros en ese período");
+                    return;
+                  }
+                  exportCSV(`ingresos_${exportDesde}_${exportHasta}.csv`, [
+                    { key: "fecha_sesion", label: "Fecha sesión"  },
+                    { key: "fecha_cobro",  label: "Fecha cobro"   },
+                    { key: "paciente",     label: "Paciente"      },
+                    { key: "monto",        label: "Monto"         },
+                    { key: "moneda",       label: "Moneda"        },
+                    { key: "medio_pago",   label: "Medio de pago" },
+                    { key: "origen_pago",  label: "Origen pago"   },
+                    { key: "prepaga",      label: "Prepaga"       },
+                  ], filtradas);
+                } catch (e) {
+                  setErrorExport(e instanceof Error ? e.message : "Error al exportar");
+                } finally {
+                  setExportando(false);
+                }
+              }}
+              disabled={exportando || cargando}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {exportando
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Download className="h-3.5 w-3.5" />}
+              Exportar
+            </button>
+          </div>
           {errorExport && (
             <span className="text-[11px] text-red-500">{errorExport}</span>
           )}
