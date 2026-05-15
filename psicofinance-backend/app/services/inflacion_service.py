@@ -49,15 +49,28 @@ def fetch_ipc_indec() -> dict:
                 tasas[mes_key] = variacion
                 logger.debug("IPC %s: %.4f%%", mes_key, variacion * 100)
 
-            ultimo_periodo = data[0][0][:7]
+            # INDEC publica mes N alrededor del día 12-15 de mes N+1.
+            # datos.gob.ar a veces etiqueta el dato con la fecha de publicación
+            # (mes N+1) en vez del mes al que corresponde (mes N).
+            # Regla: el mes actual y el futuro NUNCA pueden estar publicados.
+            hoy = date.today()
+            mes_actual   = hoy.strftime("%Y-%m")
+            mes_anterior = (hoy - relativedelta(months=1)).strftime("%Y-%m")
+
+            # Eliminar períodos >= mes actual (no pueden existir aún)
+            for k in list(tasas.keys()):
+                if k >= mes_actual:
+                    logger.info("IPC: descartando período futuro/actual %s de la API", k)
+                    del tasas[k]
+
+            if not tasas:
+                raise ValueError("Sin tasas válidas tras filtrar períodos futuros")
+
+            # Período más reciente disponible en la API
+            ultimo_periodo = sorted(tasas.keys())[-1]
             ultimo_valor   = tasas[ultimo_periodo] * 100
 
-            # INDEC publica el mes N alrededor del día 12-15 del mes N+1.
-            # datos.gob.ar puede tardar unos días más en actualizar.
-            # Si el mes anterior no está en la API, lo completamos con config
-            # hasta que datos.gob.ar lo suba. El mes actual nunca existe.
-            hoy = date.today()
-            mes_anterior = (hoy - relativedelta(months=1)).strftime("%Y-%m")
+            # Si el mes anterior aún no está en la API, completar con config
             if mes_anterior not in tasas:
                 tasas[mes_anterior] = config.inflacion_mensual
                 ultimo_periodo = mes_anterior
