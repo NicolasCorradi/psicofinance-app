@@ -9,6 +9,7 @@ import type {
   DatosBorrador,
   AlertaHonorario,
   TurnoRead,
+  TurnoResumen,
   TurnoAgenda,
   SlotModelo,
   TurnoCreatePayload,
