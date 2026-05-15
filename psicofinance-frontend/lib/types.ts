@@ -162,6 +162,22 @@ export interface PacienteUpdatePayload {
   fecha_ultimo_ajuste_honorario?: string | null;
 }
 
+// ── Turno create (frontend → POST) ──────────────────────────────────────────
+export interface TurnoCreatePayload {
+  paciente_id:           string;
+  fecha_turno:           string;
+  monto:                 number;
+  estado?:               EstadoTurno;
+  origen_pago?:          OrigenPago;
+  tipo_sesion?:          TipoSesion;
+  moneda?:               Moneda;
+  medio_pago?:           MedioPago | null;
+  tipo_cambio?:          number | null;
+  fecha_cobro_estimada?: string | null;
+  fecha_cobro_efectivo?: string | null;
+  prepaga?:              string | null;
+}
+
 // ── Turno update (frontend → PATCH) ─────────────────────────────────────────
 export interface TurnoUpdatePayload {
   estado?:               EstadoTurno;

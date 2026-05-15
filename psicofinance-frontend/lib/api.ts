@@ -11,6 +11,7 @@ import type {
   TurnoRead,
   TurnoAgenda,
   SlotModelo,
+  TurnoCreatePayload,
   TurnoUpdatePayload,
   PacienteConStats,
   PacienteDetalle,
@@ -193,6 +194,11 @@ export function getTurnosDiferidos(): Promise<TurnoRead[]> {
 /** Turnos COBRADO del mes actual — filtrado en backend por fecha_cobro_efectivo. */
 export function getTurnosCobradosMes(): Promise<TurnoRead[]> {
   return get<TurnoRead[]>('/dashboard/turnos-cobrado-mes');
+}
+
+/** Crea un turno nuevo directamente (sin pasar por el copiloto). */
+export function crearTurno(datos: TurnoCreatePayload): Promise<TurnoRead> {
+  return post<TurnoRead>('/turnos/', datos);
 }
 
 /** Actualiza parcialmente un turno (monto, estado, prepaga, etc.). */
