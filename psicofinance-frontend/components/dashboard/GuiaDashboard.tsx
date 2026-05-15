@@ -37,7 +37,7 @@ const SECCIONES = [
     icon: CalendarDays,
     color: "bg-sky-100 text-sky-600",
     titulo: "Agenda semanal",
-    desc: "Tus turnos de esta semana, de 9 a 18hs. Configurá tu semana modelo en la sección Agenda.",
+    desc: "Tus turnos de esta semana. Configurá tu semana modelo en la sección Agenda para ver los pacientes que esperás cada día.",
   },
   {
     icon: Bell,

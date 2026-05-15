@@ -49,7 +49,6 @@ const TIPO_LABEL: Record<string, string> = {
 const MEDIO_LABEL: Record<string, string> = {
   EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", MERCADO_PAGO: "Mercado Pago", TARJETA: "Tarjeta",
 };
-const HORAS_OPCIONES = Array.from({ length: 15 }, (_, i) => `${String(i + 7).padStart(2,"0")}:00`);
 
 // ── Modal Registrar (placeholder → nuevo turno) ───────────────────────────────
 
@@ -585,7 +584,7 @@ function VistaModelo() {
         <div className="min-w-[500px]">
 
           {/* Header días */}
-          <div className="mb-1 grid grid-cols-7 gap-1 ml-12">
+          <div className="mb-1 grid grid-cols-7 gap-1 ml-16">
             {DIAS_CORTO.map((d, i) => (
               <div key={i} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{d}</div>
             ))}
@@ -601,7 +600,7 @@ function VistaModelo() {
           <div className="space-y-1">
             {horasEnUso.map(hora => (
               <div key={hora} className="flex items-stretch gap-1">
-                <div className="flex w-12 shrink-0 items-center justify-end pr-2">
+                <div className="flex w-16 shrink-0 items-center justify-end pr-2">
                   <div className="flex items-center gap-0.5">
                     <span className="text-[10px] text-neutral-400">{hora}</span>
                     <button
@@ -658,13 +657,15 @@ function VistaModelo() {
           </div>
 
           {/* Agregar horario */}
-          <div className="mt-3 ml-12">
+          <div className="mt-3 ml-16">
             {mostrarAdd ? (
               <div className="flex items-center gap-2">
-                <select value={nuevaHora} onChange={e => setNuevaHora(e.target.value)}
-                  className="rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-indigo-400 focus:outline-none">
-                  {HORAS_OPCIONES.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
+                <input
+                  type="time"
+                  value={nuevaHora}
+                  onChange={e => setNuevaHora(e.target.value)}
+                  className="rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-indigo-400 focus:outline-none"
+                />
                 <button onClick={agregarHora}
                   className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500">
                   <Check className="h-3 w-3"/> Agregar
