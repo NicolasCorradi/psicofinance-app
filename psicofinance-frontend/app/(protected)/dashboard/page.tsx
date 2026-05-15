@@ -13,6 +13,7 @@ import MiniAgenda          from "@/components/dashboard/MiniAgenda";
 import AlertasHonorarios   from "@/components/dashboard/AlertasHonorarios";
 import TurnosTable         from "@/components/dashboard/TurnosTable";
 import SimuladorHonorarios from "@/components/dashboard/SimuladorHonorarios";
+import GuiaDashboard       from "@/components/dashboard/GuiaDashboard";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -110,16 +111,19 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-0.5 text-xs text-neutral-400 capitalize">{fechaCompleta}</p>
         </div>
-        {/* Botón refrescar */}
-        {!cargando && !error && (
-          <button
-            onClick={() => setRefreshKey(k => k + 1)}
-            className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors shrink-0"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Actualizar
-          </button>
-        )}
+        {/* Botones header */}
+        <div className="flex items-center gap-2 shrink-0">
+          <GuiaDashboard />
+          {!cargando && !error && (
+            <button
+              onClick={() => setRefreshKey(k => k + 1)}
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Actualizar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Error state ── */}
