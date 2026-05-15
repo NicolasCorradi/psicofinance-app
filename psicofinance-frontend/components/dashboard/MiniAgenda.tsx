@@ -138,7 +138,10 @@ export default function MiniAgenda() {
         )}
 
         {!cargando && total > 0 && (
-          <div className="space-y-2">
+          <div className="max-h-72 overflow-y-auto space-y-2 pr-1
+            [&::-webkit-scrollbar]:w-1.5
+            [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-neutral-100
+            [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-300">
             {sesiones.map(s => (
               <div key={s.key}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
