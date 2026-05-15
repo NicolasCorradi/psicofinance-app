@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { UserPlus, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, X, Save } from "lucide-react";
+import { UserPlus, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, X, Save, Download } from "lucide-react";
 import { getPacientes, actualizarPaciente } from "@/lib/api";
 import type { PacienteConStats } from "@/lib/types";
+import { exportCSV } from "@/lib/export";
 import PacienteDetalle from "@/components/pacientes/PacienteDetalle";
 import NuevoPaciente from "@/components/pacientes/NuevoPaciente";
 import { avatarCls, iniciales } from "@/lib/avatar";
@@ -236,13 +237,45 @@ export default function PacientesPage() {
               {cargando ? "Cargando…" : `${pacientes.length} paciente${pacientes.length !== 1 ? "s" : ""}`}
             </p>
           </div>
-          <button
-            onClick={() => setNuevoModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 shadow-sm"
-          >
-            <UserPlus className="h-4 w-4" />
-            Nuevo
-          </button>
+          <div className="flex items-center gap-2">
+            {!cargando && pacientes.length > 0 && (
+              <button
+                onClick={() => exportCSV(
+                  `pacientes_${new Date().toISOString().slice(0,10)}.csv`,
+                  [
+                    { key: "apellido",                      label: "Apellido" },
+                    { key: "nombre",                        label: "Nombre" },
+                    { key: "honorario_actual",              label: "Honorario actual" },
+                    { key: "fecha_ultimo_ajuste_honorario", label: "Último ajuste honorario" },
+                    { key: "total_sesiones",                label: "Total sesiones" },
+                    { key: "sesiones_mes",                  label: "Sesiones este mes" },
+                    { key: "cobrado_total",                 label: "Total cobrado" },
+                    { key: "pendiente",                     label: "Pendiente" },
+                    { key: "ultima_sesion",                 label: "Última sesión" },
+                    { key: "estado",                        label: "Estado" },
+                  ],
+                  pacientes.map(p => ({
+                    ...p,
+                    estado: p.total_sesiones === 0 ? "Sin sesiones"
+                      : p.pendiente > 0 ? "Con deuda"
+                      : (p.dias_inactivo ?? 999) > 30 ? "Inactivo"
+                      : "Al día",
+                  }))
+                )}
+                className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Exportar
+              </button>
+            )}
+            <button
+              onClick={() => setNuevoModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 shadow-sm"
+            >
+              <UserPlus className="h-4 w-4" />
+              Nuevo
+            </button>
+          </div>
         </div>
 
         {/* Resumen global */}

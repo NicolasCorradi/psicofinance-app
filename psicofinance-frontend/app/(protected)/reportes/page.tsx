@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Users, DollarSign, Target, Award, Calendar } from "lucide-react";
+import { TrendingUp, Users, DollarSign, Target, Award, Calendar, Download, Loader2 } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion, actualizarCategoria } from "@/lib/api";
+import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion, actualizarCategoria, getExportIngresos } from "@/lib/api";
 import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
+import { exportCSV } from "@/lib/export";
 
 function fmtPesos(n: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -48,6 +49,7 @@ export default function ReportesPage() {
   const [semaforo,   setSemaforo]   = useState<ResultadoSemaforo | null>(null);
   const [cargando,   setCargando]   = useState(true);
   const [ipc, setIpc] = useState<{ valor: number; periodo: string; fuente: string } | null>(null);
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
     Promise.all([getMetricasDashboard(), getPacientes(), getSemaforo(), getInflacion()])
@@ -95,9 +97,38 @@ export default function ReportesPage() {
 
   return (
     <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
-      <div className="mb-5">
-        <h1 className="text-xl font-bold tracking-tight text-neutral-900">Reportes</h1>
-        <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900">Reportes</h1>
+          <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
+        </div>
+        <button
+          onClick={async () => {
+            setExportando(true);
+            try {
+              const rows = await getExportIngresos();
+              exportCSV(`ingresos_${anioActual}.csv`, [
+                { key: "fecha_sesion", label: "Fecha sesión"   },
+                { key: "fecha_cobro",  label: "Fecha cobro"    },
+                { key: "paciente",     label: "Paciente"       },
+                { key: "monto",        label: "Monto"          },
+                { key: "moneda",       label: "Moneda"         },
+                { key: "medio_pago",   label: "Medio de pago"  },
+                { key: "origen_pago",  label: "Origen pago"    },
+                { key: "prepaga",      label: "Prepaga"        },
+              ], rows);
+            } finally {
+              setExportando(false);
+            }
+          }}
+          disabled={exportando || cargando}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {exportando
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <Download className="h-3.5 w-3.5" />}
+          Exportar ingresos
+        </button>
       </div>
 
       {/* KPIs */}

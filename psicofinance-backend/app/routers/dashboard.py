@@ -281,6 +281,36 @@ def get_turnos_diferidos(sb: SupabaseClient = Depends(get_supabase)):
     return result
 
 
+@router.get("/export-ingresos", response_model=list[dict])
+def get_export_ingresos(sb: SupabaseClient = Depends(get_supabase)):
+    """Todos los turnos COBRADO con nombre de paciente para exportar a CSV/Excel.
+    Sin límite de fecha — devuelve el historial completo."""
+    turnos = sb.select("turnos", {
+        "estado": "eq.COBRADO",
+        "order":  "fecha_cobro_efectivo.desc",
+        "limit":  "2000",
+    })
+    pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pac_map = {p["id"]: p for p in pacs}
+
+    result = []
+    for t in turnos:
+        pac = pac_map.get(t.get("paciente_id"), {})
+        ft  = _parse_date(t.get("fecha_turno"))
+        fe  = _parse_date(t.get("fecha_cobro_efectivo"))
+        result.append({
+            "fecha_sesion":         ft.isoformat() if ft else "",
+            "fecha_cobro":          fe.isoformat() if fe else "",
+            "paciente":             f"{pac.get('nombre','')} {pac.get('apellido','')}".strip(),
+            "monto":                float(t.get("monto") or 0),
+            "moneda":               t.get("moneda") or "ARS",
+            "medio_pago":           t.get("medio_pago") or "",
+            "origen_pago":          t.get("origen_pago") or "",
+            "prepaga":              t.get("prepaga") or "",
+        })
+    return result
+
+
 @router.get("/dolar", response_model=dict)
 def get_dolar():
     """Tipo de cambio dólar blue actual — fuente dolarapi.com. Cachea 30 min."""

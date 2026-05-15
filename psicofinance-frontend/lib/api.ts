@@ -197,6 +197,11 @@ export function getTurnosCobradosMes(): Promise<TurnoResumen[]> {
   return get<TurnoResumen[]>('/dashboard/turnos-cobrado-mes');
 }
 
+/** Todos los turnos COBRADO históricos para exportar a CSV/Excel. */
+export function getExportIngresos(): Promise<Record<string, string | number>[]> {
+  return get('/dashboard/export-ingresos');
+}
+
 /** Crea un turno nuevo directamente (sin pasar por el copiloto). */
 export function crearTurno(datos: TurnoCreatePayload): Promise<TurnoRead> {
   return post<TurnoRead>('/turnos/', datos);
