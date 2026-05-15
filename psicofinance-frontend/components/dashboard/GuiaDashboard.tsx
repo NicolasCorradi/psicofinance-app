@@ -30,8 +30,8 @@ const SECCIONES = [
   {
     icon: Shield,
     color: "bg-amber-100 text-amber-600",
-    titulo: "Monotributo",
-    desc: "Cuánto facturaste vs el tope de tu categoría. El semáforo avisa cuando estás cerca del límite.",
+    titulo: "Límite Monotributo",
+    desc: "Cuánto facturaste en los últimos 12 meses vs el tope de tu categoría. El semáforo avisa cuando estás cerca del límite.",
   },
   {
     icon: CalendarDays,

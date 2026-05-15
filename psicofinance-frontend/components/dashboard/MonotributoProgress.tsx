@@ -35,7 +35,7 @@ export default function MonotributoProgress() {
   return (
     <div className="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
       <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-        Objetivo Monotributo
+        Límite Monotributo
       </p>
 
       {/* Donut */}
