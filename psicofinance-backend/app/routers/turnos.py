@@ -12,6 +12,14 @@ from app.crud.turno import crear_turno, obtener_turno, listar_turnos, actualizar
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
 
 
+def _parse_date(val):
+    if val is None:
+        return None
+    if isinstance(val, date):
+        return val
+    return date.fromisoformat(str(val)[:10])
+
+
 @router.post("/", response_model=TurnoRead, status_code=status.HTTP_201_CREATED)
 def registrar_turno(datos: TurnoCreate, sb: SupabaseClient = Depends(get_supabase)):
     """Registra un turno nuevo."""
@@ -29,6 +37,56 @@ def listar(
 ):
     """Lista turnos con filtros opcionales por estado y rango de fechas."""
     return listar_turnos(sb, estado=estado, desde=desde, hasta=hasta, offset=offset, limit=limit)
+
+
+# ⚠ IMPORTANTE: /agenda debe ir ANTES de /{turno_id} para que FastAPI no
+#   intente parsear "agenda" como UUID.
+@router.get("/agenda", response_model=list[dict])
+def agenda(
+    desde: date = Query(...),
+    hasta: date = Query(...),
+    sb: SupabaseClient = Depends(get_supabase),
+):
+    """Turnos en un rango de fechas (para la vista de agenda/calendario).
+    Devuelve cada turno enriquecido con el nombre del paciente."""
+    turnos_raw = sb.select("turnos", {
+        "fecha_turno": f"gte.{desde.isoformat()}",
+        "select": "id,paciente_id,fecha_turno,monto,estado,tipo_sesion,origen_pago,prepaga,medio_pago,moneda,tipo_cambio,fecha_cobro_efectivo",
+        "order": "fecha_turno.asc",
+        "limit": "500",
+    })
+    # Filtrar el límite superior en Python (PostgREST no admite dos condiciones del mismo campo)
+    turnos_raw = [
+        t for t in turnos_raw
+        if _parse_date(t.get("fecha_turno")) is not None
+        and _parse_date(t["fecha_turno"]) <= hasta
+    ]
+
+    # Join con pacientes
+    pacientes = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pac_map = {
+        p["id"]: f"{p.get('nombre', '')} {p.get('apellido', '')}".strip()
+        for p in pacientes
+    }
+
+    return [
+        {
+            "id":               str(t["id"]),
+            "paciente_id":      str(t.get("paciente_id", "")),
+            "paciente_nombre":  pac_map.get(t.get("paciente_id"), "Sin nombre"),
+            "fecha_turno":      t.get("fecha_turno"),
+            "monto":            float(t.get("monto") or 0),
+            "estado":           t.get("estado"),
+            "tipo_sesion":      t.get("tipo_sesion") or "SESION",
+            "origen_pago":      t.get("origen_pago"),
+            "prepaga":          t.get("prepaga"),
+            "medio_pago":       t.get("medio_pago"),
+            "moneda":           t.get("moneda") or "ARS",
+            "tipo_cambio":      float(t.get("tipo_cambio") or 0) or None,
+            "fecha_cobro_efectivo": t.get("fecha_cobro_efectivo"),
+        }
+        for t in turnos_raw
+    ]
 
 
 @router.get("/{turno_id}", response_model=TurnoRead)

@@ -175,6 +175,23 @@ export interface TurnoUpdatePayload {
   tipo_cambio?:          number | null;
 }
 
+// ── Agenda ───────────────────────────────────────────────────────────────────
+export interface TurnoAgenda {
+  id:               string;
+  paciente_id:      string;
+  paciente_nombre:  string;
+  fecha_turno:      string;     // YYYY-MM-DD
+  monto:            number;
+  estado:           EstadoTurno;
+  tipo_sesion:      TipoSesion;
+  origen_pago:      OrigenPago;
+  prepaga:          string | null;
+  medio_pago:       MedioPago | null;
+  moneda:           Moneda;
+  tipo_cambio:      number | null;
+  fecha_cobro_efectivo: string | null;
+}
+
 // ── Comprobantes ─────────────────────────────────────────────────────────────
 export interface DatosBorrador {
   nombre_emisor:    string;

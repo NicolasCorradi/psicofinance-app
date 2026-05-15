@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, BrainCircuit, BarChart3, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, LogOut } from "lucide-react";
 import { getSemaforo } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
@@ -11,6 +11,7 @@ import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/pacientes", label: "Pacientes", Icon: Users },
+  { href: "/agenda",    label: "Agenda",    Icon: CalendarDays },
   { href: "/reportes",  label: "Reportes",  Icon: BarChart3 },
 ];
 

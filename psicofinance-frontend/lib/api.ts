@@ -9,6 +9,7 @@ import type {
   DatosBorrador,
   AlertaHonorario,
   TurnoRead,
+  TurnoAgenda,
   TurnoUpdatePayload,
   PacienteConStats,
   PacienteDetalle,
@@ -162,6 +163,11 @@ export function aprobarBorrador(datos: {
 // ---------------------------------------------------------------------------
 // CRUD de turnos
 // ---------------------------------------------------------------------------
+
+/** Turnos de un rango de fechas con nombre de paciente (para agenda). */
+export function getTurnosAgenda(desde: string, hasta: string): Promise<TurnoAgenda[]> {
+  return get<TurnoAgenda[]>(`/turnos/agenda?desde=${desde}&hasta=${hasta}`);
+}
 
 /** Lista turnos DIFERIDO. */
 export function getTurnosDiferidos(): Promise<TurnoRead[]> {
