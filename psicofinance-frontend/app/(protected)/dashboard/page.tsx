@@ -9,7 +9,7 @@ import NLPInput            from "@/components/dashboard/NLPInput";
 import CashFlowCards       from "@/components/dashboard/CashFlowCards";
 import VentasMensuales     from "@/components/dashboard/VentasMensuales";
 import MonotributoProgress from "@/components/dashboard/MonotributoProgress";
-import InflacionWidget     from "@/components/dashboard/InflacionWidget";
+import MiniAgenda          from "@/components/dashboard/MiniAgenda";
 import AlertasHonorarios   from "@/components/dashboard/AlertasHonorarios";
 import TurnosTable         from "@/components/dashboard/TurnosTable";
 import SimuladorHonorarios from "@/components/dashboard/SimuladorHonorarios";
@@ -153,9 +153,9 @@ export default function DashboardPage() {
             <MonotributoProgress />
           </div>
 
-          {/* Inflación + Alertas */}
+          {/* Mini agenda + Alertas */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "220ms" }}>
-            <InflacionWidget    metricas={metricas} />
+            <MiniAgenda />
             <AlertasHonorarios />
           </div>
 
