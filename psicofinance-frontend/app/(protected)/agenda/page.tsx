@@ -172,9 +172,9 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
           className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">
           {guardando ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Guardando…</> : "Registrar turno"}
         </button>
-        </div>{/* /p-6 */}
-      </div>{/* /panel */}
-    </div>{/* /overlay */}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -301,9 +301,9 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
           className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">
           {guardando ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Guardando…</> : "Guardar cambios"}
         </button>
-        </div>{/* /p-6 */}
-      </div>{/* /panel */}
-    </div>{/* /overlay */}
+        </div>
+      </div>
+    </div>
   );
 }
 

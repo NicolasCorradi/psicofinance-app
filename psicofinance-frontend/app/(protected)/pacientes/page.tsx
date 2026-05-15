@@ -140,9 +140,9 @@ function EditarHonorario({
             {guardando ? "Guardando…" : "Guardar"}
           </button>
         </div>
-        </div>{/* /p-6 */}
-      </div>{/* /panel */}
-    </div>{/* /overlay */}
+        </div>
+      </div>
+    </div>
   );
 }
 
