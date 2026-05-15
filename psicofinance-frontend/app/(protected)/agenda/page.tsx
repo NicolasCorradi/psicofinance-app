@@ -97,8 +97,11 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm sm:p-4" onClick={onClose}>
+      <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0" onClick={e => e.stopPropagation()}>
+        {/* Handle bar mobile */}
+        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200"/></div>
+        <div className="p-6">
 
         {/* Header */}
         <div className="mb-5 flex items-start justify-between">
@@ -169,8 +172,9 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
           className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">
           {guardando ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Guardando…</> : "Registrar turno"}
         </button>
-      </div>
-    </div>
+        </div>{/* /p-6 */}
+      </div>{/* /panel */}
+    </div>{/* /overlay */}
   );
 }
 
@@ -219,8 +223,11 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
                                     "bg-neutral-100 text-neutral-500";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm sm:p-4" onClick={onClose}>
+      <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0" onClick={e => e.stopPropagation()}>
+        {/* Handle bar mobile */}
+        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200"/></div>
+        <div className="p-6">
 
         {/* Header */}
         <div className="mb-5 flex items-start justify-between">
@@ -294,8 +301,9 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
           className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">
           {guardando ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Guardando…</> : "Guardar cambios"}
         </button>
-      </div>
-    </div>
+        </div>{/* /p-6 */}
+      </div>{/* /panel */}
+    </div>{/* /overlay */}
   );
 }
 

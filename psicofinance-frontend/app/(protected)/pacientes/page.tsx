@@ -95,9 +95,10 @@ function EditarHonorario({
   }, [onCerrar]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onCerrar} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 bg-black/30 backdrop-blur-[2px]" onClick={onCerrar}>
+      <div className="relative w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200"/></div>
+        <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-semibold text-neutral-900">Editar honorario</h3>
@@ -139,8 +140,9 @@ function EditarHonorario({
             {guardando ? "Guardando…" : "Guardar"}
           </button>
         </div>
-      </div>
-    </div>
+        </div>{/* /p-6 */}
+      </div>{/* /panel */}
+    </div>{/* /overlay */}
   );
 }
 
