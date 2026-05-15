@@ -2,7 +2,9 @@
 # Usa Supabase REST API via SupabaseClient (sin SQLAlchemy).
 
 import logging
+import time
 from datetime import date
+from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends
 import httpx
@@ -15,48 +17,109 @@ from app.config import config
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-# ── INDEC IPC ────────────────────────────────────────────────────────────────
+# ── INDEC IPC — histórico mensual ─────────────────────────────────────────────
+#
+# Estructura del caché:
+#   {
+#     "tasas": { "2026-03": 0.037, "2026-02": 0.024, ... },   # decimal (no %)
+#     "ultimo_periodo": "2026-03",
+#     "ultimo_valor_pct": 3.7,                                 # % para mostrar en UI
+#     "ts": 1234567890.0
+#   }
+#
+# Guardamos los últimos 13 meses para poder componer la inflación acumulada
+# desde cualquier fecha dentro del último año.
 
-_ipc_cache: dict = {}   # { "valor": float, "periodo": str, "ts": float }
+_ipc_cache: dict = {}
+_IPC_CACHE_TTL = 21600  # 6 horas
+
 
 def _fetch_ipc_indec() -> dict:
-    """Trae la última variación mensual del IPC General desde datos.gob.ar.
-    Usa el índice de nivel general (103.1_I2N_2016_M_19) y calcula la
-    variación porcentual mensual entre los dos últimos períodos disponibles.
-    Cachea el resultado 6 horas para no saturar la API."""
-    import time
+    """Trae los últimos 13 meses de IPC General (INDEC) desde datos.gob.ar.
+    Construye un dict {YYYY-MM: tasa_decimal} para componer correctamente
+    la inflación acumulada mes a mes. Cachea 6 horas."""
     ahora = time.time()
-    if _ipc_cache.get("ts") and ahora - _ipc_cache["ts"] < 21600:
+    if _ipc_cache.get("ts") and ahora - _ipc_cache["ts"] < _IPC_CACHE_TTL:
         return _ipc_cache
 
     try:
-        # Serie: IPC Nacional Nivel General (base 2016=100) — devuelve nivel de índice.
-        # Pedimos 2 puntos para calcular la variación mensual: (idx_nuevo - idx_ant) / idx_ant * 100
+        # Traemos 14 puntos para calcular 13 variaciones mensuales consecutivas
         url = (
             "https://apis.datos.gob.ar/series/api/series/"
-            "?ids=103.1_I2N_2016_M_19&limit=2&sort=desc&format=json"
+            "?ids=103.1_I2N_2016_M_19&limit=14&sort=desc&format=json"
         )
         r = httpx.get(url, timeout=8)
         r.raise_for_status()
-        data = r.json().get("data", [])
+        data = r.json().get("data", [])   # [ ["2026-03-01", 1234.5], ... ] desc
+
+        tasas: dict[str, float] = {}
         if len(data) >= 2:
-            periodo   = data[0][0]          # e.g. "2026-03-01"
-            idx_nuevo = float(data[0][1])   # nivel más reciente
-            idx_ant   = float(data[1][1])   # nivel mes anterior
-            variacion = (idx_nuevo - idx_ant) / idx_ant * 100
-            _ipc_cache.update({"valor": round(variacion, 2), "periodo": periodo[:7], "ts": ahora})
-            logger.info("IPC INDEC %s: %.2f%% (%.4f → %.4f)", periodo[:7], variacion, idx_ant, idx_nuevo)
+            # data[0] es el más reciente; recorremos de más nuevo a más viejo
+            for i in range(len(data) - 1):
+                periodo_iso  = data[i][0]       # "2026-03-01"
+                idx_nuevo    = float(data[i][1])
+                idx_ant      = float(data[i + 1][1])
+                variacion    = (idx_nuevo - idx_ant) / idx_ant  # decimal (e.g. 0.037)
+                mes_key      = periodo_iso[:7]   # "2026-03"
+                tasas[mes_key] = variacion
+                logger.debug("IPC %s: %.4f%%", mes_key, variacion * 100)
+
+            ultimo_periodo  = data[0][0][:7]
+            ultimo_valor    = tasas[ultimo_periodo] * 100
+            _ipc_cache.update({
+                "tasas":             tasas,
+                "ultimo_periodo":    ultimo_periodo,
+                "ultimo_valor_pct":  round(ultimo_valor, 2),
+                "ts":                ahora,
+            })
+            logger.info(
+                "IPC INDEC actualizado: %d meses. Último: %s → %.2f%%",
+                len(tasas), ultimo_periodo, ultimo_valor,
+            )
     except Exception as exc:
         logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
-        # Fallback al valor del .env solo si el caché está vacío
-        if not _ipc_cache.get("valor"):
+        if not _ipc_cache.get("tasas"):
+            # Fallback: usar la tasa del .env para todos los meses
+            tasa_fb = config.inflacion_mensual
+            tasas_fb: dict[str, float] = {}
+            hoy = date.today()
+            for i in range(13):
+                mes = (hoy - relativedelta(months=i)).strftime("%Y-%m")
+                tasas_fb[mes] = tasa_fb
             _ipc_cache.update({
-                "valor": config.inflacion_mensual * 100,
-                "periodo": "config",
-                "ts": ahora,
+                "tasas":             tasas_fb,
+                "ultimo_periodo":    "config",
+                "ultimo_valor_pct":  round(tasa_fb * 100, 2),
+                "ts":                ahora,
             })
 
     return _ipc_cache
+
+
+def _inflacion_acumulada(desde: date, hasta: date, tasas: dict[str, float]) -> float:
+    """Compone las tasas mensuales reales desde `desde` hasta `hasta`.
+    Para meses sin dato en el dict, usa la tasa más reciente disponible como proxy.
+    Devuelve la tasa acumulada decimal (e.g. 0.112 = 11.2% de pérdida de poder adquisitivo)."""
+    if not tasas:
+        return config.inflacion_mensual
+
+    # Tasa fallback = última disponible
+    tasa_fb = tasas.get(
+        sorted(tasas.keys())[-1],
+        config.inflacion_mensual,
+    )
+
+    factor = Decimal("1")
+    cursor = desde.replace(day=1)
+    fin    = hasta.replace(day=1)
+    while cursor < fin:
+        mes_key = cursor.strftime("%Y-%m")
+        t = Decimal(str(tasas.get(mes_key, tasa_fb)))
+        factor *= (Decimal("1") + t)
+        cursor  = cursor + relativedelta(months=1)
+
+    acumulada = float(factor - Decimal("1"))
+    return max(acumulada, 0.0)
 
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
@@ -134,23 +197,24 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
     honorario_promedio = (honorario_sum / honorario_count) if honorario_count > 0 else 0.0
 
     # Pérdida por inflación en turnos DIFERIDO pendientes
+    # Usamos las tasas reales de cada mes (no una tasa fija para todos).
     perdida_inflacion_total = 0.0
     ipc = _fetch_ipc_indec()
-    tasa = ipc["valor"] / 100   # INDEC devuelve porcentaje, e.g. 3.7 → 0.037
+    tasas_hist = ipc.get("tasas", {})
     for turno in turnos_diferidos:
         ft = _parse_date(turno.get("fecha_turno"))
         if not ft:
             continue
-        delta = relativedelta(hoy, ft)
-        meses_retraso = delta.years * 12 + delta.months
-        if meses_retraso <= 0:
+        if ft >= hoy:
             continue
-        resultado = calcular_valor_real(
-            monto=_monto_ars(turno),
-            tasa_inflacion_mensual=tasa,
-            meses_retraso=meses_retraso,
-        )
-        perdida_inflacion_total += resultado.perdida_absoluta
+        # Acumular la inflación real mes a mes desde la fecha del turno hasta hoy
+        tasa_acum = _inflacion_acumulada(ft, hoy, tasas_hist)
+        if tasa_acum <= 0:
+            continue
+        monto = _monto_ars(turno)
+        # pérdida = monto - monto / (1 + tasa_acumulada)
+        valor_real = monto / (1 + tasa_acum)
+        perdida_inflacion_total += monto - valor_real
 
     sesiones_perdidas = (
         round(perdida_inflacion_total / honorario_promedio)
@@ -277,8 +341,9 @@ def get_inflacion():
     """Último dato de inflación mensual IPC General — fuente INDEC via datos.gob.ar.
     Cachea 6 horas. Devuelve { valor: float (%), periodo: str 'YYYY-MM', fuente: str }."""
     ipc = _fetch_ipc_indec()
+    periodo = ipc.get("ultimo_periodo", "—")
     return {
-        "valor":   round(ipc.get("valor", config.inflacion_mensual * 100), 2),
-        "periodo": ipc.get("periodo", "—"),
-        "fuente":  "INDEC — IPC Nacional Nivel General" if ipc.get("periodo") != "config" else "Valor de configuración",
+        "valor":   round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
+        "periodo": periodo,
+        "fuente":  "INDEC — IPC Nacional Nivel General" if periodo != "config" else "Valor de configuración",
     }
