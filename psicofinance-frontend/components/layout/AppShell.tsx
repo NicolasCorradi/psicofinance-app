@@ -7,6 +7,7 @@ import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, LogOut }
 import { getSemaforo } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
+import { ToastProvider } from "@/lib/toast";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -46,6 +47,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   return (
+    <ToastProvider>
     <div className="flex min-h-screen bg-background">
 
       {/* ── Sidebar desktop ── */}
@@ -115,50 +117,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Header móvil ── */}
-      <header className="lg:hidden fixed top-0 inset-x-0 z-50 flex h-12 items-center gap-2 border-b border-neutral-200/60 bg-white/90 px-3 backdrop-blur-xl">
-        <div className="flex items-center gap-2 shrink-0">
+      <header className="lg:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-3 backdrop-blur-xl">
+        {/* Logo */}
+        <div className="flex items-center gap-2 shrink-0 mr-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100">
             <BrainCircuit className="h-3.5 w-3.5 text-indigo-600" strokeWidth={1.8} />
           </div>
-          <span className="text-sm font-bold text-neutral-900 tracking-tight">PsicoFinance</span>
         </div>
-        <nav className="flex flex-1 items-center justify-end gap-0.5 overflow-x-auto">
+        {/* Nav */}
+        <nav className="flex flex-1 items-center justify-around">
           {NAV_LINKS.map(({ href, label, Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link key={href} href={href}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors shrink-0 ${
-                  active
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
+                className={`flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors ${
+                  active ? "text-indigo-600" : "text-neutral-400 hover:text-neutral-600"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5 sm:hidden" strokeWidth={active ? 2 : 1.8} />
-                <span className="hidden sm:inline">{label}</span>
+                <Icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />
+                <span className="text-[9px] font-semibold tracking-wide">{label}</span>
               </Link>
             );
           })}
-          <button
-            onClick={handleLogout}
-            className="flex items-center rounded-lg px-2 py-1.5 text-neutral-400 transition-colors hover:bg-neutral-50 hover:text-neutral-600 shrink-0"
-            title="Cerrar sesión"
-          >
-            <LogOut className="h-3.5 w-3.5" />
+          <button onClick={handleLogout}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-neutral-400 hover:text-neutral-600 transition-colors">
+            <LogOut className="h-4 w-4" strokeWidth={1.8} />
+            <span className="text-[9px] font-semibold tracking-wide">Salir</span>
           </button>
         </nav>
-        {semaforo && (
-          <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs shrink-0 ${CHIP_CLS[semaforo.estado]}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLS[semaforo.estado]}`} />
-            Cat. {semaforo.categoria_actual}
-          </div>
-        )}
       </header>
 
       {/* ── Contenido principal ── */}
       <div className="flex-1 lg:ml-56 min-w-0">
-        <div className="lg:hidden h-12" />
+        <div className="lg:hidden h-14" />
         {children}
       </div>
     </div>
+    </ToastProvider>
   );
 }

@@ -9,6 +9,7 @@ import {
   getTurnosAgenda, getSemanaModelo, guardarSemanaModelo,
   getPacientes, crearTurno, actualizarTurno,
 } from "@/lib/api";
+import { useToast } from "@/lib/toast";
 import type {
   TurnoAgenda, EstadoTurno, TipoSesion, MedioPago,
   SlotModelo, PacienteConStats,
@@ -67,6 +68,7 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
   const [medioPago, setMedioPago]   = useState<MedioPago | "">("");
   const [guardando, setGuardando]   = useState(false);
   const [error, setError]           = useState("");
+  const toast = useToast();
 
   const esInasistencia = tipoSesion !== "SESION";
 
@@ -85,9 +87,12 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
         medio_pago:           medioPago || null,
         fecha_cobro_efectivo: (!esInasistencia && estado === "COBRADO") ? hoy : null,
       });
+      toast.success(esInasistencia ? "Inasistencia registrada" : estado === "COBRADO" ? "Turno cobrado ✓" : "Turno registrado");
       onGuardado();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Error al guardar");
+      const msg = e instanceof Error ? e.message : "Error al guardar";
+      setError(msg);
+      toast.error("No se pudo registrar el turno");
     } finally { setGuardando(false); }
   }
 
@@ -184,6 +189,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
   const [medioPago, setMedioPago]   = useState<MedioPago | "">(turno.medio_pago ?? "");
   const [guardando, setGuardando]   = useState(false);
   const [error, setError]           = useState("");
+  const toast = useToast();
 
   const esInasistencia = tipoSesion !== "SESION";
 
@@ -198,9 +204,12 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
         medio_pago:           medioPago || null,
         fecha_cobro_efectivo: (!esInasistencia && estado === "COBRADO" && !turno.fecha_cobro_efectivo) ? hoy : undefined,
       });
+      toast.success("Turno actualizado");
       onGuardado();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Error al guardar");
+      const msg = e instanceof Error ? e.message : "Error al guardar";
+      setError(msg);
+      toast.error("No se pudo guardar");
     } finally { setGuardando(false); }
   }
 
