@@ -6,7 +6,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion } from "@/lib/api";
+import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion, actualizarCategoria } from "@/lib/api";
 import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 
@@ -312,15 +312,61 @@ function DistribucionActividad({ d, cargando }: { d: { activos: number; moderado
   );
 }
 
-function EstadoFiscal({ semaforo, cargando }: { semaforo: ResultadoSemaforo | null; cargando: boolean }) {
+const CATEGORIAS = ["A","B","C","D","E","F","G","H","I","J","K"];
+
+function EstadoFiscal({ semaforo: initialSemaforo, cargando }: { semaforo: ResultadoSemaforo | null; cargando: boolean }) {
+  const [semaforo, setSemaforo] = useState<ResultadoSemaforo | null>(initialSemaforo);
+  const [guardando, setGuardando] = useState(false);
+
+  // Sincronizar cuando el padre actualiza por primera vez
+  useEffect(() => { if (initialSemaforo) setSemaforo(initialSemaforo); }, [initialSemaforo]);
+
   const colorEstado = semaforo
     ? semaforo.estado === "VERDE" ? "#10B981" : semaforo.estado === "AMARILLO" ? "#F59E0B" : "#EF4444"
     : "#E0E7FF";
   const pct = semaforo ? Math.min(semaforo.porcentaje_consumido, 100) : 0;
 
+  async function cambiarCategoria(cat: string) {
+    if (cat === semaforo?.categoria_actual || guardando) return;
+    setGuardando(true);
+    try {
+      const nuevo = await actualizarCategoria(cat);
+      setSemaforo(nuevo);
+    } catch {
+      // silencioso — el selector vuelve al valor anterior
+    } finally {
+      setGuardando(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
-      <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-neutral-400">Estado fiscal — Monotributo</p>
+      <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Estado fiscal — Monotributo</p>
+        {/* Selector de categoría */}
+        {semaforo && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-neutral-400">Categoría:</span>
+            <div className="flex gap-1 flex-wrap">
+              {CATEGORIAS.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => cambiarCategoria(cat)}
+                  disabled={guardando}
+                  className={`h-6 w-6 rounded-md text-[11px] font-bold transition-all disabled:opacity-50 ${
+                    cat === semaforo.categoria_actual
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-neutral-100 text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            {guardando && <span className="h-3 w-3 animate-spin rounded-full border border-indigo-200 border-t-indigo-500" />}
+          </div>
+        )}
+      </div>
       {cargando ? (
         <div className="h-20 animate-pulse rounded-xl bg-neutral-100" />
       ) : semaforo ? (
@@ -331,7 +377,7 @@ function EstadoFiscal({ semaforo, cargando }: { semaforo: ResultadoSemaforo | nu
           </div>
           <div className="flex-1 min-w-48">
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-indigo-50">
-              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: colorEstado }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: colorEstado }} />
             </div>
             <div className="mt-2 flex justify-between text-xs text-neutral-500">
               <span>Facturado 12m: <strong className="text-neutral-800">{fmtPesos(semaforo.facturado_12m)}</strong></span>

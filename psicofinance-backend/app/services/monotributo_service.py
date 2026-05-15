@@ -27,9 +27,8 @@ class ResultadoSemaforo:
 
 
 # ── Tabla de topes ARCA — Servicios ──────────────────────────────────────────
-# Vigente desde febrero 2026. Fuente: ARCA (arca.gob.ar)
+# Vigente desde febrero 2026. Fuente: afip.gob.ar/monotributo/categorias.asp
 # Próxima actualización estimada: julio 2026.
-# Solo aplica a PRESTADORES DE SERVICIOS (no incluye comercio/industria).
 TOPES_SERVICIOS: dict[str, float] = {
     "A":  10_277_988.13,
     "B":  15_058_447.71,
@@ -44,24 +43,53 @@ TOPES_SERVICIOS: dict[str, float] = {
     "K": 108_357_084.05,
 }
 
+CATEGORIAS_VALIDAS = list(TOPES_SERVICIOS.keys())
 VIGENCIA_TOPES = "Feb 2026 – Jul 2026"
 
 
 def _tope_categoria(categoria: str) -> float:
-    """Devuelve el tope anual de ingresos para la categoría dada.
-    Primero intenta la tabla ARCA; si no está, usa el .env como override manual."""
     cat = categoria.strip().upper()
     if cat in TOPES_SERVICIOS:
         return TOPES_SERVICIOS[cat]
-    # Fallback: valor manual del .env (para categorías no estándar o actualizaciones urgentes)
     return config.monotributo_tope_anual
+
+
+def _leer_categoria_bd(sb: SupabaseClient) -> str | None:
+    """Lee la categoría guardada en la tabla `configuracion` de Supabase.
+    Devuelve None si la tabla no existe o no tiene el registro."""
+    try:
+        rows = sb.select("configuracion", {"clave": "eq.monotributo_categoria", "select": "valor"})
+        if rows:
+            return rows[0]["valor"].strip().upper()
+    except Exception:
+        pass
+    return None
+
+
+def guardar_categoria_bd(sb: SupabaseClient, categoria: str) -> None:
+    """Guarda o actualiza la categoría en la tabla `configuracion`."""
+    cat = categoria.strip().upper()
+    # Intentar UPDATE primero; si no existe el registro, INSERT
+    try:
+        result = sb.update(
+            "configuracion",
+            {"clave": "eq.monotributo_categoria"},
+            {"valor": cat},
+        )
+        if result is None:
+            # No había fila → insertar
+            sb.insert("configuracion", {"clave": "monotributo_categoria", "valor": cat})
+    except Exception:
+        sb.insert("configuracion", {"clave": "monotributo_categoria", "valor": cat})
 
 
 def obtener_semaforo(sb: SupabaseClient) -> ResultadoSemaforo:
     hoy = date.today()
 
     facturado = sumar_facturado_ultimos_12_meses(sb, hasta=hoy)
-    categoria = config.monotributo_categoria.strip().upper()
+
+    # Prioridad: BD → .env
+    categoria = _leer_categoria_bd(sb) or config.monotributo_categoria.strip().upper()
     tope = _tope_categoria(categoria)
     umbral_amarillo = config.monotributo_umbral_amarillo
 

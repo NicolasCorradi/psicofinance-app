@@ -111,6 +111,11 @@ export function getSemaforo(): Promise<ResultadoSemaforo> {
   return get<ResultadoSemaforo>('/monotributo/semaforo');
 }
 
+/** Cambia la categoría del Monotributo y devuelve el semáforo actualizado. */
+export function actualizarCategoria(categoria: string): Promise<ResultadoSemaforo & { categorias_disponibles: string[]; vigencia: string }> {
+  return patch('/monotributo/categoria', { categoria });
+}
+
 /** Último dato de IPC mensual desde INDEC via datos.gob.ar. */
 export function getInflacion(): Promise<{ valor: number; periodo: string; fuente: string }> {
   return get('/dashboard/inflacion');
