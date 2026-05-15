@@ -26,9 +26,6 @@ export default function VentasMensuales({ data }: Props) {
   const maxValor  = Math.max(...data.map((d) => d.cobrado), 1);
   const mesActual = data[data.length - 1];
 
-  // No comparar mes actual (en curso, incompleto) contra el anterior completo
-  const variacionGlobal = null;
-
   const varPct = (i: number): number | null => {
     if (i === 0 || data[i - 1].cobrado === 0) return null;
     return ((data[i].cobrado - data[i - 1].cobrado) / data[i - 1].cobrado) * 100;
@@ -41,13 +38,6 @@ export default function VentasMensuales({ data }: Props) {
         <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
           Ventas mensuales
         </p>
-        {variacionGlobal !== null && (
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-            variacionGlobal >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
-          }`}>
-            {variacionGlobal >= 0 ? "+" : ""}{variacionGlobal.toFixed(0)}% vs anterior
-          </span>
-        )}
       </div>
 
       {/* Valor del mes actual */}
