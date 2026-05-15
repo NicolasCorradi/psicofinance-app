@@ -329,6 +329,39 @@ def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
     return result
 
 
+@router.get("/turnos-diferidos", response_model=list[dict])
+def get_turnos_diferidos(sb: SupabaseClient = Depends(get_supabase)):
+    """Turnos DIFERIDO con join de nombre de paciente. Usado por el sheet de desglose."""
+    turnos = sb.select("turnos", {
+        "estado": "eq.DIFERIDO",
+        "order":  "fecha_turno.desc",
+        "limit":  "200",
+    })
+    pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pac_map = {p["id"]: p for p in pacs}
+    result = []
+    for t in turnos:
+        pac  = pac_map.get(t.get("paciente_id"), {})
+        ft   = _parse_date(t.get("fecha_turno"))
+        fe   = _parse_date(t.get("fecha_cobro_efectivo"))
+        fest = _parse_date(t.get("fecha_cobro_estimada"))
+        result.append({
+            "id":                   str(t["id"]),
+            "paciente_id":          str(t.get("paciente_id", "")),
+            "paciente_nombre":      f"{pac.get('nombre','')} {pac.get('apellido','')}".strip(),
+            "fecha_turno":          ft.isoformat() if ft else None,
+            "monto":                float(t.get("monto") or 0),
+            "estado":               t.get("estado"),
+            "origen_pago":          t.get("origen_pago"),
+            "prepaga":              t.get("prepaga"),
+            "fecha_cobro_estimada": fest.isoformat() if fest else None,
+            "fecha_cobro_efectivo": fe.isoformat() if fe else None,
+            "moneda":               t.get("moneda") or "ARS",
+            "tipo_cambio":          float(t.get("tipo_cambio") or 0) or None,
+        })
+    return result
+
+
 @router.get("/dolar", response_model=dict)
 def get_dolar():
     """Tipo de cambio dólar blue actual — fuente dolarapi.com. Cachea 30 min."""

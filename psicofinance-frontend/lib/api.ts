@@ -186,14 +186,14 @@ export function guardarSemanaModelo(slots: SlotModelo[]): Promise<{ slots: SlotM
   return patch('/agenda/semana-modelo', { slots });
 }
 
-/** Lista turnos DIFERIDO. */
-export function getTurnosDiferidos(): Promise<TurnoRead[]> {
-  return get<TurnoRead[]>('/turnos/?estado=DIFERIDO&limit=200');
+/** Lista turnos DIFERIDO con nombre de paciente. */
+export function getTurnosDiferidos(): Promise<TurnoResumen[]> {
+  return get<TurnoResumen[]>('/dashboard/turnos-diferidos');
 }
 
 /** Turnos COBRADO del mes actual — filtrado en backend por fecha_cobro_efectivo. */
-export function getTurnosCobradosMes(): Promise<TurnoRead[]> {
-  return get<TurnoRead[]>('/dashboard/turnos-cobrado-mes');
+export function getTurnosCobradosMes(): Promise<TurnoResumen[]> {
+  return get<TurnoResumen[]>('/dashboard/turnos-cobrado-mes');
 }
 
 /** Crea un turno nuevo directamente (sin pasar por el copiloto). */

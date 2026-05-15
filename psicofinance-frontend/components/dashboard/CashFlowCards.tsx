@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TrendingUp, Clock, AlertCircle, ChevronRight } from "lucide-react";
-import type { MetricasDashboard, TurnoRead } from "@/lib/types";
+import type { MetricasDashboard, TurnoResumen } from "@/lib/types";
 import { getTurnosDiferidos, getTurnosCobradosMes } from "@/lib/api";
 import Sheet from "@/components/ui/Sheet";
 
@@ -29,7 +29,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
   const hayDeuda  = sinCobrar > 0;
 
   const [sheetTipo,    setSheetTipo]    = useState<TipoSheet>(null);
-  const [diferidos,    setDiferidos]    = useState<TurnoRead[]>([]);
+  const [diferidos,    setDiferidos]    = useState<TurnoResumen[]>([]);
   const [cargandoSheet, setCargandoSheet] = useState(false);
 
   // Fecha para clasificar en_camino vs deudores
@@ -197,7 +197,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
   );
 }
 
-function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoSheet, null> }) {
+function TurnoRow({ turno: t, tipo }: { turno: TurnoResumen; tipo: Exclude<TipoSheet, null> }) {
   const fechaLabel =
     tipo === "cobrado_mes" ? `Cobrado ${fmtFecha(t.fecha_cobro_efectivo)}` :
     tipo === "en_camino"   ? `Sesión del mes en curso` :
@@ -210,13 +210,13 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoRead; tipo: Exclude<TipoShee
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-neutral-800">
-            {t.prepaga ?? "Directo"}
+            {t.paciente_nombre || "Sin nombre"}
           </span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
             tipo === "cobrado_mes" ? "bg-emerald-100 text-emerald-700" :
             vencido ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"
           }`}>
-            {tipo === "cobrado_mes" ? "Cobrado" : vencido ? "Vencido" : "Este mes"}
+            {tipo === "cobrado_mes" ? "Cobrado" : vencido ? "Vencido" : "Pendiente"}
           </span>
         </div>
         <span className="text-xs text-neutral-400">

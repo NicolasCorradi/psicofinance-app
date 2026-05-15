@@ -26,11 +26,8 @@ export default function VentasMensuales({ data }: Props) {
   const maxValor  = Math.max(...data.map((d) => d.cobrado), 1);
   const mesActual = data[data.length - 1];
 
-  const variacionGlobal =
-    data.length >= 2 && data[data.length - 2].cobrado > 0
-      ? ((mesActual.cobrado - data[data.length - 2].cobrado) /
-          data[data.length - 2].cobrado) * 100
-      : null;
+  // No comparar mes actual (en curso, incompleto) contra el anterior completo
+  const variacionGlobal = null;
 
   const varPct = (i: number): number | null => {
     if (i === 0 || data[i - 1].cobrado === 0) return null;
