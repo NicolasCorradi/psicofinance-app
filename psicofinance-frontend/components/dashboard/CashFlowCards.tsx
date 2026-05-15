@@ -28,9 +28,10 @@ export default function CashFlowCards({ metricas: m }: Props) {
   const sinCobrar = m?.deudores ?? 0;
   const hayDeuda  = sinCobrar > 0;
 
-  const [sheetTipo,    setSheetTipo]    = useState<TipoSheet>(null);
-  const [diferidos,    setDiferidos]    = useState<TurnoResumen[]>([]);
+  const [sheetTipo,     setSheetTipo]     = useState<TipoSheet>(null);
+  const [diferidos,     setDiferidos]     = useState<TurnoResumen[]>([]);
   const [cargandoSheet, setCargandoSheet] = useState(false);
+  const [errorSheet,    setErrorSheet]    = useState(false);
 
   // Fecha para clasificar en_camino vs deudores
   const hoy          = new Date();
@@ -39,20 +40,14 @@ export default function CashFlowCards({ metricas: m }: Props) {
 
   useEffect(() => {
     if (!sheetTipo) return;
-    // Reset inmediato para evitar flash de datos del sheet anterior
     setDiferidos([]);
+    setErrorSheet(false);
     setCargandoSheet(true);
-    if (sheetTipo === "cobrado_mes") {
-      getTurnosCobradosMes()
-        .then(setDiferidos)
-        .catch(() => setDiferidos([]))
-        .finally(() => setCargandoSheet(false));
-    } else {
-      getTurnosDiferidos()
-        .then(setDiferidos)
-        .catch(() => setDiferidos([]))
-        .finally(() => setCargandoSheet(false));
-    }
+    const fn = sheetTipo === "cobrado_mes" ? getTurnosCobradosMes : getTurnosDiferidos;
+    fn()
+      .then(setDiferidos)
+      .catch(() => setErrorSheet(true))
+      .finally(() => setCargandoSheet(false));
   }, [sheetTipo]);
 
   // cobrado_mes: el backend ya filtra por fecha_cobro_efectivo del mes actual
@@ -173,12 +168,18 @@ export default function CashFlowCards({ metricas: m }: Props) {
               <div key={i} className="h-16 animate-pulse rounded-xl bg-neutral-100" />
             ))}
           </div>
+        ) : errorSheet ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-3 text-3xl">⚠️</div>
+            <p className="text-sm font-medium text-neutral-500">No se pudo cargar el detalle</p>
+            <p className="mt-1 text-xs text-neutral-400">Intentá de nuevo en unos segundos</p>
+          </div>
         ) : turnosActivos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-3 text-3xl">🎉</div>
             <p className="text-sm font-medium text-neutral-600">
               {sheetTipo === "cobrado_mes" ? "Sin cobros registrados este mes"
-               : sheetTipo === "en_camino" ? "No hay prepagas pendientes este mes"
+               : sheetTipo === "en_camino" ? "No hay sesiones pendientes de cobro"
                : "No hay pagos vencidos"}
             </p>
           </div>
