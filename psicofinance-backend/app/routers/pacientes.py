@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.supabase_client import SupabaseClient, get_supabase
 from app.config import config
+from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada
 from app.schemas.paciente import (
     PacienteCreate, PacienteRead, PacienteUpdate,
     PacienteConStats, PacienteDetalle, TurnoEnDetalle,
@@ -84,7 +85,10 @@ def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase)):
     sin actualizarse, con el porcentaje de inflación acumulado y honorario sugerido.
     """
     hoy = date.today()
-    tasa = config.inflacion_mensual
+
+    # Tasas reales del INDEC mes a mes (con fallback al config si no hay red)
+    ipc = fetch_ipc_indec()
+    tasas_hist = ipc.get("tasas", {})
 
     pacientes = sb.select("pacientes", {
         "honorario_actual": "not.is.null",
@@ -102,9 +106,10 @@ def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase)):
         if meses < UMBRAL_MESES:
             continue
         honorario = float(p.get("honorario_actual") or 0)
-        inflacion_acumulada = (1 + tasa) ** meses - 1
-        pct = round(inflacion_acumulada * 100)
-        honorario_sugerido = round(honorario * (1 + inflacion_acumulada))
+        # Inflación acumulada real usando tasas mensuales del INDEC
+        inflacion_acum = inflacion_acumulada(fecha_ajuste, hoy, tasas_hist)
+        pct = round(inflacion_acum * 100)
+        honorario_sugerido = round(honorario * (1 + inflacion_acum))
         alertas.append({
             "paciente_id":        str(p["id"]),
             "nombre":             f"{p['nombre']} {p['apellido'][0]}.",

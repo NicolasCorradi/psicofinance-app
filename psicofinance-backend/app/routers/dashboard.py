@@ -12,6 +12,7 @@ import httpx
 from app.supabase_client import SupabaseClient, get_supabase
 from app.services.finanzas import calcular_valor_real
 from app.services.dolar_service import get_dolar_blue
+from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada as _inflacion_acumulada_svc
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -30,96 +31,14 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 # Guardamos los últimos 13 meses para poder componer la inflación acumulada
 # desde cualquier fecha dentro del último año.
 
-_ipc_cache: dict = {}
-_IPC_CACHE_TTL = 21600  # 6 horas
-
-
 def _fetch_ipc_indec() -> dict:
-    """Trae los últimos 13 meses de IPC General (INDEC) desde datos.gob.ar.
-    Construye un dict {YYYY-MM: tasa_decimal} para componer correctamente
-    la inflación acumulada mes a mes. Cachea 6 horas."""
-    ahora = time.time()
-    if _ipc_cache.get("ts") and ahora - _ipc_cache["ts"] < _IPC_CACHE_TTL:
-        return _ipc_cache
-
-    try:
-        # Traemos 14 puntos para calcular 13 variaciones mensuales consecutivas
-        url = (
-            "https://apis.datos.gob.ar/series/api/series/"
-            "?ids=103.1_I2N_2016_M_19&limit=14&sort=desc&format=json"
-        )
-        r = httpx.get(url, timeout=8)
-        r.raise_for_status()
-        data = r.json().get("data", [])   # [ ["2026-03-01", 1234.5], ... ] desc
-
-        tasas: dict[str, float] = {}
-        if len(data) >= 2:
-            # data[0] es el más reciente; recorremos de más nuevo a más viejo
-            for i in range(len(data) - 1):
-                periodo_iso  = data[i][0]       # "2026-03-01"
-                idx_nuevo    = float(data[i][1])
-                idx_ant      = float(data[i + 1][1])
-                variacion    = (idx_nuevo - idx_ant) / idx_ant  # decimal (e.g. 0.037)
-                mes_key      = periodo_iso[:7]   # "2026-03"
-                tasas[mes_key] = variacion
-                logger.debug("IPC %s: %.4f%%", mes_key, variacion * 100)
-
-            ultimo_periodo  = data[0][0][:7]
-            ultimo_valor    = tasas[ultimo_periodo] * 100
-            _ipc_cache.update({
-                "tasas":             tasas,
-                "ultimo_periodo":    ultimo_periodo,
-                "ultimo_valor_pct":  round(ultimo_valor, 2),
-                "ts":                ahora,
-            })
-            logger.info(
-                "IPC INDEC actualizado: %d meses. Último: %s → %.2f%%",
-                len(tasas), ultimo_periodo, ultimo_valor,
-            )
-    except Exception as exc:
-        logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
-        if not _ipc_cache.get("tasas"):
-            # Fallback: usar la tasa del .env para todos los meses
-            tasa_fb = config.inflacion_mensual
-            tasas_fb: dict[str, float] = {}
-            hoy = date.today()
-            for i in range(13):
-                mes = (hoy - relativedelta(months=i)).strftime("%Y-%m")
-                tasas_fb[mes] = tasa_fb
-            _ipc_cache.update({
-                "tasas":             tasas_fb,
-                "ultimo_periodo":    "config",
-                "ultimo_valor_pct":  round(tasa_fb * 100, 2),
-                "ts":                ahora,
-            })
-
-    return _ipc_cache
+    """Delegado al servicio compartido."""
+    return fetch_ipc_indec()
 
 
 def _inflacion_acumulada(desde: date, hasta: date, tasas: dict[str, float]) -> float:
-    """Compone las tasas mensuales reales desde `desde` hasta `hasta`.
-    Para meses sin dato en el dict, usa la tasa más reciente disponible como proxy.
-    Devuelve la tasa acumulada decimal (e.g. 0.112 = 11.2% de pérdida de poder adquisitivo)."""
-    if not tasas:
-        return config.inflacion_mensual
-
-    # Tasa fallback = última disponible
-    tasa_fb = tasas.get(
-        sorted(tasas.keys())[-1],
-        config.inflacion_mensual,
-    )
-
-    factor = Decimal("1")
-    cursor = desde.replace(day=1)
-    fin    = hasta.replace(day=1)
-    while cursor < fin:
-        mes_key = cursor.strftime("%Y-%m")
-        t = Decimal(str(tasas.get(mes_key, tasa_fb)))
-        factor *= (Decimal("1") + t)
-        cursor  = cursor + relativedelta(months=1)
-
-    acumulada = float(factor - Decimal("1"))
-    return max(acumulada, 0.0)
+    """Delegado al servicio compartido."""
+    return _inflacion_acumulada_svc(desde, hasta, tasas)
 
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
