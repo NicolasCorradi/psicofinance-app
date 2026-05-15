@@ -175,6 +175,14 @@ export interface TurnoUpdatePayload {
   tipo_cambio?:          number | null;
 }
 
+// ── Semana modelo ────────────────────────────────────────────────────────────
+export interface SlotModelo {
+  dia:             number;   // 1=Lun … 7=Dom
+  hora:            string;   // "09:00"
+  paciente_id:     string;
+  paciente_nombre: string;
+}
+
 // ── Agenda ───────────────────────────────────────────────────────────────────
 export interface TurnoAgenda {
   id:               string;

@@ -10,6 +10,7 @@ import type {
   AlertaHonorario,
   TurnoRead,
   TurnoAgenda,
+  SlotModelo,
   TurnoUpdatePayload,
   PacienteConStats,
   PacienteDetalle,
@@ -172,6 +173,16 @@ export function aprobarBorrador(datos: {
 /** Turnos de un rango de fechas con nombre de paciente (para agenda). */
 export function getTurnosAgenda(desde: string, hasta: string): Promise<TurnoAgenda[]> {
   return get<TurnoAgenda[]>(`/turnos/agenda?desde=${desde}&hasta=${hasta}`);
+}
+
+/** Semana modelo guardada. */
+export function getSemanaModelo(): Promise<{ slots: SlotModelo[] }> {
+  return get('/agenda/semana-modelo');
+}
+
+/** Guarda la semana modelo completa. */
+export function guardarSemanaModelo(slots: SlotModelo[]): Promise<{ slots: SlotModelo[] }> {
+  return patch('/agenda/semana-modelo', { slots });
 }
 
 /** Lista turnos DIFERIDO. */
