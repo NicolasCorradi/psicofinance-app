@@ -131,7 +131,10 @@ export default function DashboardPage() {
 
           {/* Copiloto NLP */}
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
-            <NLPInput onTurnoCreado={handleTurnoCreado} />
+            <NLPInput
+              onTurnoCreado={handleTurnoCreado}
+              ultimoPaciente={metricas?.ultimos_turnos?.[0]?.paciente_nombre}
+            />
           </div>
 
           {/* Empty state */}

@@ -354,13 +354,13 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
                   <Chip estado={t.estado} />
 
-                  {/* Botón cobrar rápido — solo para DIFERIDO */}
+                  {/* Botón cobrar rápido — siempre visible en mobile, hover en desktop */}
                   {esDiferido && (
                     <button
                       onClick={() => cobrarRapido(t)}
                       disabled={cobrando}
                       title="Marcar como cobrado"
-                      className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 opacity-0 transition-all hover:bg-emerald-100 group-hover:opacity-100 disabled:opacity-60"
+                      className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 opacity-100 transition-all hover:bg-emerald-100 md:opacity-0 md:group-hover:opacity-100 disabled:opacity-60"
                     >
                       {cobrando
                         ? <span className="h-3 w-3 animate-spin rounded-full border border-emerald-300 border-t-emerald-700" />
@@ -370,7 +370,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                     </button>
                   )}
 
-                  <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                     <RowMenu
                       onEditar={() => iniciarEdicion(t)}
                       onEliminar={() => { setEliminandoId(t.id); setEditandoId(null); }}

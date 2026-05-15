@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, LogOut } from "lucide-react";
-import { getSemaforo, getSemanaModelo } from "@/lib/api";
+import { getSemaforo, getTurnosAgenda } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
 import { ToastProvider } from "@/lib/toast";
@@ -37,11 +37,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     getSemaforo().then(setSemaforo).catch(() => {});
-    // Badge agenda: contar slots del modelo para el día de hoy
-    getSemanaModelo().then(({ slots }) => {
-      const diaMod = new Date().getDay() === 0 ? 7 : new Date().getDay();
-      setSesionesHoy(slots.filter(s => s.dia === diaMod).length);
-    }).catch(() => {});
+    // Badge agenda: contar turnos REALES de hoy
+    const hoy = new Date().toISOString().slice(0, 10);
+    getTurnosAgenda(hoy, hoy).then(t => setSesionesHoy(t.length)).catch(() => {});
   }, []);
 
   const handleLogout = async () => {

@@ -6,7 +6,10 @@ import { enviarMensajeChat, procesarComprobante } from "@/lib/api";
 import type { ChatResponse, DatosBorrador, DatosExtraidos } from "@/lib/types";
 import BorradorAprobacion from "./BorradorAprobacion";
 
-interface Props { onTurnoCreado?: () => void }
+interface Props {
+  onTurnoCreado?:  () => void;
+  ultimoPaciente?: string;   // nombre del último paciente atendido (del dashboard)
+}
 
 type Mensaje = {
   tipo:           "user" | "bot";
@@ -16,15 +19,38 @@ type Mensaje = {
   pacienteNuevo?: boolean;
 };
 
-const SUGERENCIAS = [
-  "Atendí a Valentina hoy, $22.000 en efectivo",
-  "¿Cuánto cobré este mes?",
-  "¿Quién me debe plata?",
-];
+const CHAT_KEY = "psico_chat_history";
+const MAX_HISTORY = 20;
+
+// Sugerencias contextuales según hora del día
+function getSugerencias(ultimoPaciente?: string): string[] {
+  const hora = new Date().getHours();
+  const nombre = ultimoPaciente ?? "mi paciente";
+
+  const manana = [
+    `Atendí a ${nombre} hoy, $22.000 en efectivo`,
+    "¿Cuánto tengo agendado esta semana?",
+    "¿Quién me debe plata?",
+  ];
+  const tarde = [
+    `${nombre} me pagó hoy con transferencia`,
+    "¿Cuánto cobré esta semana?",
+    "¿Quién falta pagar este mes?",
+  ];
+  const noche = [
+    "¿Cuánto cobré hoy?",
+    "¿Cuánto cobré este mes?",
+    `Registrá que ${nombre} canceló la sesión`,
+  ];
+
+  if (hora >= 6  && hora < 13) return manana;
+  if (hora >= 13 && hora < 20) return tarde;
+  return noche;
+}
 
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 
-export default function NLPInput({ onTurnoCreado }: Props) {
+export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
   const [texto,    setTexto]    = useState("");
   const [adjunto,  setAdjunto]  = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -33,9 +59,25 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   const [error,    setError]    = useState<string | null>(null);
   const [focused,  setFocused]  = useState(false);
 
-  const inputFileRef  = useRef<HTMLInputElement>(null);
-  const textareaRef   = useRef<HTMLTextAreaElement>(null);
+  const inputFileRef     = useRef<HTMLInputElement>(null);
+  const textareaRef      = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // ── Restaurar historial desde localStorage ────────────────────────────────
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem(CHAT_KEY);
+      if (guardado) setMensajes(JSON.parse(guardado));
+    } catch { /* ignorar */ }
+  }, []);
+
+  // ── Persistir historial en localStorage ───────────────────────────────────
+  useEffect(() => {
+    try {
+      const recorte = mensajes.slice(-MAX_HISTORY);
+      localStorage.setItem(CHAT_KEY, JSON.stringify(recorte));
+    } catch { /* ignorar */ }
+  }, [mensajes]);
 
   // CMD+K / Ctrl+K para enfocar
   useEffect(() => {
@@ -49,7 +91,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Auto-scroll al último mensaje — solo dentro del contenedor, sin afectar la página
+  // Auto-scroll al último mensaje
   useEffect(() => {
     if (mensajes.length > 0 && chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -79,17 +121,16 @@ export default function NLPInput({ onTurnoCreado }: Props) {
       }));
       const res: ChatResponse = await enviarMensajeChat(msg, historialParaApi);
       const msgBot: Mensaje = {
-        tipo:           "bot",
-        texto:          res.confirmacion,
-        accion:         res.accion,
-        datos:          res.datos_extraidos,
-        pacienteNuevo:  res.paciente_nuevo,
+        tipo:          "bot",
+        texto:         res.confirmacion,
+        accion:        res.accion,
+        datos:         res.datos_extraidos,
+        pacienteNuevo: res.paciente_nuevo,
       };
       setMensajes(prev => [...prev, msgBot]);
       if (res.accion === "turno_registrado") onTurnoCreado?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al conectar.");
-      // Quitar el mensaje del usuario si falló
       setMensajes(prev => prev.slice(0, -1));
     } finally {
       setCargando(false);
@@ -122,6 +163,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   const limpiar = () => {
     setMensajes([]);
     setError(null);
+    try { localStorage.removeItem(CHAT_KEY); } catch { /* ignorar */ }
     textareaRef.current?.focus();
   };
 
@@ -134,6 +176,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
   );
 
   const hayConversacion = mensajes.length > 0;
+  const sugerencias = getSugerencias(ultimoPaciente);
 
   return (
     <section
@@ -186,7 +229,7 @@ export default function NLPInput({ onTurnoCreado }: Props) {
       {/* Cuerpo */}
       <div className="bg-white">
 
-        {/* Historial de conversación */}
+        {/* Historial */}
         {hayConversacion && (
           <div ref={chatContainerRef} className="max-h-72 overflow-y-auto px-4 py-3 flex flex-col gap-3">
             {mensajes.map((m, i) => (
@@ -226,15 +269,12 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           </div>
         )}
 
-        {/* Chips de sugerencia (solo si no hay conversación) */}
+        {/* Chips sugerencias — personalizadas por hora y último paciente */}
         {!hayConversacion && (
           <div className="flex flex-wrap gap-2 px-4 pt-3 pb-2">
-            {SUGERENCIAS.map((s) => (
-              <button
-                key={s}
-                onClick={() => usarSugerencia(s)}
-                className="rounded-full border border-indigo-100 bg-indigo-50/60 px-3 py-1 text-xs text-indigo-600/70 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm"
-              >
+            {sugerencias.map((s) => (
+              <button key={s} onClick={() => usarSugerencia(s)}
+                className="rounded-full border border-indigo-100 bg-indigo-50/60 px-3 py-1 text-xs text-indigo-600/70 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm">
                 {s}
               </button>
             ))}
@@ -249,13 +289,11 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           </div>
         )}
 
-        {/* Zona de adjunto */}
+        {/* Zona adjunto */}
         {adjunto && (
           <div className="mx-4 mt-3 mb-1">
-            <div
-              onClick={() => inputFileRef.current?.click()}
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 py-4 transition-colors hover:bg-indigo-50"
-            >
+            <div onClick={() => inputFileRef.current?.click()}
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 py-4 transition-colors hover:bg-indigo-50">
               {cargando
                 ? <span className="h-4 w-4 animate-spin rounded-full border border-indigo-200 border-t-indigo-500" />
                 : <>
@@ -270,50 +308,36 @@ export default function NLPInput({ onTurnoCreado }: Props) {
           </div>
         )}
 
-        {/* Barra de input */}
-        <div className={`flex items-end gap-2 px-3 py-2.5 border-t ${hayConversacion ? "border-neutral-100" : "border-neutral-100"}`}>
-          <button
-            onClick={() => setAdjunto(v => !v)}
+        {/* Input */}
+        <div className={`flex items-end gap-2 px-3 py-2.5 border-t border-neutral-100`}>
+          <button onClick={() => setAdjunto(v => !v)}
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
               adjunto ? "bg-indigo-100 text-indigo-600" : "text-neutral-300 hover:text-neutral-500"
-            }`}
-            title="Subir comprobante"
-          >
+            }`} title="Subir comprobante">
             {adjunto ? <X className="h-3.5 w-3.5" /> : <Paperclip className="h-3.5 w-3.5" />}
           </button>
 
-          <textarea
-            ref={textareaRef}
-            value={texto}
+          <textarea ref={textareaRef} value={texto}
             onChange={e => { setTexto(e.target.value); autoResize(e.target); }}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }}}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             placeholder={hayConversacion ? "Continuá la consulta…" : "Ej: ¿Cuánto cobré en marzo?"}
-            rows={1}
-            disabled={cargando}
+            rows={1} disabled={cargando}
             className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none disabled:opacity-40"
-            style={{ maxHeight: "112px" }}
-          />
+            style={{ maxHeight: "112px" }} />
 
           {texto.trim() && !cargando && (
-            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
-              ↵
-            </span>
+            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">↵</span>
           )}
-
           {cargando && (
             <span className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center">
               <span className="h-3 w-3 animate-spin rounded-full border border-indigo-200 border-t-indigo-500" />
             </span>
           )}
-
           {!cargando && (
-            <button
-              onClick={enviar}
-              disabled={!texto.trim()}
-              className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-0"
-            >
+            <button onClick={enviar} disabled={!texto.trim()}
+              className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-0">
               <ArrowUp className="h-3.5 w-3.5 stroke-[2.5]" />
             </button>
           )}

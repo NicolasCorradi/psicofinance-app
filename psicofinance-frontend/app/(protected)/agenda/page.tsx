@@ -217,6 +217,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
     } finally { setGuardando(false); }
   }
 
+  const estadoLabel: Record<string, string> = { COBRADO: "Cobrado", DIFERIDO: "Pendiente", INCOBRABLE: "Incobrable" };
   const estadoBadge =
     turno.estado === "COBRADO"    ? "bg-emerald-100 text-emerald-700" :
     turno.estado === "DIFERIDO"   ? "bg-amber-100 text-amber-700"     :
@@ -235,7 +236,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
             <p className="text-xs text-neutral-400">{formatFecha(turno.fecha_turno)}</p>
             <h3 className="text-base font-bold text-neutral-900">{turno.paciente_nombre}</h3>
             <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${estadoBadge}`}>
-              {turno.estado}
+              {estadoLabel[turno.estado] ?? turno.estado}
             </span>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 text-neutral-300 hover:text-neutral-500"><X className="h-4 w-4"/></button>
