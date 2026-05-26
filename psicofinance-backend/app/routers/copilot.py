@@ -6,6 +6,10 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from dateutil.relativedelta import relativedelta
 
+from google import genai
+from google.genai import types as genai_types
+
+from app.config import config
 from app.supabase_client import SupabaseClient, get_supabase
 from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion, Moneda
 from app.services.dolar_service import get_dolar_blue
@@ -33,9 +37,9 @@ def _parse_date(val):
     return date.fromisoformat(str(val)[:10])
 
 
-@router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
-def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabase)):
-    intencion = clasificar_intencion(body.mensaje)
+def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripcion: str | None = None) -> ChatResponse:
+    """Lógica central del copiloto. Usada por /chat y /audio."""
+    intencion = clasificar_intencion(mensaje)
 
     if intencion == "consulta":
         hoy = date.today()
@@ -129,18 +133,19 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
             "medios_pago_mes":    medios,
         }
 
-        respuesta_texto = responder_consulta(body.mensaje, contexto)
-        return ChatResponse(confirmacion=respuesta_texto, accion="respuesta")
+        respuesta_texto = responder_consulta(mensaje, contexto)
+        return ChatResponse(confirmacion=respuesta_texto, accion="respuesta", transcripcion=transcripcion)
 
     # Registro de turno
     try:
-        historial_dicts = [m.model_dump() for m in body.historial] if body.historial else None
-        datos = extraer_datos_turno(body.mensaje, historial=historial_dicts)
+        historial_dicts = [m.model_dump() for m in historial] if historial else None
+        datos = extraer_datos_turno(mensaje, historial=historial_dicts)
     except ErrorNLP as e:
         logger.error("Error NLP: %s", e)
         return ChatResponse(
             confirmacion="No pude entender el mensaje. Podés ser más específico? (ej: 'Vino Martín, pagó 10000 con OSDE')",
             accion="error_nlp",
+            transcripcion=transcripcion,
         )
 
     if not datos.paciente or datos.paciente == "Sin identificar":
@@ -148,6 +153,7 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
             confirmacion="No identifiqué el nombre del paciente. Por favor mencionalo en el mensaje.",
             accion="datos_insuficientes",
             datos_extraidos=_a_schema(datos),
+            transcripcion=transcripcion,
         )
 
     if datos.monto <= 0:
@@ -155,6 +161,7 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
             confirmacion=f"Entendí que atendiste a {datos.paciente}, pero no pude identificar el monto. Podés agregarlo?",
             accion="datos_insuficientes",
             datos_extraidos=_a_schema(datos),
+            transcripcion=transcripcion,
         )
 
     try:
@@ -250,7 +257,55 @@ def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabas
         datos_extraidos=_a_schema(datos),
         turno_creado=TurnoRead.model_validate(turno),
         paciente_nuevo=fue_creado,
+        transcripcion=transcripcion,
     )
+
+
+@router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
+def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabase)):
+    return _procesar_chat(body.mensaje, body.historial, sb)
+
+
+AUDIO_TIPOS_PERMITIDOS = {
+    "audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg",
+    "audio/wav", "audio/x-wav", "audio/m4a", "audio/aac",
+}
+
+
+@router.post("/audio", response_model=ChatResponse, status_code=status.HTTP_200_OK)
+async def procesar_audio(
+    archivo: UploadFile = File(...),
+    sb: SupabaseClient = Depends(get_supabase),
+):
+    content_type = (archivo.content_type or "audio/webm").split(";")[0].strip()
+
+    MAX_BYTES = 10 * 1024 * 1024
+    contenido = await archivo.read()
+    if len(contenido) > MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="El audio supera el límite de 10 MB.",
+        )
+
+    try:
+        client = genai.Client(api_key=config.gemini_api_key)
+        response = client.models.generate_content(
+            model=config.gemini_model,
+            contents=[
+                genai_types.Part.from_bytes(data=contenido, mime_type=content_type),
+                "Transcribí este audio. El hablante es un psicólogo argentino registrando sesiones con pacientes. "
+                "Devolvé únicamente el texto transcripto, sin formato adicional ni explicaciones.",
+            ],
+        )
+        transcripcion = response.text.strip()
+    except Exception as e:
+        logger.error("Error transcripción audio: %s", e)
+        raise HTTPException(status_code=503, detail="No se pudo transcribir el audio.")
+
+    if not transcripcion:
+        raise HTTPException(status_code=422, detail="El audio no contiene voz reconocible.")
+
+    return _procesar_chat(transcripcion, [], sb, transcripcion=transcripcion)
 
 
 def _a_schema(datos) -> DatosExtraidos:

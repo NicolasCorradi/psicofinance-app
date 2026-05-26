@@ -38,6 +38,7 @@ export interface ChatResponse {
   datos_extraidos: DatosExtraidos | null;
   turno_creado:    TurnoRead | null;
   paciente_nuevo:  boolean;
+  transcripcion:   string | null;
 }
 
 // ── Turnos ───────────────────────────────────────────────────────────────────

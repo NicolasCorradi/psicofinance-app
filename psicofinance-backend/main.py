@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import turnos, caja, inflacion, monotributo, copilot, dashboard, agenda
 from app.routers import pacientes as pacientes_router
+from app.supabase_client import get_supabase
 
 
 app = FastAPI(
@@ -45,3 +46,11 @@ app.include_router(agenda.router,           prefix=PREFIJO)
 @app.get("/", tags=["Health"])
 def health_check():
     return {"status": "ok", "app": "PsicoFinance API", "version": "0.1.0"}
+
+
+@app.get("/api/v1/keepalive", tags=["Health"])
+def keepalive():
+    """Hace un query liviano a Supabase para evitar que el proyecto se pause por inactividad."""
+    sb = get_supabase()
+    result = sb.select("pacientes", {"select": "id", "limit": "1"})
+    return {"status": "ok", "supabase": "alive", "rows": len(result)}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Paperclip, X, Sparkles, Command, RotateCcw } from "lucide-react";
-import { enviarMensajeChat, procesarComprobante } from "@/lib/api";
+import { ArrowUp, Paperclip, X, Sparkles, Command, RotateCcw, Mic, MicOff } from "lucide-react";
+import { enviarMensajeChat, procesarComprobante, enviarAudio } from "@/lib/api";
 import type { ChatResponse, DatosBorrador, DatosExtraidos } from "@/lib/types";
 import BorradorAprobacion from "./BorradorAprobacion";
 
@@ -58,10 +58,13 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
   const [borrador, setBorrador] = useState<DatosBorrador | null>(null);
   const [error,    setError]    = useState<string | null>(null);
   const [focused,  setFocused]  = useState(false);
+  const [grabando, setGrabando] = useState(false);
 
-  const inputFileRef     = useRef<HTMLInputElement>(null);
-  const textareaRef      = useRef<HTMLTextAreaElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputFileRef      = useRef<HTMLInputElement>(null);
+  const textareaRef       = useRef<HTMLTextAreaElement>(null);
+  const chatContainerRef  = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
+  const chunksRef         = useRef<Blob[]>([]);
 
   // ── Restaurar historial desde localStorage ────────────────────────────────
   useEffect(() => {
@@ -165,6 +168,56 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
     setError(null);
     try { localStorage.removeItem(CHAT_KEY); } catch { /* ignorar */ }
     textareaRef.current?.focus();
+  };
+
+  const toggleGrabacion = async () => {
+    if (grabando) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setGrabando(false);
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        if (blob.size < 1000) return;
+
+        setCargando(true);
+        try {
+          const res = await enviarAudio(blob);
+          const textoUsuario = res.transcripcion ?? "🎤 (audio)";
+          const msgUsuario: Mensaje = { tipo: "user", texto: textoUsuario };
+          const msgBot: Mensaje = {
+            tipo: "bot",
+            texto: res.confirmacion,
+            accion: res.accion,
+            datos: res.datos_extraidos,
+            pacienteNuevo: res.paciente_nuevo,
+          };
+          setMensajes(prev => [...prev, msgUsuario, msgBot]);
+          if (res.accion === "turno_registrado") onTurnoCreado?.();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Error al procesar el audio.");
+        } finally {
+          setCargando(false);
+        }
+      };
+
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setGrabando(true);
+    } catch {
+      setError("No se pudo acceder al micrófono. Verificá los permisos del navegador.");
+    }
   };
 
   if (borrador) return (
@@ -310,10 +363,10 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
 
         {/* Input */}
         <div className={`flex items-end gap-2 px-3 py-2.5 border-t border-neutral-100`}>
-          <button onClick={() => setAdjunto(v => !v)}
+          <button onClick={() => setAdjunto(v => !v)} disabled={grabando || cargando}
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
               adjunto ? "bg-indigo-100 text-indigo-600" : "text-neutral-300 hover:text-neutral-500"
-            }`} title="Subir comprobante">
+            } disabled:opacity-30`} title="Subir comprobante">
             {adjunto ? <X className="h-3.5 w-3.5" /> : <Paperclip className="h-3.5 w-3.5" />}
           </button>
 
@@ -322,12 +375,12 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }}}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder={hayConversacion ? "Continuá la consulta…" : "Ej: ¿Cuánto cobré en marzo?"}
-            rows={1} disabled={cargando}
+            placeholder={grabando ? "Grabando… tocá el micrófono para enviar" : hayConversacion ? "Continuá la consulta…" : "Ej: ¿Cuánto cobré en marzo?"}
+            rows={1} disabled={cargando || grabando}
             className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none disabled:opacity-40"
             style={{ maxHeight: "112px" }} />
 
-          {texto.trim() && !cargando && (
+          {texto.trim() && !cargando && !grabando && (
             <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">↵</span>
           )}
           {cargando && (
@@ -335,8 +388,19 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
               <span className="h-3 w-3 animate-spin rounded-full border border-indigo-200 border-t-indigo-500" />
             </span>
           )}
+
+          <button onClick={toggleGrabacion} disabled={cargando}
+            className={`mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ${
+              grabando
+                ? "bg-red-500 text-white animate-pulse"
+                : "text-neutral-300 hover:text-neutral-500"
+            } disabled:opacity-30`}
+            title={grabando ? "Detener grabación" : "Grabar mensaje de voz"}>
+            {grabando ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+          </button>
+
           {!cargando && (
-            <button onClick={enviar} disabled={!texto.trim()}
+            <button onClick={enviar} disabled={!texto.trim() || grabando}
               className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-0">
               <ArrowUp className="h-3.5 w-3.5 stroke-[2.5]" />
             </button>

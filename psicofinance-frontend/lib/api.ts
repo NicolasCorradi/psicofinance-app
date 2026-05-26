@@ -141,6 +141,13 @@ export function enviarMensajeChat(
   return post<ChatResponse>('/copilot/chat', { mensaje, historial });
 }
 
+/** Envía un blob de audio al copiloto. Gemini transcribe y procesa igual que texto. */
+export function enviarAudio(blob: Blob): Promise<ChatResponse> {
+  const form = new FormData();
+  form.append('archivo', blob, 'audio.webm');
+  return postForm<ChatResponse>('/copilot/audio', form);
+}
+
 /**
  * Envía una imagen o PDF de comprobante de pago.
  * Gemini lo analiza con visión y devuelve un borrador para aprobar.
