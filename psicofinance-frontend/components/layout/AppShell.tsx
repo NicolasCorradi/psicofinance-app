@@ -59,12 +59,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
 
       {/* ── Sidebar desktop ── */}
-      <aside className="hidden lg:flex w-56 shrink-0 flex-col bg-sidebar border-r border-sidebar-border fixed inset-y-0 left-0 z-50">
+      <aside className="hidden lg:flex w-56 shrink-0 flex-col bg-sidebar bg-gradient-to-b from-indigo-950 via-slate-950 to-slate-950 border-r border-sidebar-border fixed inset-y-0 left-0 z-50 overflow-hidden">
+
+        {/* Luz ambiental superior — profundidad sin ruido */}
+        <div className="pointer-events-none absolute -top-24 -left-16 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 -right-20 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl" />
 
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/20 ring-1 ring-indigo-500/25">
-            <BrainCircuit className="h-4 w-4 text-indigo-400" strokeWidth={1.8} />
+        <div className="relative flex items-center gap-3 px-5 pt-6 pb-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-950/60 ring-1 ring-white/10">
+            <BrainCircuit className="h-4.5 w-4.5 text-white" strokeWidth={1.8} />
           </div>
           <div>
             <p className="text-sm font-bold text-white tracking-tight leading-none">PsicoFinance</p>
@@ -83,12 +87,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-indigo-500/15 text-indigo-400"
-                    : "text-white/40 hover:bg-sidebar-accent hover:text-white/80"
+                    ? "bg-indigo-500/15 text-indigo-300 ring-1 ring-inset ring-indigo-400/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+                    : "text-white/40 hover:bg-white/5 hover:text-white/80"
                 }`}
               >
+                {/* Indicador de sección activa */}
+                {active && (
+                  <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-500" />
+                )}
                 <div className="relative">
                   <Icon
                     className={`h-4 w-4 shrink-0 ${active ? "text-indigo-400" : "opacity-60"}`}

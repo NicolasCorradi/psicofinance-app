@@ -70,8 +70,11 @@ export default function GuiaDashboard() {
         const esDemo = user?.email === DEMO_EMAIL;
 
         if (esDemo) {
-          // Demo: siempre abre la guía
-          setOpen(true);
+          // Demo: abre la guía una vez por sesión de navegación (no en cada visita)
+          if (!sessionStorage.getItem(LS_KEY)) {
+            setOpen(true);
+            sessionStorage.setItem(LS_KEY, "1");
+          }
         } else if (!localStorage.getItem(LS_KEY)) {
           // Primera vez: abre solo
           setOpen(true);

@@ -107,7 +107,7 @@ export default function DashboardPage() {
       {/* ── Header con saludo ── */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
             {saludo()} 👋
           </h1>
           <p className="mt-0.5 text-xs text-neutral-400 capitalize">{fechaCompleta}</p>
