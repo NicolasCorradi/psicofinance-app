@@ -22,6 +22,11 @@ function fmtPesosExacto(n: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 }
 
+function isoHoy(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function fechaRel(iso: string | null): string {
   if (!iso) return "Sin sesiones";
   const f   = new Date(iso + "T12:00:00");
@@ -78,7 +83,7 @@ function EditarHonorario({
     try {
       await actualizarPaciente(paciente.id, {
         honorario_actual: num,
-        fecha_ultimo_ajuste_honorario: new Date().toISOString().split("T")[0],
+        fecha_ultimo_ajuste_honorario: isoHoy(),
       });
       onGuardado();
       onCerrar();
@@ -241,7 +246,7 @@ export default function PacientesPage() {
             {!cargando && pacientes.length > 0 && (
               <button
                 onClick={() => exportCSV(
-                  `pacientes_${new Date().toISOString().slice(0,10)}.csv`,
+                  `pacientes_${isoHoy()}.csv`,
                   [
                     { key: "apellido",                      label: "Apellido" },
                     { key: "nombre",                        label: "Nombre" },

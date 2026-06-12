@@ -168,7 +168,8 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
   async function cobrarRapido(t: TurnoResumen) {
     setCobrandoId(t.id);
     try {
-      const hoy = new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       await actualizarTurno(t.id, {
         estado:               "COBRADO",
         fecha_cobro_efectivo: hoy,

@@ -18,7 +18,9 @@ import { avatarCls, iniciales } from "@/lib/avatar";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isoDate(d: Date): string { return d.toISOString().slice(0, 10); }
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function lunesDe(d: Date): Date {
   const r = new Date(d);
   const diff = r.getDay() === 0 ? -6 : 1 - r.getDay();

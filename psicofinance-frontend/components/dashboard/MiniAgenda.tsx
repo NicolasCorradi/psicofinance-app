@@ -17,7 +17,10 @@ function hoyLabel(): string {
   return `${DIAS_ES[d.getDay()]} ${d.getDate()} ${MESES_ES[d.getMonth()]}`;
 }
 
-function isoHoy(): string { return new Date().toISOString().slice(0, 10); }
+function isoHoy(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function diaModelo(d: Date): number { return d.getDay() === 0 ? 7 : d.getDay(); }
 
