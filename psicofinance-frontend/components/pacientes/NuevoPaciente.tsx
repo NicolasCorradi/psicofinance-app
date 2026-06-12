@@ -5,6 +5,11 @@ import { X, UserPlus } from "lucide-react";
 import { crearPaciente } from "@/lib/api";
 import type { PacienteCreatePayload } from "@/lib/types";
 
+function isoHoy(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 interface Props {
   onCreado:  () => void;
   onCancelar: () => void;
@@ -36,7 +41,7 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
           : null,
         fecha_ultimo_ajuste_honorario:
           form.honorario_actual
-            ? new Date().toISOString().split("T")[0]
+            ? isoHoy()
             : null,
       };
       await crearPaciente(payload);

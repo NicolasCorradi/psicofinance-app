@@ -13,6 +13,11 @@ function fmtPesos(n: number): string {
   }).format(n);
 }
 
+function isoHoy(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function fmtFecha(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("es-AR", {
     day: "numeric", month: "short", year: "numeric",
@@ -142,7 +147,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       const hon = parseFloat(form.honorario.replace(",", "."));
       if (!isNaN(hon) && hon > 0) {
         payload.honorario_actual = hon;
-        payload.fecha_ultimo_ajuste_honorario = new Date().toISOString().split("T")[0];
+        payload.fecha_ultimo_ajuste_honorario = isoHoy();
       }
       await actualizarPaciente(detalle.id, payload);
       const d = await getPacienteDetalle(detalle.id);

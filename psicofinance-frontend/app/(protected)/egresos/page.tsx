@@ -33,18 +33,24 @@ function labelMes(mes: string): string {
 
 function ChipsResumen({ resumen }: { resumen: ResumenEgresos | null }) {
   const chips = [
-    { label: "Fijos",     valor: resumen?.total_fijos,     cls: "text-slate-700" },
-    { label: "Variables", valor: resumen?.total_variables, cls: "text-amber-600" },
-    { label: "Total mes", valor: resumen?.total,           cls: "text-red-500" },
+    { label: "Fijos",     valor: resumen?.total_fijos,     cls: "text-slate-700", gradient: "from-slate-400 to-slate-600",  sub: "Alquiler, impuestos, software…" },
+    { label: "Variables", valor: resumen?.total_variables, cls: "text-amber-600", gradient: "from-amber-400 to-orange-400", sub: "Insumos, formación, otros" },
+    { label: "Total mes", valor: resumen?.total,           cls: "text-red-500",   gradient: "from-red-400 to-rose-500",     sub: "Fijos + variables" },
   ];
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {chips.map(({ label, valor, cls }) => (
-        <div key={label} className="rounded-2xl bg-white px-4 py-3 ring-1 ring-black/5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">{label}</p>
-          <p className={`mt-1 font-mono text-lg font-bold ${cls}`}>
-            {valor != null ? fmtPesos(valor) : "—"}
-          </p>
+    <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      {chips.map(({ label, valor, cls, gradient, sub }) => (
+        <div key={label} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+          <div className={`h-1 bg-gradient-to-r ${gradient}`} />
+          <div className="px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">{label}</p>
+            <p className={`mt-1.5 font-mono text-xl font-bold leading-none tabular-nums ${cls}`}>
+              {valor != null
+                ? fmtPesos(valor)
+                : <span className="animate-pulse text-neutral-200">——</span>}
+            </p>
+            <p className="mt-1.5 hidden text-[11px] text-neutral-400 sm:block">{sub}</p>
+          </div>
         </div>
       ))}
     </div>
@@ -114,7 +120,7 @@ export default function EgresosPage() {
       {/* ── Header ── */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Egresos</h1>
+          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">Egresos</h1>
           <p className="mt-0.5 text-xs text-neutral-400">Gastos fijos y variables del consultorio</p>
         </div>
         <button
