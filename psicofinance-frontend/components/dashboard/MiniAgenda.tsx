@@ -113,6 +113,7 @@ export default function MiniAgenda() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Agenda de hoy</p>
             <p className="text-xs font-medium text-neutral-600 capitalize">{hoyLabel()}</p>
+            <p className="text-[10px] text-slate-400 leading-tight">según semana modelo</p>
           </div>
         </div>
         {total > 0 && (

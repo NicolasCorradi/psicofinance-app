@@ -120,17 +120,55 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
                 m = t.get("medio_pago") or "SIN_ESPECIFICAR"
                 medios[m] = medios.get(m, 0) + 1
 
+        # ── Egresos: mes actual + últimos 6 meses ─────────────────────────────
+        inicio_egresos = primer_dia - relativedelta(months=5)
+        egresos_rows = sb.select("egresos", {
+            "select": "monto,tipo,categoria,fecha",
+            "fecha": f"gte.{inicio_egresos.isoformat()}",
+            "limit": "2000",
+        })
+        egresos_rows = [e for e in egresos_rows if (_parse_date(e.get("fecha")) or date.min) < sig_mes]
+
+        egresos_mes_list = [
+            e for e in egresos_rows
+            if primer_dia <= (_parse_date(e.get("fecha")) or date.min) < sig_mes
+        ]
+        total_egresos_mes = sum(float(e.get("monto") or 0) for e in egresos_mes_list)
+        egresos_fijos_mes = sum(float(e.get("monto") or 0) for e in egresos_mes_list if e.get("tipo") == "FIJO")
+        egresos_variables_mes = sum(float(e.get("monto") or 0) for e in egresos_mes_list if e.get("tipo") == "VARIABLE")
+
+        egresos_por_cat: dict[str, float] = {}
+        for e in egresos_mes_list:
+            cat = e.get("categoria") or "OTRO"
+            egresos_por_cat[cat] = egresos_por_cat.get(cat, 0.0) + float(e.get("monto") or 0)
+
+        egresos_mensuales: list[dict] = []
+        for i in range(5, -1, -1):
+            ini = primer_dia - relativedelta(months=i)
+            clave = f"{ini.year:04d}-{ini.month:02d}"
+            total_e = sum(
+                float(e.get("monto") or 0) for e in egresos_rows
+                if str(_parse_date(e.get("fecha")) or date.min)[:7] == clave
+            )
+            egresos_mensuales.append({"mes": MESES_ES[ini.month - 1], "egresos": float(total_e)})
+
         contexto = {
-            "cobrado_mes":        float(cobrado_mes),
-            "en_camino_mes":      float(en_camino),
-            "deudores":           float(deudores),
-            "total_turnos_mes":   int(total_turnos),
-            "inasistencias_mes":  int(inasistencias_mes),
-            "honorario_promedio": float(honorario_prom),
-            "perdida_inflacion":  0,
-            "ventas_mensuales":   ventas,
-            "top_deudores":       [{"nombre": n, "monto": m} for n, m in top_deudores],
-            "medios_pago_mes":    medios,
+            "cobrado_mes":           float(cobrado_mes),
+            "en_camino_mes":         float(en_camino),
+            "deudores":              float(deudores),
+            "total_turnos_mes":      int(total_turnos),
+            "inasistencias_mes":     int(inasistencias_mes),
+            "honorario_promedio":    float(honorario_prom),
+            "perdida_inflacion":     0,
+            "ventas_mensuales":      ventas,
+            "top_deudores":          [{"nombre": n, "monto": m} for n, m in top_deudores],
+            "medios_pago_mes":       medios,
+            "egresos_mes":           float(total_egresos_mes),
+            "egresos_fijos_mes":     float(egresos_fijos_mes),
+            "egresos_variables_mes": float(egresos_variables_mes),
+            "egresos_por_categoria": egresos_por_cat,
+            "egresos_mensuales":     egresos_mensuales,
+            "utilidad_neta":         float(cobrado_mes - total_egresos_mes),
         }
 
         respuesta_texto = responder_consulta(mensaje, contexto)

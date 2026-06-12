@@ -134,17 +134,32 @@ def responder_consulta(texto: str, contexto: dict) -> str:
     medios = contexto.get("medios_pago_mes", {})
     medios_txt = ", ".join(f"{k}: {v}" for k, v in medios.items()) if medios else "sin datos"
 
+    egr_por_cat = contexto.get("egresos_por_categoria", {})
+    egr_cat_txt = ", ".join(
+        f"{k}: ${v:,.0f}" for k, v in sorted(egr_por_cat.items(), key=lambda x: -x[1])
+    ) if egr_por_cat else "sin datos"
+    egr_hist = contexto.get("egresos_mensuales", [])
+    egr_hist_txt = " | ".join(
+        f"{m['mes']}: ${m['egresos']:,.0f}" for m in egr_hist
+    ) if egr_hist else "sin datos"
+
     contexto_txt = f"""Datos financieros actuales (fecha: {date.today().strftime('%d/%m/%Y')}):
+INGRESOS (criterio percibido — turnos cobrados efectivamente):
 - Cobrado este mes: ${contexto.get('cobrado_mes', 0):,.0f}
 - En camino (prepagas pendientes este mes): ${contexto.get('en_camino_mes', 0):,.0f}
 - Sin cobrar (meses anteriores vencido): ${contexto.get('deudores', 0):,.0f}
 - Sesiones este mes: {contexto.get('total_turnos_mes', 0)}
 - Inasistencias este mes: {contexto.get('inasistencias_mes', 0)}
 - Honorario promedio: ${contexto.get('honorario_promedio', 0):,.0f}
-- Pérdida por inflación (DIFERIDO): ${contexto.get('perdida_inflacion', 0):,.0f}
-- Historial 6 meses: {historial}
+- Historial ingresos 6 meses: {historial}
 - Pacientes con deuda vencida: {deudores_txt}
-- Medios de pago (sesiones del mes): {medios_txt}"""
+- Medios de pago (sesiones del mes): {medios_txt}
+EGRESOS (gastos del mes):
+- Total egresos este mes: ${contexto.get('egresos_mes', 0):,.0f} (fijos: ${contexto.get('egresos_fijos_mes', 0):,.0f} | variables: ${contexto.get('egresos_variables_mes', 0):,.0f})
+- Egresos por categoría: {egr_cat_txt}
+- Historial egresos 6 meses: {egr_hist_txt}
+RESULTADO:
+- Utilidad neta del mes (cobrado − egresos): ${contexto.get('utilidad_neta', contexto.get('cobrado_mes', 0)):,.0f}"""
 
     prompt = f"{contexto_txt}\n\nPregunta del psicólogo: {texto}"
 
