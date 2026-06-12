@@ -43,7 +43,11 @@ una app de finanzas para psicólogos.
 
 Clasificá el mensaje en UNA de estas dos categorías:
 - "registro_turno": el psicólogo quiere registrar una sesión, turno o atención con un paciente
-- "consulta": el psicólogo hace una pregunta sobre sus finanzas, ingresos, estadísticas o pide información
+- "consulta": el psicólogo hace una pregunta sobre sus finanzas: ingresos, gastos/egresos
+  ("¿cuánto gasté?"), utilidad, estadísticas, o pide cualquier información
+
+Ojo: "gasté", "gastos" o "egresos" refieren a los gastos del consultorio → es "consulta",
+NO un registro de turno.
 
 Respondé ÚNICAMENTE con una de estas dos palabras exactas: registro_turno  o  consulta
 Sin explicaciones, sin puntuación extra."""
@@ -86,10 +90,22 @@ No inventes datos. Podés responder en hasta 4 oraciones. Sin markdown."""
 
 # ── Función de clasificación ──────────────────────────────────────────────────
 
+def _heuristica_intencion(texto: str) -> str:
+    """Fallback determinístico cuando Gemini no responde: las preguntas
+    financieras se reconocen por interrogación o palabras de consulta."""
+    t = texto.lower()
+    señales = ("cuanto", "cuánto", "cuant", "gasté", "gaste", "gastos", "egreso",
+               "utilidad", "ganancia", "neto", "resumen", "como vengo", "cómo vengo")
+    if "?" in t or any(s in t for s in señales):
+        return "consulta"
+    return "registro_turno"
+
+
 def clasificar_intencion(texto: str) -> str:
     """
     Devuelve "registro_turno" o "consulta".
-    En caso de error, defaultea a "registro_turno" para no romper el flujo.
+    Si Gemini falla o devuelve vacío (p. ej. gastó el presupuesto en thinking),
+    cae a una heurística determinística en vez de asumir registro.
     """
     cliente = genai.Client(api_key=config.gemini_api_key)
     try:
@@ -99,16 +115,20 @@ def clasificar_intencion(texto: str) -> str:
             config=types.GenerateContentConfig(
                 system_instruction=PROMPT_CLASIFICACION,
                 temperature=0.0,
-                max_output_tokens=10,
+                # Margen amplio: los modelos con thinking consumen tokens de
+                # salida antes de emitir texto; con 10 devolvían text=None
+                max_output_tokens=500,
             ),
         )
-        resultado = resp.text.strip().lower()
+        resultado = (resp.text or "").strip().lower()
+        if not resultado:
+            return _heuristica_intencion(texto)
         if "consulta" in resultado:
             return "consulta"
         return "registro_turno"
     except Exception as e:
-        logger.warning("Error al clasificar intención: %s — defaulteando a registro_turno", e)
-        return "registro_turno"
+        logger.warning("Error al clasificar intención: %s — usando heurística", e)
+        return _heuristica_intencion(texto)
 
 
 # ── Función de respuesta a consultas ─────────────────────────────────────────
