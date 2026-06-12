@@ -18,6 +18,29 @@ interface Props {
 }
 
 // Fecha local (no UTC): toISOString() adelanta un día en Argentina después de las 21:00
+function parsearMonto(texto: string): number {
+  const limpio = texto.trim().replace(/\$|\s/g, "");
+  if (!limpio) return NaN;
+  const tienePunto = limpio.includes(".");
+  const tieneComa = limpio.includes(",");
+  let normalizado = limpio;
+  if (tienePunto && tieneComa) {
+    // "1.000,50" — punto = miles, coma = decimal
+    normalizado = limpio.replace(/\./g, "").replace(",", ".");
+  } else if (tieneComa) {
+    // "1500,50" — coma decimal
+    normalizado = limpio.replace(",", ".");
+  } else if (tienePunto) {
+    // Ambiguo: "1.000" es miles en AR, "1000.50" es decimal — si el grupo
+    // tras el último punto tiene 3 dígitos, se asume separador de miles
+    const partes = limpio.split(".");
+    if (partes[partes.length - 1].length === 3) {
+      normalizado = limpio.replace(/\./g, "");
+    }
+  }
+  return parseFloat(normalizado);
+}
+
 const hoy = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -55,7 +78,8 @@ export default function EgresoModal({ open, onClose, onSaved, egreso }: Props) {
     setNotas(egreso?.notas ?? "");
   }, [open, egreso]);
 
-  const montoNum = parseFloat(monto.replace(",", "."));
+  // Acepta formato AR ("1.000,50"), internacional ("1000.50") y simple ("1500")
+  const montoNum = parsearMonto(monto);
   const valido = descripcion.trim().length > 0 && !isNaN(montoNum) && montoNum > 0 && fecha;
 
   const handleSubmit = async (e: React.FormEvent) => {

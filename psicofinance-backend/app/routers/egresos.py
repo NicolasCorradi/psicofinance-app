@@ -75,17 +75,23 @@ def resumen(
     mes_str = mes or f"{hoy.year:04d}-{hoy.month:02d}"
     desde_mes, hasta_mes = _rango_mes(mes_str)
 
-    # Un solo select que cubre el mes consultado y los 5 meses anteriores
+    # Un solo select que cubre el mes consultado y los 5 meses anteriores.
+    # Rango completo server-side: filtrar después de paginar perdería filas.
     inicio_serie = _retroceder_meses(desde_mes, 5)
     rows = sb.select("egresos", {
-        "fecha": f"gte.{inicio_serie.isoformat()}",
+        "and": f"(fecha.gte.{inicio_serie.isoformat()},fecha.lte.{hasta_mes.isoformat()})",
         "select": "monto,tipo,categoria,fecha",
-        "limit": "2000",
+        "limit": "5000",
     })
-    rows = [r for r in rows if (_parse_date(r.get("fecha")) or date.min) <= hasta_mes]
+    # Fecha pre-parseada y a prueba de nulos para todos los cálculos siguientes
+    rows = [
+        {**r, "_fecha": f}
+        for r in rows
+        if (f := _parse_date(r.get("fecha"))) is not None
+    ]
 
     # Totales del mes consultado
-    del_mes = [r for r in rows if desde_mes <= _parse_date(r["fecha"]) <= hasta_mes]
+    del_mes = [r for r in rows if desde_mes <= r["_fecha"] <= hasta_mes]
     total_fijos = sum(float(r["monto"] or 0) for r in del_mes if r.get("tipo") == "FIJO")
     total_variables = sum(float(r["monto"] or 0) for r in del_mes if r.get("tipo") == "VARIABLE")
 
@@ -100,7 +106,7 @@ def resumen(
     for i in range(5, -1, -1):
         ini = _retroceder_meses(desde_mes, i)
         clave = f"{ini.year:04d}-{ini.month:02d}"
-        del_periodo = [r for r in rows if _parse_date(r["fecha"]).strftime("%Y-%m") == clave]
+        del_periodo = [r for r in rows if r["_fecha"].strftime("%Y-%m") == clave]
         fijos = sum(float(r["monto"] or 0) for r in del_periodo if r.get("tipo") == "FIJO")
         variables = sum(float(r["monto"] or 0) for r in del_periodo if r.get("tipo") == "VARIABLE")
         cats: dict[str, float] = {}

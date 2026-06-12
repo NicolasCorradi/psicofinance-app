@@ -108,7 +108,7 @@ export default function ReportesPage() {
     <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-900">Reportes</h1>
+          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">Reportes</h1>
           <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">

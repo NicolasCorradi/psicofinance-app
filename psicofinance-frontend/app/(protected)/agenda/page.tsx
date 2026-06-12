@@ -707,7 +707,7 @@ export default function AgendaPage() {
   return (
     <div className="min-h-screen bg-neutral-50/50 p-4 lg:p-8">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-bold tracking-tight text-neutral-900">Agenda</h1>
+        <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">Agenda</h1>
         <div className="flex overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
           <button onClick={() => setTab("semana")} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${tab === "semana" ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-50"}`}>
             <CalendarDays className="h-3.5 w-3.5"/>Esta semana

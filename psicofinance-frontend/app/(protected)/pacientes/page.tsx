@@ -237,7 +237,7 @@ export default function PacientesPage() {
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-neutral-900">Pacientes</h1>
+            <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-lg font-extrabold tracking-tight text-transparent">Pacientes</h1>
             <p className="text-xs text-neutral-400">
               {cargando ? "Cargando…" : `${pacientes.length} paciente${pacientes.length !== 1 ? "s" : ""}`}
             </p>

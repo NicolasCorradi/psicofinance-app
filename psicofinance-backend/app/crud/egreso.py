@@ -54,14 +54,15 @@ def listar_egresos(
         params["tipo"] = f"eq.{tipo.value if hasattr(tipo, 'value') else tipo}"
     if categoria:
         params["categoria"] = f"eq.{categoria.value if hasattr(categoria, 'value') else categoria}"
-    if desde:
+    # Rango completo server-side con and=(...): filtrar después de paginar
+    # perdería filas cuando el mes supera el limit
+    if desde and hasta:
+        params["and"] = f"(fecha.gte.{desde.isoformat()},fecha.lte.{hasta.isoformat()})"
+    elif desde:
         params["fecha"] = f"gte.{desde.isoformat()}"
-    rows = sb.select("egresos", params)
-    # PostgREST del cliente custom no admite dos condiciones del mismo campo:
-    # el límite superior se filtra en Python (igual que turnos/agenda)
-    if hasta:
-        rows = [r for r in rows if (_parse_date(r.get("fecha")) or date.min) <= hasta]
-    return rows
+    elif hasta:
+        params["fecha"] = f"lte.{hasta.isoformat()}"
+    return sb.select("egresos", params)
 
 
 def actualizar_egreso(sb: SupabaseClient, egreso_id: uuid.UUID, datos: EgresoUpdate) -> dict | None:
