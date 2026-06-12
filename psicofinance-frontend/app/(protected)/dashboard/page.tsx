@@ -12,6 +12,7 @@ import MonotributoProgress from "@/components/dashboard/MonotributoProgress";
 import MiniAgenda          from "@/components/dashboard/MiniAgenda";
 import AlertasHonorarios   from "@/components/dashboard/AlertasHonorarios";
 import TurnosTable         from "@/components/dashboard/TurnosTable";
+import EgresosCard         from "@/components/dashboard/EgresosCard";
 import SimuladorHonorarios from "@/components/dashboard/SimuladorHonorarios";
 import GuiaDashboard       from "@/components/dashboard/GuiaDashboard";
 
@@ -147,6 +148,11 @@ export default function DashboardPage() {
           {/* Métricas */}
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "80ms" }}>
             <CashFlowCards metricas={metricas} />
+          </div>
+
+          {/* Egresos + neto */}
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "110ms" }}>
+            <EgresosCard cobradoMes={metricas?.cobrado_mes ?? null} />
           </div>
 
           {/* Gráfico + Monotributo */}

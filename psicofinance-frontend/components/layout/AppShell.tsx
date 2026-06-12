@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, TrendingDown, LogOut } from "lucide-react";
 import { getSemaforo, getTurnosAgenda } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/pacientes", label: "Pacientes", Icon: Users },
   { href: "/agenda",    label: "Agenda",    Icon: CalendarDays },
+  { href: "/egresos",   label: "Egresos",   Icon: TrendingDown },
   { href: "/reportes",  label: "Reportes",  Icon: BarChart3 },
 ];
 
@@ -38,7 +39,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     getSemaforo().then(setSemaforo).catch(() => {});
     // Badge agenda: contar turnos REALES de hoy
-    const hoy = new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     getTurnosAgenda(hoy, hoy).then(t => setSesionesHoy(t.length)).catch(() => {});
   }, []);
 

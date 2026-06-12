@@ -217,6 +217,65 @@ export interface TurnoAgenda {
   fecha_cobro_efectivo: string | null;
 }
 
+// ── Egresos ──────────────────────────────────────────────────────────────────
+export type TipoEgreso = 'FIJO' | 'VARIABLE';
+export type CategoriaEgreso =
+  | 'ALQUILER' | 'SERVICIOS' | 'HONORARIOS' | 'INSUMOS'
+  | 'SOFTWARE' | 'IMPUESTOS' | 'FORMACION' | 'OTRO';
+
+export interface EgresoRead {
+  id:          string;
+  descripcion: string;
+  monto:       number;
+  tipo:        TipoEgreso;
+  categoria:   CategoriaEgreso;
+  fecha:       string;            // YYYY-MM-DD
+  medio_pago:  MedioPago | null;
+  recurrente:  boolean;
+  notas:       string | null;
+  user_id:     string | null;
+  created_at:  string;
+}
+
+export interface EgresoCreatePayload {
+  descripcion: string;
+  monto:       number;
+  tipo:        TipoEgreso;
+  categoria?:  CategoriaEgreso;
+  fecha:       string;
+  medio_pago?: MedioPago | null;
+  recurrente?: boolean;
+  notas?:      string | null;
+}
+
+export interface EgresoUpdatePayload {
+  descripcion?: string;
+  monto?:       number;
+  tipo?:        TipoEgreso;
+  categoria?:   CategoriaEgreso;
+  fecha?:       string;
+  medio_pago?:  MedioPago | null;
+  recurrente?:  boolean;
+  notas?:       string | null;
+}
+
+export interface MesEgresos {
+  mes:        string;   // "YYYY-MM"
+  fijos:      number;
+  variables:  number;
+  total:      number;
+  categorias: Partial<Record<CategoriaEgreso, number>>;
+}
+
+export interface ResumenEgresos {
+  mes:             string;
+  total_fijos:     number;
+  total_variables: number;
+  total:           number;
+  por_categoria:   { categoria: CategoriaEgreso; total: number }[];
+  ultimos_6_meses: MesEgresos[];
+}
+
 // ── Comprobantes ─────────────────────────────────────────────────────────────
 export interface DatosBorrador {
   nombre_emisor:    string;

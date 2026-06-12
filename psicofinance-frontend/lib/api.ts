@@ -19,6 +19,12 @@ import type {
   PacienteRead,
   PacienteCreatePayload,
   PacienteUpdatePayload,
+  EgresoRead,
+  EgresoCreatePayload,
+  EgresoUpdatePayload,
+  ResumenEgresos,
+  TipoEgreso,
+  CategoriaEgreso,
 } from './types';
 
 // URL base del backend — se lee del .env.local en build time
@@ -251,4 +257,42 @@ export function actualizarPaciente(id: string, datos: PacienteUpdatePayload): Pr
 /** Elimina un paciente (solo si no tiene turnos). */
 export function eliminarPaciente(id: string): Promise<void> {
   return del(`/pacientes/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// CRUD de egresos
+// ---------------------------------------------------------------------------
+
+/** Lista egresos con filtros opcionales por mes (YYYY-MM), tipo y categoría. */
+export function getEgresos(filtros?: {
+  mes?: string;
+  tipo?: TipoEgreso;
+  categoria?: CategoriaEgreso;
+}): Promise<EgresoRead[]> {
+  const params = new URLSearchParams();
+  if (filtros?.mes) params.set('mes', filtros.mes);
+  if (filtros?.tipo) params.set('tipo', filtros.tipo);
+  if (filtros?.categoria) params.set('categoria', filtros.categoria);
+  const qs = params.toString();
+  return get<EgresoRead[]>(`/egresos/${qs ? `?${qs}` : ''}`);
+}
+
+/** Totales fijos vs variables del mes + breakdown por categoría + últimos 6 meses. */
+export function getResumenEgresos(mes?: string): Promise<ResumenEgresos> {
+  return get<ResumenEgresos>(`/egresos/resumen${mes ? `?mes=${mes}` : ''}`);
+}
+
+/** Crea un egreso nuevo. */
+export function crearEgreso(datos: EgresoCreatePayload): Promise<EgresoRead> {
+  return post<EgresoRead>('/egresos/', datos);
+}
+
+/** Actualiza parcialmente un egreso. */
+export function actualizarEgreso(id: string, datos: EgresoUpdatePayload): Promise<EgresoRead> {
+  return patch<EgresoRead>(`/egresos/${id}`, datos);
+}
+
+/** Elimina un egreso permanentemente. */
+export function eliminarEgreso(id: string): Promise<void> {
+  return del(`/egresos/${id}`);
 }

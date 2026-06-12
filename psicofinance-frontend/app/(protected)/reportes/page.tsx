@@ -6,8 +6,9 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion, actualizarCategoria, getExportIngresos } from "@/lib/api";
-import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo } from "@/lib/types";
+import { getMetricasDashboard, getPacientes, getSemaforo, getInflacion, actualizarCategoria, getExportIngresos, getResumenEgresos } from "@/lib/api";
+import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo, ResumenEgresos, CategoriaEgreso } from "@/lib/types";
+import { CATEGORIAS as CATEGORIAS_EGRESO } from "@/components/egresos/constantes";
 import { avatarCls, iniciales } from "@/lib/avatar";
 import { exportCSV } from "@/lib/export";
 
@@ -49,9 +50,11 @@ export default function ReportesPage() {
   const [semaforo,   setSemaforo]   = useState<ResultadoSemaforo | null>(null);
   const [cargando,   setCargando]   = useState(true);
   const [ipc, setIpc] = useState<{ valor: number; periodo: string; fuente: string } | null>(null);
+  const [egresos, setEgresos] = useState<ResumenEgresos | null>(null);
   const [exportando,   setExportando]   = useState(false);
   const [errorExport,  setErrorExport]  = useState<string | null>(null);
-  const hoyISO = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const ahora = new Date();
+  const hoyISO = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`; // "YYYY-MM" local
   const [exportDesde, setExportDesde]  = useState(`${new Date().getFullYear()}-01`);
   const [exportHasta, setExportHasta]  = useState(hoyISO);
 
@@ -60,6 +63,8 @@ export default function ReportesPage() {
       .then(([m, p, s, inf]) => { setMetricas(m); setPacientes(p); setSemaforo(s); setIpc(inf); })
       .catch(() => {})
       .finally(() => setCargando(false));
+    // Aparte: si la tabla de egresos no existe todavía, no rompe el resto del reporte
+    getResumenEgresos().then(setEgresos).catch(() => {});
   }, []);
 
   const kpis = useMemo(() => {
@@ -274,6 +279,14 @@ export default function ReportesPage() {
         </p>
       </div>
 
+      {/* Estado de Resultados + egresos por categoría */}
+      {egresos && (
+        <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <EstadoResultados cobradoMes={metricas?.cobrado_mes ?? null} egresos={egresos} cargando={cargando} />
+          <EgresosPorCategoria egresos={egresos} />
+        </div>
+      )}
+
       {/* Ranking + Distribución */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RankingPacientes top={topPacientes} total={totalRanking} cargando={cargando} />
@@ -285,6 +298,128 @@ export default function ReportesPage() {
         <EstadoFiscal semaforo={semaforo} cargando={cargando} />
       </div>
     </main>
+  );
+}
+
+// ── Estado de Resultados mensual (criterio percibido: ingresos = cobrado) ────
+
+function EstadoResultados({ cobradoMes, egresos, cargando }: {
+  cobradoMes: number | null; egresos: ResumenEgresos; cargando: boolean;
+}) {
+  const utilidad = cobradoMes !== null ? cobradoMes - egresos.total : null;
+  const margen   = cobradoMes && cobradoMes > 0 && utilidad !== null
+    ? (utilidad / cobradoMes) * 100
+    : null;
+
+  const lineas = [
+    { label: "Ingresos cobrados",   valor: cobradoMes,              cls: "text-emerald-600", signo: "" },
+    { label: "Egresos fijos",       valor: egresos.total_fijos,     cls: "text-red-500",     signo: "−" },
+    { label: "Egresos variables",   valor: egresos.total_variables, cls: "text-red-500",     signo: "−" },
+  ];
+
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+          Estado de resultados — mes actual
+        </p>
+        <span className="text-[10px] text-neutral-400">Criterio percibido</span>
+      </div>
+      {cargando ? (
+        <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-9 animate-pulse rounded-xl bg-neutral-100" />)}</div>
+      ) : (
+        <div className="space-y-1">
+          {lineas.map(({ label, valor, cls, signo }) => (
+            <div key={label} className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-slate-50 transition-colors">
+              <p className="text-sm text-neutral-600">{label}</p>
+              <p className={`font-mono text-sm font-semibold tabular-nums ${cls}`}>
+                {valor !== null ? `${signo}${fmtPesos(valor)}` : "—"}
+              </p>
+            </div>
+          ))}
+          <div className="mx-3 my-1 h-px bg-neutral-200" />
+          <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+            <p className="text-sm font-semibold text-neutral-800">Utilidad neta</p>
+            <div className="text-right">
+              <p className={`font-mono text-base font-bold tabular-nums ${
+                utilidad !== null && utilidad < 0 ? "text-red-600" : "text-indigo-600"
+              }`}>
+                {utilidad !== null ? fmtPesos(utilidad) : "—"}
+              </p>
+              {margen !== null && (
+                <p className="text-[10px] tabular-nums text-neutral-400">margen {margen.toFixed(0)}%</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Egresos por categoría (barras apiladas, últimos 6 meses) ─────────────────
+
+const COLORES_CATEGORIA: Record<CategoriaEgreso, string> = {
+  ALQUILER:   "#475569",  // slate-600
+  SERVICIOS:  "#F59E0B",  // amber-500
+  HONORARIOS: "#6366F1",  // indigo-500
+  INSUMOS:    "#14B8A6",  // teal-500
+  SOFTWARE:   "#0EA5E9",  // sky-500
+  IMPUESTOS:  "#EF4444",  // red-500
+  FORMACION:  "#8B5CF6",  // violet-500
+  OTRO:       "#94A3B8",  // slate-400
+};
+
+function EgresosPorCategoria({ egresos }: { egresos: ResumenEgresos }) {
+  const data = useMemo(() =>
+    egresos.ultimos_6_meses.map(m => {
+      const [y, mes] = m.mes.split("-").map(Number);
+      const label = new Date(y, mes - 1, 1).toLocaleDateString("es-AR", { month: "short" });
+      return { mes: label.charAt(0).toUpperCase() + label.slice(1).replace(".", ""), ...m.categorias };
+    }),
+    [egresos]
+  );
+
+  const categoriasUsadas = useMemo(() => {
+    const set = new Set<CategoriaEgreso>();
+    egresos.ultimos_6_meses.forEach(m =>
+      (Object.keys(m.categorias) as CategoriaEgreso[]).forEach(c => set.add(c))
+    );
+    return Array.from(set);
+  }, [egresos]);
+
+  const hayDatos = categoriasUsadas.length > 0;
+
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+      <div className="mb-4 flex items-baseline justify-between">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Egresos por categoría</p>
+        <span className="text-xs text-neutral-400">Últimos 6 meses</span>
+      </div>
+      {!hayDatos ? (
+        <p className="py-10 text-center text-sm text-neutral-400">Todavía no hay egresos registrados.</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={data} barSize={28} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={fmtPesosEje} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={52} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
+            <Legend iconType="circle" iconSize={8} formatter={(value) => <span className="text-xs text-neutral-600">{value}</span>} />
+            {categoriasUsadas.map((cat, i) => (
+              <Bar
+                key={cat}
+                dataKey={cat}
+                name={CATEGORIAS_EGRESO[cat]?.label ?? cat}
+                stackId="egresos"
+                fill={COLORES_CATEGORIA[cat]}
+                radius={i === categoriasUsadas.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
   );
 }
 

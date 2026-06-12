@@ -26,6 +26,22 @@ class Moneda(str, enum.Enum):
     USD = "USD"
 
 
+class TipoEgreso(str, enum.Enum):
+    FIJO     = "FIJO"      # alquiler, software, monotributo — no depende de la actividad
+    VARIABLE = "VARIABLE"  # insumos, formación puntual — depende del nivel de actividad
+
+
+class CategoriaEgreso(str, enum.Enum):
+    ALQUILER   = "ALQUILER"
+    SERVICIOS  = "SERVICIOS"
+    HONORARIOS = "HONORARIOS"
+    INSUMOS    = "INSUMOS"
+    SOFTWARE   = "SOFTWARE"
+    IMPUESTOS  = "IMPUESTOS"
+    FORMACION  = "FORMACION"
+    OTRO       = "OTRO"
+
+
 class TipoSesion(str, enum.Enum):
     SESION                   = "SESION"               # sesión normal
     INASISTENCIA_JUSTIFICADA = "INASISTENCIA_JUSTIFICADA"   # paciente avisó → no se cobra

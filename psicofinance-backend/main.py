@@ -6,7 +6,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import turnos, caja, inflacion, monotributo, copilot, dashboard, agenda
+from app.routers import turnos, caja, inflacion, monotributo, copilot, dashboard, agenda, egresos
 from app.routers import pacientes as pacientes_router
 from app.supabase_client import get_supabase
 
@@ -41,6 +41,7 @@ app.include_router(copilot.router,          prefix=PREFIJO)
 app.include_router(dashboard.router,        prefix=PREFIJO)
 app.include_router(pacientes_router.router, prefix=PREFIJO)
 app.include_router(agenda.router,           prefix=PREFIJO)
+app.include_router(egresos.router,          prefix=PREFIJO)
 
 
 @app.get("/", tags=["Health"])
