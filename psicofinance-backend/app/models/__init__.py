@@ -1,7 +1,4 @@
-# Importar todos los modelos para que SQLAlchemy y Alembic los descubran
-# automáticamente al crear las tablas o generar migraciones.
-from app.models.paciente import Paciente
-from app.models.turno import Turno, EstadoTurno, OrigenPago
-from app.models.liquidacion import Liquidacion
+# Solo quedan los enums: la app usa Supabase REST API, sin ORM.
+from app.models.enums import EstadoTurno, OrigenPago
 
-__all__ = ["Paciente", "Turno", "EstadoTurno", "OrigenPago", "Liquidacion"]
+__all__ = ["EstadoTurno", "OrigenPago"]
