@@ -70,7 +70,12 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
   useEffect(() => {
     try {
       const guardado = localStorage.getItem(CHAT_KEY);
-      if (guardado) setMensajes(JSON.parse(guardado));
+      if (!guardado) return;
+      const parsed = JSON.parse(guardado);
+      // Validar shape: un valor corrupto en localStorage rompería el render del chat
+      if (Array.isArray(parsed) && parsed.every(m => m && typeof m.texto === "string" && typeof m.tipo === "string")) {
+        setMensajes(parsed);
+      }
     } catch { /* ignorar */ }
   }, []);
 
@@ -118,7 +123,9 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
 
     setCargando(true);
     try {
-      const historialParaApi = [...mensajes, msgUsuario].map(m => ({
+      // Historial SIN el mensaje nuevo: ya viaja en `mensaje` y duplicarlo
+      // confunde al modelo (puede registrar el turno dos veces)
+      const historialParaApi = mensajes.map(m => ({
         rol: m.tipo === "user" ? "user" : "assistant",
         texto: m.texto,
       }));
@@ -390,7 +397,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
           )}
 
           <button onClick={toggleGrabacion} disabled={cargando}
-            className={`mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ${
+            className={`mb-0.5 flex h-9 w-9 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full transition-all ${
               grabando
                 ? "bg-red-500 text-white animate-pulse"
                 : "text-neutral-300 hover:text-neutral-500"
@@ -401,7 +408,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
 
           {!cargando && (
             <button onClick={enviar} disabled={!texto.trim() || grabando}
-              className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-0">
+              className="mb-0.5 flex h-9 w-9 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-0">
               <ArrowUp className="h-3.5 w-3.5 stroke-[2.5]" />
             </button>
           )}

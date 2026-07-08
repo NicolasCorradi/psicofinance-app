@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { getAlertasHonorarios } from "@/lib/api";
 import type { AlertaHonorario } from "@/lib/types";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
 export default function AlertasHonorarios() {
   const [alertas, setAlertas]   = useState<AlertaHonorario[]>([]);
@@ -70,7 +64,7 @@ export default function AlertasHonorarios() {
 
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-neutral-800">{a.nombre}</p>
-                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-400">
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
                   <span>{a.meses}m sin ajustar</span>
                   <span className="text-neutral-200">·</span>
                   <span className="font-medium text-neutral-600">{fmtPesos(a.honorario_actual)}</span>

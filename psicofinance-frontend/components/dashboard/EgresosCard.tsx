@@ -8,13 +8,7 @@ import Link from "next/link";
 import { TrendingDown, Scale, ChevronRight } from "lucide-react";
 import { getResumenEgresos } from "@/lib/api";
 import type { ResumenEgresos } from "@/lib/types";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
 interface Props {
   cobradoMes: number | null;   // viene de las métricas del dashboard

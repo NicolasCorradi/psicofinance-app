@@ -1,16 +1,15 @@
 // Utilidad para exportar datos a CSV compatible con Excel (UTF-8 BOM).
 // No requiere ninguna dependencia extra.
 
-type Row = Record<string, string | number | null | undefined>;
-
-export function exportCSV(filename: string, headers: { key: string; label: string }[], rows: Row[]) {
+// Acepta cualquier objeto (interfaces tipadas incluidas, sin exigir index signature)
+export function exportCSV<T extends object>(filename: string, headers: { key: string; label: string }[], rows: T[]) {
   // UTF-8 BOM para que Excel lo abra con acentos correctamente
   const BOM = "﻿";
 
   const headerLine = headers.map(h => `"${h.label}"`).join(";");
   const dataLines  = rows.map(row =>
     headers.map(h => {
-      const val = row[h.key] ?? "";
+      const val = (row as Record<string, string | number | null | undefined>)[h.key] ?? "";
       // Escapar comillas dobles dentro del valor
       return `"${String(val).replace(/"/g, '""')}"`;
     }).join(";")

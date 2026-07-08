@@ -5,34 +5,12 @@ import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock, Mail, Banknote, 
 import { getPacienteDetalle, actualizarPaciente, eliminarPaciente } from "@/lib/api";
 import type { PacienteDetalle as Detalle, TurnoEnDetalle, EstadoTurno, MedioPago, TipoSesion, PacienteUpdatePayload } from "@/lib/types";
 import { avatarCls } from "@/lib/avatar";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
-
-function isoHoy(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { fmtPesosCompacto as fmtPesos, isoHoy, fechaRel, MEDIO_LABEL_CORTO as MEDIO_LABELS } from "@/lib/format";
 
 function fmtFecha(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("es-AR", {
     day: "numeric", month: "short", year: "numeric",
   });
-}
-
-function fechaRel(iso: string): string {
-  const f   = new Date(iso + "T12:00:00");
-  const hoy = new Date();
-  const dias = Math.round((hoy.getTime() - f.getTime()) / 86_400_000);
-  if (dias === 0) return "Hoy";
-  if (dias === 1) return "Ayer";
-  if (dias < 7)   return `Hace ${dias}d`;
-  if (dias < 30)  return `Hace ${Math.round(dias / 7)}sem`;
-  return fmtFecha(iso);
 }
 
 // ── Estado del turno ─────────────────────────────────────────────────────────
@@ -77,10 +55,6 @@ const MEDIO_ICONS: Record<MedioPago, React.ReactNode> = {
   TARJETA:      <CreditCard className="h-3 w-3" />,
   OTRO:         <HelpCircle className="h-3 w-3" />,
 };
-const MEDIO_LABELS: Record<MedioPago, string> = {
-  EFECTIVO: "Efectivo", TRANSFERENCIA: "Transfe", MERCADO_PAGO: "MP", TARJETA: "Tarjeta", OTRO: "Otro",
-};
-
 function MedioBadge({ medio }: { medio: MedioPago | null }) {
   if (!medio) return null;
   return (
@@ -115,13 +89,20 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   const [guardando, setGuardando] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState(false);
   const [form, setForm] = useState<EditForm>({ nombre: "", apellido: "", email: "", honorario: "" });
 
   useEffect(() => {
+    // Flag de cancelación: al cambiar rápido de paciente, una respuesta vieja
+    // en vuelo no debe pisar la del paciente actual
+    let activo = true;
     setCargando(true);
+    setErrorCarga(false);
     getPacienteDetalle(pacienteId)
-      .then((d) => { setDetalle(d); setCargando(false); })
-      .catch(() => setCargando(false));
+      .then((d) => { if (activo) { setDetalle(d); setCargando(false); } })
+      .catch(() => { if (activo) { setErrorCarga(true); setCargando(false); } });
+    return () => { activo = false; };
   }, [pacienteId]);
 
   function iniciarEdicion() {
@@ -136,8 +117,9 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   }
 
   async function guardar() {
-    if (!detalle) return;
+    if (!detalle || guardando) return;
     setGuardando(true);
+    setErrorGuardar(false);
     try {
       const payload: PacienteUpdatePayload = {
         nombre:   form.nombre.trim()   || undefined,
@@ -154,6 +136,8 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       setDetalle(d);
       setEditando(false);
       onRefresh();
+    } catch {
+      setErrorGuardar(true); // sin catch quedaba en modo edición sin aviso
     } finally {
       setGuardando(false);
     }
@@ -197,7 +181,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
+      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl animate-in duration-200 slide-in-from-bottom sm:slide-in-from-bottom-0 sm:slide-in-from-right">
 
         {/* Header */}
         <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-5 pt-5 pb-6 text-white">
@@ -283,6 +267,24 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
             </div>
           )}
 
+          {!cargando && errorCarga && (
+            <div className="p-8 text-center">
+              <p className="text-sm text-neutral-500">No se pudo cargar el detalle del paciente.</p>
+              <button
+                onClick={() => {
+                  setCargando(true);
+                  setErrorCarga(false);
+                  getPacienteDetalle(pacienteId)
+                    .then((d) => { setDetalle(d); setCargando(false); })
+                    .catch(() => { setErrorCarga(true); setCargando(false); });
+                }}
+                className="mt-3 rounded-xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
+
           {!cargando && detalle && (
             <>
               {/* Datos / Edición */}
@@ -330,6 +332,11 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                       />
                       <p className="text-[10px] text-neutral-400">Al guardar, se actualiza la fecha de ajuste a hoy.</p>
                     </div>
+                    {errorGuardar && (
+                      <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-500 ring-1 ring-red-100">
+                        No se pudieron guardar los cambios. Intentá de nuevo.
+                      </p>
+                    )}
                     <div className="flex gap-2 pt-1">
                       <button
                         onClick={guardar}

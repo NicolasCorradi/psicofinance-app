@@ -4,11 +4,7 @@ import { useState } from "react";
 import { X, UserPlus } from "lucide-react";
 import { crearPaciente } from "@/lib/api";
 import type { PacienteCreatePayload } from "@/lib/types";
-
-function isoHoy(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { isoHoy } from "@/lib/format";
 
 interface Props {
   onCreado:  () => void;
@@ -26,6 +22,7 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
     setForm((f) => ({ ...f, [k]: v || null }));
 
   async function guardar() {
+    if (guardando) return; // dos Enter rápidos crearían el paciente duplicado
     if (!form.nombre.trim() || !form.apellido.trim()) {
       setError("Nombre y apellido son obligatorios.");
       return;
@@ -59,7 +56,7 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
       <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm" onClick={onCancelar} />
 
       {/* Modal */}
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+      <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
 
         {/* Header con gradiente */}
         <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-5 pt-5 pb-4">

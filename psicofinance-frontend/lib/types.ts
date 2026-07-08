@@ -17,6 +17,9 @@ export interface ResultadoSemaforo {
   margen_disponible:    number;
   estado:               EstadoSemaforo;
   mensaje:              string;
+  criterio?:            "DEVENGADO" | "PERCIBIDO";
+  vigencia?:            string;        // ej: "Feb 2026 – Jul 2026"
+  advertencia?:         string | null; // ej: escala de topes vencida
 }
 
 // ── Copiloto NLP ─────────────────────────────────────────────────────────────
@@ -58,6 +61,18 @@ export interface TurnoRead {
   tipo_cambio:           number | null;
   created_at:            string;
   updated_at:            string;
+}
+
+// Fila del export de ingresos (/dashboard/export-ingresos)
+export interface IngresoExport {
+  fecha_sesion: string;
+  fecha_cobro:  string;
+  paciente:     string;
+  monto:        number;
+  moneda:       string;
+  medio_pago:   string;
+  origen_pago:  string;
+  prepaga:      string;
 }
 
 // Turno con nombre de paciente (viene del JOIN en /dashboard/metricas)

@@ -5,21 +5,16 @@ import { CalendarDays, Clock, Loader2 } from "lucide-react";
 import { getTurnosAgenda, getSemanaModelo } from "@/lib/api";
 import type { TurnoAgenda, SlotModelo } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
+import { isoHoy, MESES_ES } from "@/lib/format";
 import Link from "next/link";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const MESES_ES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-const DIAS_ES  = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const DIAS_ES = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
 
 function hoyLabel(): string {
   const d = new Date();
   return `${DIAS_ES[d.getDay()]} ${d.getDate()} ${MESES_ES[d.getMonth()]}`;
-}
-
-function isoHoy(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function diaModelo(d: Date): number { return d.getDay() === 0 ? 7 : d.getDay(); }

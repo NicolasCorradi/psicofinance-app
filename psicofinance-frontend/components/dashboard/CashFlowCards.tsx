@@ -5,13 +5,7 @@ import { TrendingUp, Clock, AlertCircle, ChevronRight } from "lucide-react";
 import type { MetricasDashboard, TurnoResumen } from "@/lib/types";
 import { getTurnosDiferidos, getTurnosCobradosMes } from "@/lib/api";
 import Sheet from "@/components/ui/Sheet";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
 function fmtFecha(s: string | null): string {
   if (!s) return "–";
@@ -40,14 +34,18 @@ export default function CashFlowCards({ metricas: m }: Props) {
 
   useEffect(() => {
     if (!sheetTipo) return;
+    // Flag de cancelación: si el usuario cambia de sheet con un fetch en vuelo,
+    // la respuesta vieja no debe pisar a la nueva
+    let activo = true;
     setDiferidos([]);
     setErrorSheet(false);
     setCargandoSheet(true);
     const fn = sheetTipo === "cobrado_mes" ? getTurnosCobradosMes : getTurnosDiferidos;
     fn()
-      .then(setDiferidos)
-      .catch(() => setErrorSheet(true))
-      .finally(() => setCargandoSheet(false));
+      .then(d => { if (activo) setDiferidos(d); })
+      .catch(() => { if (activo) setErrorSheet(true); })
+      .finally(() => { if (activo) setCargandoSheet(false); });
+    return () => { activo = false; };
   }, [sheetTipo]);
 
   // cobrado_mes: el backend ya filtra por fecha_cobro_efectivo del mes actual

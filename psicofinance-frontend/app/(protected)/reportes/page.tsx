@@ -11,13 +11,8 @@ import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo, ResumenEgr
 import { CATEGORIAS as CATEGORIAS_EGRESO } from "@/components/egresos/constantes";
 import { avatarCls, iniciales } from "@/lib/avatar";
 import { exportCSV } from "@/lib/export";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
+import { useToast } from "@/lib/toast";
 
 function fmtPesosEje(value: number): string {
   if (value === 0) return "$0";
@@ -53,19 +48,30 @@ export default function ReportesPage() {
   const [egresos, setEgresos] = useState<ResumenEgresos | null>(null);
   const [exportando,   setExportando]   = useState(false);
   const [errorExport,  setErrorExport]  = useState<string | null>(null);
+  const [errorCarga,   setErrorCarga]   = useState(false);
   const ahora = new Date();
   const hoyISO = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`; // "YYYY-MM" local
   const [exportDesde, setExportDesde]  = useState(`${new Date().getFullYear()}-01`);
   const [exportHasta, setExportHasta]  = useState(hoyISO);
 
-  useEffect(() => {
-    Promise.all([getMetricasDashboard(), getPacientes(), getSemaforo(), getInflacion()])
-      .then(([m, p, s, inf]) => { setMetricas(m); setPacientes(p); setSemaforo(s); setIpc(inf); })
-      .catch(() => {})
+  const cargarTodo = () => {
+    setCargando(true);
+    setErrorCarga(false);
+    // allSettled: un fetch caído no tira abajo el resto del reporte
+    Promise.allSettled([getMetricasDashboard(), getPacientes(), getSemaforo(), getInflacion()])
+      .then(([m, p, s, inf]) => {
+        if (m.status === "fulfilled") setMetricas(m.value);
+        if (p.status === "fulfilled") setPacientes(p.value);
+        if (s.status === "fulfilled") setSemaforo(s.value);
+        if (inf.status === "fulfilled") setIpc(inf.value);
+        if (m.status === "rejected" && p.status === "rejected") setErrorCarga(true);
+      })
       .finally(() => setCargando(false));
     // Aparte: si la tabla de egresos no existe todavía, no rompe el resto del reporte
     getResumenEgresos().then(setEgresos).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { cargarTodo(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const kpis = useMemo(() => {
     if (!metricas) return null;
@@ -106,13 +112,24 @@ export default function ReportesPage() {
 
   return (
     <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      {!cargando && errorCarga && (
+        <div className="mb-4 flex items-center justify-between rounded-2xl bg-red-50 px-4 py-3 ring-1 ring-red-100">
+          <p className="text-sm text-red-600">No se pudieron cargar los datos del reporte.</p>
+          <button onClick={cargarTodo}
+            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+            Reintentar
+          </button>
+        </div>
+      )}
+      {/* En mobile el bloque de export baja a su propia fila y wrappea:
+          dos inputs month + botón no entran en 375px */}
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">Reportes</h1>
           <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5 sm:items-end">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-neutral-400">Desde</span>
             <input
               type="month"
@@ -268,7 +285,7 @@ export default function ReportesPage() {
               <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={fmtPesosEje} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={52} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend iconType="circle" iconSize={8} formatter={(value) => <span className="text-xs text-neutral-600">{value}</span>} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span className="text-[10px] sm:text-xs text-neutral-600">{value}</span>} />
               <Line type="monotone" dataKey="real" name="Facturación real" stroke="#4F46E5" strokeWidth={2.5} dot={{ r: 3, fill: "#4F46E5" }} activeDot={{ r: 5 }} />
               <Line type="monotone" dataKey="teorico" name="Línea de inflación" stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 4" dot={false} />
             </LineChart>
@@ -405,7 +422,7 @@ function EgresosPorCategoria({ egresos }: { egresos: ResumenEgresos }) {
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={fmtPesosEje} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={52} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
-            <Legend iconType="circle" iconSize={8} formatter={(value) => <span className="text-xs text-neutral-600">{value}</span>} />
+            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span className="text-[10px] sm:text-xs text-neutral-600">{value}</span>} />
             {categoriasUsadas.map((cat, i) => (
               <Bar
                 key={cat}
@@ -525,6 +542,7 @@ const CATEGORIAS = ["A","B","C","D","E","F","G","H","I","J","K"];
 function EstadoFiscal({ semaforo: initialSemaforo, cargando }: { semaforo: ResultadoSemaforo | null; cargando: boolean }) {
   const [semaforo, setSemaforo] = useState<ResultadoSemaforo | null>(initialSemaforo);
   const [guardando, setGuardando] = useState(false);
+  const toast = useToast();
 
   // Sincronizar cuando el padre actualiza por primera vez
   useEffect(() => { if (initialSemaforo) setSemaforo(initialSemaforo); }, [initialSemaforo]);
@@ -541,7 +559,7 @@ function EstadoFiscal({ semaforo: initialSemaforo, cargando }: { semaforo: Resul
       const nuevo = await actualizarCategoria(cat);
       setSemaforo(nuevo);
     } catch {
-      // silencioso — el selector vuelve al valor anterior
+      toast.error("No se pudo cambiar la categoría. Intentá de nuevo.");
     } finally {
       setGuardando(false);
     }
@@ -561,7 +579,7 @@ function EstadoFiscal({ semaforo: initialSemaforo, cargando }: { semaforo: Resul
                   key={cat}
                   onClick={() => cambiarCategoria(cat)}
                   disabled={guardando}
-                  className={`h-6 w-6 rounded-md text-[11px] font-bold transition-all disabled:opacity-50 ${
+                  className={`h-8 w-8 sm:h-6 sm:w-6 rounded-md text-[11px] font-bold transition-all disabled:opacity-50 ${
                     cat === semaforo.categoria_actual
                       ? "bg-indigo-600 text-white shadow-sm"
                       : "bg-neutral-100 text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600"
