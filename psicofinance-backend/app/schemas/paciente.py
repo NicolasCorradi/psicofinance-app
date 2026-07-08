@@ -21,6 +21,8 @@ class TurnoEnDetalle(BaseModel):
     fecha_cobro_efectivo: date | None
     medio_pago:           MedioPago | None = None
     tipo_sesion:          TipoSesion = TipoSesion.SESION
+    moneda:               str | None = "ARS"  # nullable: turnos viejos pueden tener NULL en BD
+    tipo_cambio:          float | None = None
     created_at:           datetime
 
     model_config = {"from_attributes": True}

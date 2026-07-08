@@ -2,18 +2,16 @@
 # Usa Supabase REST API via SupabaseClient (sin SQLAlchemy).
 
 import logging
-import time
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends
-import httpx
 
 from app.supabase_client import SupabaseClient, get_supabase
-from app.services.finanzas import calcular_valor_real
 from app.services.dolar_service import get_dolar_blue
 from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada as _inflacion_acumulada_svc
 from app.config import config
+from app.utils import hoy_argentina, monto_ars as _monto_ars, parse_fecha as _parse_date
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -43,26 +41,9 @@ def _inflacion_acumulada(desde: date, hasta: date, tasas: dict[str, float]) -> f
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
 
-def _parse_date(val):
-    if val is None:
-        return None
-    if isinstance(val, date):
-        return val
-    return date.fromisoformat(str(val)[:10])
-
-
-def _monto_ars(t: dict) -> float:
-    """Convierte monto del turno a ARS usando el tipo_cambio guardado."""
-    monto = float(t.get("monto") or 0)
-    if t.get("moneda") == "USD":
-        tc = float(t.get("tipo_cambio") or 1)
-        return monto * tc
-    return monto
-
-
 @router.get("/metricas", response_model=dict)
 def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
-    hoy = date.today()
+    hoy = hoy_argentina()
     primer_dia_mes = hoy.replace(day=1)
     primer_dia_mes_sig = (hoy + relativedelta(months=1)).replace(day=1)
 
@@ -93,7 +74,7 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
         if estado == "COBRADO":
             if fecha_cobro_ef and primer_dia_mes <= fecha_cobro_ef < primer_dia_mes_sig:
                 cobrado_mes += monto
-            if fecha_turno and fecha_turno >= primer_dia_mes:
+            if fecha_turno and primer_dia_mes <= fecha_turno < primer_dia_mes_sig:
                 honorario_sum += monto
                 honorario_count += 1
 
@@ -135,8 +116,9 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
         valor_real = monto / (1 + tasa_acum)
         perdida_inflacion_total += monto - valor_real
 
+    # ROUND_HALF_UP explícito: round() nativo usa banker's rounding
     sesiones_perdidas = (
-        round(perdida_inflacion_total / honorario_promedio)
+        int(Decimal(perdida_inflacion_total / honorario_promedio).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         if honorario_promedio > 0
         else 0
     )
@@ -199,30 +181,19 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
 def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
     """Turnos COBRADO con fecha_cobro_efectivo en el mes actual.
     Usado por el sheet de desglose del dashboard."""
-    hoy = date.today()
+    hoy = hoy_argentina()
     primer_dia = hoy.replace(day=1)
     primer_sig  = (hoy + relativedelta(months=1)).replace(day=1)
 
+    # and=() permite ambos límites del rango en un solo query
     turnos = sb.select("turnos", {
-        "estado":                "eq.COBRADO",
-        "fecha_cobro_efectivo":  f"gte.{primer_dia.isoformat()}",
-        "order":                 "fecha_cobro_efectivo.desc",
-        "limit":                 "200",
+        "estado": "eq.COBRADO",
+        "and":    f"(fecha_cobro_efectivo.gte.{primer_dia.isoformat()},fecha_cobro_efectivo.lt.{primer_sig.isoformat()})",
+        "order":  "fecha_cobro_efectivo.desc",
     })
 
-    # Filtrar también el límite superior en Python (PostgREST no acepta dos filtros del mismo campo)
-    turnos = [
-        t for t in turnos
-        if _parse_date(t.get("fecha_cobro_efectivo")) is not None
-        and _parse_date(t["fecha_cobro_efectivo"]) < primer_sig
-    ]
-
-    # Traer nombres de pacientes
-    pac_ids = list({t["paciente_id"] for t in turnos})
-    pac_map = {}
-    if pac_ids:
-        pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
-        pac_map = {p["id"]: p for p in pacs}
+    pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pac_map = {p["id"]: p for p in pacs}
 
     result = []
     for t in turnos:
@@ -254,7 +225,6 @@ def get_turnos_diferidos(sb: SupabaseClient = Depends(get_supabase)):
     turnos = sb.select("turnos", {
         "estado": "eq.DIFERIDO",
         "order":  "fecha_turno.desc",
-        "limit":  "200",
     })
     pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
     pac_map = {p["id"]: p for p in pacs}
@@ -288,7 +258,6 @@ def get_export_ingresos(sb: SupabaseClient = Depends(get_supabase)):
     turnos = sb.select("turnos", {
         "estado": "eq.COBRADO",
         "order":  "fecha_cobro_efectivo.desc",
-        "limit":  "2000",
     })
     pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
     pac_map = {p["id"]: p for p in pacs}
@@ -324,8 +293,10 @@ def get_inflacion():
     Cachea 6 horas. Devuelve { valor: float (%), periodo: str 'YYYY-MM', fuente: str }."""
     ipc = _fetch_ipc_indec()
     periodo = ipc.get("ultimo_periodo", "—")
+    estimado = bool(ipc.get("estimado", False)) or periodo == "config"
     return {
-        "valor":   round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
-        "periodo": periodo,
-        "fuente":  "INDEC — IPC Nacional Nivel General" if periodo != "config" else "Valor de configuración",
+        "valor":    round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
+        "periodo":  periodo,
+        "estimado": estimado,
+        "fuente":   "Valor de configuración (INDEC aún no publicó)" if estimado else "INDEC — IPC Nacional Nivel General",
     }

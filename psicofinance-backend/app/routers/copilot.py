@@ -13,14 +13,14 @@ from app.config import config
 from app.supabase_client import SupabaseClient, get_supabase
 from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion, Moneda
 from app.services.dolar_service import get_dolar_blue
-from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos, MensajeHistorial
+from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
 from app.schemas.turno import TurnoCreate, TurnoRead
 from app.services.nlp_service import extraer_datos_turno, clasificar_intencion, responder_consulta, ErrorNLP
 from app.services.nlp_comprobante import extraer_datos_comprobante
 from app.crud.paciente import obtener_o_crear_paciente
-from app.crud.turno import crear_turno, actualizar_turno
-from app.schemas.turno import TurnoUpdate
+from app.crud.turno import crear_turno
+from app.utils import hoy_argentina, monto_ars, parse_fecha as _parse_date
 
 logger = logging.getLogger(__name__)
 
@@ -29,43 +29,35 @@ router = APIRouter(prefix="/copilot", tags=["Copiloto NLP"])
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
 
-def _parse_date(val):
-    if val is None:
-        return None
-    if isinstance(val, date):
-        return val
-    return date.fromisoformat(str(val)[:10])
-
-
 def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripcion: str | None = None) -> ChatResponse:
     """Lógica central del copiloto. Usada por /chat y /audio."""
     intencion = clasificar_intencion(mensaje)
 
     if intencion == "consulta":
-        hoy = date.today()
+        hoy = hoy_argentina()
         primer_dia = hoy.replace(day=1)
         sig_mes = (hoy + relativedelta(months=1)).replace(day=1)
 
         turnos = sb.select("turnos", {
-            "select": "paciente_id,monto,estado,fecha_turno,fecha_cobro_efectivo,fecha_cobro_estimada,medio_pago,tipo_sesion",
+            "select": "paciente_id,monto,estado,fecha_turno,fecha_cobro_efectivo,fecha_cobro_estimada,medio_pago,tipo_sesion,moneda,tipo_cambio",
         })
         pacientes_raw = sb.select("pacientes", {"select": "id,nombre,apellido"})
         pac_map = {p["id"]: f"{p.get('nombre','')} {p.get('apellido','')}".strip() for p in pacientes_raw}
 
         cobrado_mes = sum(
-            float(t.get("monto") or 0) for t in turnos
+            monto_ars(t) for t in turnos
             if t.get("estado") == "COBRADO"
             and _parse_date(t.get("fecha_cobro_efectivo")) is not None
             and primer_dia <= _parse_date(t["fecha_cobro_efectivo"]) < sig_mes
         )
         en_camino = sum(
-            float(t.get("monto") or 0) for t in turnos
+            monto_ars(t) for t in turnos
             if t.get("estado") == "DIFERIDO"
             and _parse_date(t.get("fecha_turno")) is not None
             and primer_dia <= _parse_date(t["fecha_turno"]) < sig_mes
         )
         deudores = sum(
-            float(t.get("monto") or 0) for t in turnos
+            monto_ars(t) for t in turnos
             if t.get("estado") == "DIFERIDO"
             and _parse_date(t.get("fecha_turno")) is not None
             and _parse_date(t["fecha_turno"]) < primer_dia
@@ -83,10 +75,10 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
             and primer_dia <= _parse_date(t["fecha_turno"]) < sig_mes
         )
         cobrados_mes_list = [
-            float(t.get("monto") or 0) for t in turnos
+            monto_ars(t) for t in turnos
             if t.get("estado") == "COBRADO"
             and _parse_date(t.get("fecha_turno")) is not None
-            and _parse_date(t["fecha_turno"]) >= primer_dia
+            and primer_dia <= _parse_date(t["fecha_turno"]) < sig_mes
         ]
         honorario_prom = (sum(cobrados_mes_list) / len(cobrados_mes_list)) if cobrados_mes_list else 0.0
 
@@ -95,7 +87,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
             ini = (hoy - relativedelta(months=i)).replace(day=1)
             fin = ini + relativedelta(months=1)
             c = sum(
-                float(t.get("monto") or 0) for t in turnos
+                monto_ars(t) for t in turnos
                 if t.get("estado") == "COBRADO"
                 and _parse_date(t.get("fecha_cobro_efectivo")) is not None
                 and ini <= _parse_date(t["fecha_cobro_efectivo"]) < fin
@@ -109,7 +101,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
                 ft = _parse_date(t.get("fecha_turno"))
                 if ft and ft < primer_dia:
                     nombre = pac_map.get(t.get("paciente_id"), "Desconocido")
-                    deudores_detalle[nombre] = deudores_detalle.get(nombre, 0) + float(t.get("monto") or 0)
+                    deudores_detalle[nombre] = deudores_detalle.get(nombre, 0) + monto_ars(t)
         top_deudores = sorted(deudores_detalle.items(), key=lambda x: -x[1])[:5]
 
         # Distribución de medio_pago este mes
@@ -234,6 +226,8 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
     if moneda == Moneda.USD:
         tipo_cambio = get_dolar_blue()
 
+    # TurnoCreate acepta fecha_cobro_efectivo: un solo insert evita el turno
+    # duplicado que generaba el patrón crear + actualizar si el update fallaba
     datos_turno = TurnoCreate(
         paciente_id=paciente["id"],
         fecha_turno=datos.fecha,
@@ -241,6 +235,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
         estado=estado,
         origen_pago=origen,
         fecha_cobro_estimada=fecha_cobro_estimada,
+        fecha_cobro_efectivo=fecha_cobro_efectivo,
         prepaga=datos.obra_social,
         medio_pago=medio,
         tipo_sesion=tipo,
@@ -250,9 +245,6 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
 
     try:
         turno = crear_turno(sb, datos_turno)
-        # Actualizar fecha_cobro_efectivo si aplica
-        if fecha_cobro_efectivo and turno:
-            turno = actualizar_turno(sb, turno["id"], TurnoUpdate(fecha_cobro_efectivo=fecha_cobro_efectivo))
     except Exception as e:
         logger.error("Error BD al crear turno: %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
@@ -261,8 +253,8 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
     if moneda == Moneda.USD:
         monto_fmt = f"USD {datos.monto:,.0f}"
         if tipo_cambio:
-            monto_ars = datos.monto * tipo_cambio
-            monto_fmt += f" (≈ ${monto_ars:,.0f} al blue)".replace(",", ".")
+            equivalente_ars = datos.monto * tipo_cambio
+            monto_fmt += f" (≈ ${equivalente_ars:,.0f} al blue)".replace(",", ".")
     else:
         monto_fmt = f"${datos.monto:,.0f}".replace(",", ".")
     fecha_fmt = datos.fecha.strftime("%d/%m/%Y")

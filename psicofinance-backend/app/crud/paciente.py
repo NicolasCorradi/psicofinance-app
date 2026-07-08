@@ -1,18 +1,12 @@
 # CRUD de Pacientes usando Supabase REST API.
 # Reemplaza SQLAlchemy para evitar problemas de conectividad PostgreSQL en Render free.
 
+import re
 import uuid
 from datetime import date, datetime
 from app.supabase_client import SupabaseClient
 from app.schemas.paciente import PacienteCreate, PacienteUpdate
-
-
-def _parse_date(val) -> date | None:
-    if val is None:
-        return None
-    if isinstance(val, date):
-        return val
-    return date.fromisoformat(str(val)[:10])
+from app.utils import hoy_argentina, monto_ars, parse_fecha as _parse_date
 
 
 def crear_paciente(sb: SupabaseClient, nombre: str, apellido: str, email: str | None = None) -> dict:
@@ -64,9 +58,9 @@ def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
     if not pacientes:
         return []
 
-    turnos = sb.select("turnos", {"select": "paciente_id,monto,estado,fecha_turno"})
+    turnos = sb.select("turnos", {"select": "paciente_id,monto,estado,fecha_turno,moneda,tipo_cambio"})
 
-    hoy = date.today()
+    hoy = hoy_argentina()
     mes_actual = hoy.strftime("%Y-%m")
 
     stats: dict[str, dict] = {}
@@ -76,7 +70,7 @@ def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
             stats[pid] = {"total": 0, "ultima": None, "cobrado": 0.0, "pendiente": 0.0, "mes": 0}
         s = stats[pid]
         estado = t.get("estado", "")
-        monto = float(t.get("monto") or 0)
+        monto = monto_ars(t)
         ft = _parse_date(t.get("fecha_turno"))
         # total_sesiones excluye inasistencias sin cobro real
         if estado != "INCOBRABLE":
@@ -120,15 +114,15 @@ def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID) -> d
         "order": "fecha_turno.desc",
     })
 
-    hoy = date.today()
+    hoy = hoy_argentina()
     mes_actual = hoy.strftime("%Y-%m")
     # ultima_sesion solo cuenta sesiones reales (COBRADO o DIFERIDO), no inasistencias
     turnos_reales = [t for t in turnos if t.get("estado") in ("COBRADO", "DIFERIDO")]
     ultima = _parse_date(turnos_reales[0]["fecha_turno"]) if turnos_reales else None
     dias = (hoy - ultima).days if ultima else None
 
-    cobrado = sum(float(t["monto"] or 0) for t in turnos if t.get("estado") == "COBRADO")
-    pendiente = sum(float(t["monto"] or 0) for t in turnos if t.get("estado") == "DIFERIDO")
+    cobrado = sum(monto_ars(t) for t in turnos if t.get("estado") == "COBRADO")
+    pendiente = sum(monto_ars(t) for t in turnos if t.get("estado") == "DIFERIDO")
     sesiones_mes = sum(
         1 for t in turnos
         if t.get("estado") != "INCOBRABLE"
@@ -149,9 +143,21 @@ def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID) -> d
     }
 
 
+def _escapar_postgrest(termino: str) -> str:
+    """Sanitiza un término para interpolarlo en filtros PostgREST.
+
+    Comas, paréntesis, puntos y comillas alteran la sintaxis del filtro
+    (inyección); los comodines * y % cambian el patrón del ilike.
+    """
+    return re.sub(r'[,().*%"\\]', "", termino)
+
+
 def buscar_paciente_por_nombre(sb: SupabaseClient, nombre_completo: str) -> dict | None:
     termino = nombre_completo.strip().lower()
-    partes = termino.split()
+    partes = [_escapar_postgrest(p) for p in termino.split()]
+    partes = [p for p in partes if p]
+    if not partes:
+        return None
     if len(partes) == 1:
         rows = sb.select("pacientes", {"or": f"(nombre.ilike.*{partes[0]}*,apellido.ilike.*{partes[0]}*)"})
     else:
@@ -159,7 +165,14 @@ def buscar_paciente_por_nombre(sb: SupabaseClient, nombre_completo: str) -> dict
             "nombre": f"ilike.*{partes[0]}*",
             "apellido": f"ilike.*{partes[-1]}*",
         })
-    return rows[0] if rows else None
+    if not rows:
+        return None
+    # Preferir match exacto de nombre antes que el primer resultado arbitrario
+    # ("Ana" no debe resolver a "Mariana" si existe una Ana)
+    for r in rows:
+        if str(r.get("nombre", "")).lower() == partes[0]:
+            return r
+    return rows[0]
 
 
 def obtener_o_crear_paciente(sb: SupabaseClient, nombre_completo: str) -> tuple[dict, bool]:

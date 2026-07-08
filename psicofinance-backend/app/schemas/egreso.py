@@ -56,7 +56,9 @@ class MesEgresos(BaseModel):
 
 
 class CategoriaTotal(BaseModel):
-    categoria: CategoriaEgreso
+    # str y no CategoriaEgreso: una categoría vieja/inesperada en la BD
+    # no debe tirar un 500 de validación en el resumen
+    categoria: str
     total: float
 
 

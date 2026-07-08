@@ -41,16 +41,7 @@ def _leer_modelo(sb: SupabaseClient) -> list[dict]:
 
 def _guardar_modelo(sb: SupabaseClient, slots: list[dict]) -> None:
     valor = json.dumps(slots, ensure_ascii=False)
-    try:
-        result = sb.update(
-            "configuracion",
-            {"clave": f"eq.{CLAVE_MODELO}"},
-            {"valor": valor},
-        )
-        if result is None:
-            sb.insert("configuracion", {"clave": CLAVE_MODELO, "valor": valor})
-    except Exception:
-        sb.insert("configuracion", {"clave": CLAVE_MODELO, "valor": valor})
+    sb.upsert("configuracion", {"clave": CLAVE_MODELO, "valor": valor}, on_conflict="clave")
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

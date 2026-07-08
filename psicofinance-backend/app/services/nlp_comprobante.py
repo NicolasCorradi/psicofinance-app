@@ -11,6 +11,7 @@ from google import genai
 from google.genai import types
 
 from app.config import config
+from app.utils import hoy_argentina
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def extraer_datos_comprobante(
     """
     cliente = genai.Client(api_key=config.gemini_api_key)
 
-    prompt_con_fecha = f"Fecha actual: {date.today().isoformat()}\n\nAnalizá este comprobante de pago."
+    prompt_con_fecha = f"Fecha actual: {hoy_argentina().isoformat()}\n\nAnalizá este comprobante de pago."
 
     try:
         respuesta = cliente.models.generate_content(
@@ -92,10 +93,10 @@ def extraer_datos_comprobante(
 
     # Parsear fecha — si falla, default a hoy
     try:
-        fecha = date.fromisoformat(str(datos.get("fecha", date.today().isoformat())))
+        fecha = date.fromisoformat(str(datos.get("fecha", hoy_argentina().isoformat())))
     except (ValueError, TypeError):
         logger.warning("Fecha inválida en comprobante, usando hoy.")
-        fecha = date.today()
+        fecha = hoy_argentina()
 
     # Sanitizar monto
     try:

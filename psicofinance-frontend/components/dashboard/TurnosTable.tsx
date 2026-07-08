@@ -6,25 +6,7 @@ import { actualizarTurno, eliminarTurno } from "@/lib/api";
 import type { TurnoResumen, EstadoTurno, MedioPago, TipoSesion } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 import { useToast } from "@/lib/toast";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
-
-function fechaRel(iso: string): string {
-  const f    = new Date(iso + "T12:00:00");
-  const hoy  = new Date();
-  const ayer = new Date(hoy); ayer.setDate(hoy.getDate() - 1);
-  if (f.toDateString() === hoy.toDateString())  return "Hoy";
-  if (f.toDateString() === ayer.toDateString()) return "Ayer";
-  const dias = Math.round((hoy.getTime() - f.getTime()) / 86_400_000);
-  if (dias < 7)  return `Hace ${dias}d`;
-  if (dias < 30) return `Hace ${Math.round(dias / 7)}sem`;
-  return f.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
-}
+import { fmtPesosCompacto as fmtPesos, fechaRel, isoHoy, MEDIO_LABEL as MEDIO_PAGO_LABELS } from "@/lib/format";
 
 function Chip({ estado }: { estado: EstadoTurno }) {
   const cfg: Record<EstadoTurno, { dot: string; label: string; cls: string }> = {
@@ -57,7 +39,7 @@ function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: (
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(v => !v)}
-        className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-600">
+        className="flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-lg text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-600">
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && (
@@ -75,11 +57,6 @@ function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: (
     </div>
   );
 }
-
-const MEDIO_PAGO_LABELS: Record<MedioPago, string> = {
-  EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia",
-  MERCADO_PAGO: "Mercado Pago", TARJETA: "Tarjeta", OTRO: "Otro",
-};
 
 const TIPO_SESION_LABELS: Record<TipoSesion, string> = {
   SESION: "Sesión normal",
@@ -132,16 +109,29 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
   async function guardarEdicion(id: string) {
     const monto = parseFloat(editForm.monto.replace(",", "."));
-    if (isNaN(monto) || monto < 0) return;
+    if (isNaN(monto) || monto < 0) {
+      toast.error("Monto inválido");
+      return;
+    }
     setGuardando(true);
     const esInasistencia = ["INASISTENCIA_INJUSTIFICADA", "INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL"].includes(editForm.tipo_sesion);
     const estadoFinal = esInasistencia && monto === 0 ? "INCOBRABLE" as EstadoTurno : editForm.estado;
+    // fecha_cobro_efectivo debe acompañar al estado: sin ella el turno cobrado
+    // no cuenta en "Cobrado este mes", y al volver a DIFERIDO hay que limpiarla
+    const original = turnos.find((t) => t.id === id);
+    let fechaCobro: string | null | undefined;
+    if (estadoFinal === "COBRADO" && !original?.fecha_cobro_efectivo) {
+      fechaCobro = isoHoy();
+    } else if (estadoFinal !== "COBRADO" && original?.fecha_cobro_efectivo) {
+      fechaCobro = null;
+    }
     try {
       await actualizarTurno(id, {
         monto, estado: estadoFinal,
         prepaga:     editForm.prepaga.trim() || null,
         medio_pago:  editForm.medio_pago as MedioPago || null,
         tipo_sesion: editForm.tipo_sesion,
+        ...(fechaCobro !== undefined ? { fecha_cobro_efectivo: fechaCobro } : {}),
       });
       setEditandoId(null);
       toast.success("Turno actualizado");
@@ -168,11 +158,9 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
   async function cobrarRapido(t: TurnoResumen) {
     setCobrandoId(t.id);
     try {
-      const d = new Date();
-      const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       await actualizarTurno(t.id, {
         estado:               "COBRADO",
-        fecha_cobro_efectivo: hoy,
+        fecha_cobro_efectivo: isoHoy(),
       });
       toast.success(`${t.paciente_nombre} — cobrado ✓`);
       onRefresh();
@@ -314,7 +302,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
             const cobrando = cobrandoId === t.id;
 
             return (
-              <div key={t.id} className={`group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-neutral-50/80 ${esInasistencia ? "opacity-75" : ""}`}>
+              <div key={t.id} className={`group flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-5 py-3 transition-colors hover:bg-neutral-50/80 ${esInasistencia ? "opacity-75" : ""}`}>
                 {/* Avatar */}
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                   {iniciales(t.paciente_nombre)}
@@ -365,9 +353,10 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                     >
                       {cobrando
                         ? <span className="h-3 w-3 animate-spin rounded-full border border-emerald-300 border-t-emerald-700" />
-                        : <CheckCircle2 className="h-3 w-3" />
+                        : <CheckCircle2 className="h-4 w-4 sm:h-3 sm:w-3" />
                       }
-                      Cobrar
+                      {/* En mobile queda solo el ícono: el texto comprimía el nombre a 2-3 letras */}
+                      <span className="hidden sm:inline">Cobrar</span>
                     </button>
                   )}
 

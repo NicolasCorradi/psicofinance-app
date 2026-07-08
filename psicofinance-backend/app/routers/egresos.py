@@ -14,16 +14,9 @@ from app.crud.egreso import (
     crear_egreso, obtener_egreso, listar_egresos,
     actualizar_egreso, eliminar_egreso,
 )
+from app.utils import hoy_argentina, parse_fecha as _parse_date
 
 router = APIRouter(prefix="/egresos", tags=["Egresos"])
-
-
-def _parse_date(val) -> date | None:
-    if val is None:
-        return None
-    if isinstance(val, date):
-        return val
-    return date.fromisoformat(str(val)[:10])
 
 
 def _rango_mes(mes: str) -> tuple[date, date]:
@@ -71,7 +64,7 @@ def resumen(
 ):
     """Totales fijos vs variables del mes + breakdown por categoría + últimos 6 meses.
     Las agregaciones se hacen en Python sobre un solo select (PostgREST no agrupa)."""
-    hoy = date.today()
+    hoy = hoy_argentina()
     mes_str = mes or f"{hoy.year:04d}-{hoy.month:02d}"
     desde_mes, hasta_mes = _rango_mes(mes_str)
 

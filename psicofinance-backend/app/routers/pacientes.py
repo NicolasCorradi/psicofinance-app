@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.supabase_client import SupabaseClient, get_supabase
 from app.config import config
 from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada
+from app.utils import hoy_argentina
 from app.schemas.paciente import (
     PacienteCreate, PacienteRead, PacienteUpdate,
     PacienteConStats, PacienteDetalle, TurnoEnDetalle,
@@ -84,7 +85,7 @@ def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase)):
     Devuelve la lista de pacientes cuyo honorario lleva >= UMBRAL_MESES
     sin actualizarse, con el porcentaje de inflación acumulado y honorario sugerido.
     """
-    hoy = date.today()
+    hoy = hoy_argentina()
 
     # Tasas reales del INDEC mes a mes (con fallback al config si no hay red)
     ipc = fetch_ipc_indec()

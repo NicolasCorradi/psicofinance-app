@@ -19,7 +19,12 @@ def calcular_licuacion(datos: InflacionRequest):
     Si no se envía tasa_inflacion_mensual en el body, se usa la del .env.
     Esto permite al psicólogo simular distintos escenarios inflacionarios.
     """
-    tasa = datos.tasa_inflacion_mensual or config.inflacion_mensual
+    # "is not None" y no "or": una tasa de 0 (simular inflación nula) es válida
+    tasa = (
+        datos.tasa_inflacion_mensual
+        if datos.tasa_inflacion_mensual is not None
+        else config.inflacion_mensual
+    )
 
     resultado = calcular_valor_real(
         monto=datos.monto,

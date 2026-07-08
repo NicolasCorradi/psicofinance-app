@@ -3,16 +3,12 @@
 
 import uuid
 from datetime import date
+
+from dateutil.relativedelta import relativedelta
+
 from app.supabase_client import SupabaseClient
 from app.schemas.turno import TurnoCreate, TurnoUpdate
-
-
-def _parse_date(val) -> date | None:
-    if val is None:
-        return None
-    if isinstance(val, date):
-        return val
-    return date.fromisoformat(str(val)[:10])
+from app.utils import monto_ars, parse_fecha as _parse_date
 
 
 def crear_turno(sb: SupabaseClient, datos: TurnoCreate) -> dict:
@@ -48,16 +44,21 @@ def listar_turnos(
     params: dict = {"order": "fecha_turno.desc", "offset": str(offset), "limit": str(limit)}
     if estado:
         params["estado"] = f"eq.{estado.value if hasattr(estado, 'value') else estado}"
-    if desde:
+    # Con ambos límites hay que usar and=(): dos claves "fecha_turno" se pisarían
+    if desde and hasta:
+        params["and"] = f"(fecha_turno.gte.{desde.isoformat()},fecha_turno.lte.{hasta.isoformat()})"
+    elif desde:
         params["fecha_turno"] = f"gte.{desde.isoformat()}"
-    if hasta:
+    elif hasta:
         params["fecha_turno"] = f"lte.{hasta.isoformat()}"
     return sb.select("turnos", params)
 
 
 def actualizar_turno(sb: SupabaseClient, turno_id: uuid.UUID, datos: TurnoUpdate) -> dict | None:
+    # exclude_unset (no exclude_none): un null explícito debe llegar a la BD
+    # para poder limpiar campos como fecha_cobro_efectivo al volver a DIFERIDO
     cambios = {}
-    for k, v in datos.model_dump(exclude_none=True).items():
+    for k, v in datos.model_dump(exclude_unset=True).items():
         if isinstance(v, date):
             cambios[k] = v.isoformat()
         elif isinstance(v, uuid.UUID):
@@ -83,15 +84,28 @@ def listar_turnos_diferidos(sb: SupabaseClient) -> list[dict]:
     return sb.select("turnos", {"estado": "eq.DIFERIDO"})
 
 
-def sumar_facturado_ultimos_12_meses(sb: SupabaseClient, hasta: date) -> float:
-    desde = date(hasta.year - 1, hasta.month, hasta.day)
-    turnos = sb.select("turnos", {
-        "estado": "eq.COBRADO",
-        "fecha_cobro_efectivo": f"gte.{desde.isoformat()}",
-        "select": "monto,fecha_cobro_efectivo",
-    })
-    total = sum(
-        float(t["monto"] or 0) for t in turnos
-        if t.get("fecha_cobro_efectivo") and _parse_date(t["fecha_cobro_efectivo"]) <= hasta
-    )
-    return total
+def sumar_facturado_ultimos_12_meses(sb: SupabaseClient, hasta: date, criterio: str = "DEVENGADO") -> float:
+    """Facturación de los últimos 12 meses rodantes para el semáforo Monotributo.
+
+    DEVENGADO: por fecha de sesión, COBRADO + DIFERIDO (proxy de facturación
+    emitida — ARCA computa por emisión, no por cobro).
+    PERCIBIDO: por fecha de cobro efectivo, solo COBRADO.
+    """
+    # relativedelta maneja el 29 de febrero (date() directo lanza ValueError)
+    desde = hasta - relativedelta(years=1)
+    if criterio.upper() == "PERCIBIDO":
+        params = {
+            "estado": "eq.COBRADO",
+            "and": f"(fecha_cobro_efectivo.gte.{desde.isoformat()},fecha_cobro_efectivo.lte.{hasta.isoformat()})",
+            "select": "monto,moneda,tipo_cambio",
+        }
+    else:
+        params = {
+            "estado": "neq.INCOBRABLE",
+            "and": f"(fecha_turno.gte.{desde.isoformat()},fecha_turno.lte.{hasta.isoformat()})",
+            "select": "monto,moneda,tipo_cambio",
+        }
+    turnos = sb.select("turnos", params)
+    # monto_ars convierte los turnos USD a pesos — sumarlos nominales
+    # subestimaría la facturación y el semáforo daría VERDE estando en ROJO
+    return sum(monto_ars(t) for t in turnos)

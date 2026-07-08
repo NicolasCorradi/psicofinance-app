@@ -5,14 +5,7 @@ import uuid
 from datetime import date
 from app.supabase_client import SupabaseClient
 from app.schemas.egreso import EgresoCreate, EgresoUpdate
-
-
-def _parse_date(val) -> date | None:
-    if val is None:
-        return None
-    if isinstance(val, date):
-        return val
-    return date.fromisoformat(str(val)[:10])
+from app.utils import parse_fecha as _parse_date
 
 
 def _serializar(valores: dict) -> dict:

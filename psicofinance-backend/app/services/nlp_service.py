@@ -13,6 +13,7 @@ from google import genai
 from google.genai import types
 
 from app.config import config
+from app.utils import hoy_argentina
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +164,7 @@ def responder_consulta(texto: str, contexto: dict) -> str:
         f"{m['mes']}: ${m['egresos']:,.0f}" for m in egr_hist
     ) if egr_hist else "sin datos"
 
-    contexto_txt = f"""Datos financieros actuales (fecha: {date.today().strftime('%d/%m/%Y')}):
+    contexto_txt = f"""Datos financieros actuales (fecha: {hoy_argentina().strftime('%d/%m/%Y')}):
 INGRESOS (criterio percibido — turnos cobrados efectivamente):
 - Cobrado este mes: ${contexto.get('cobrado_mes', 0):,.0f}
 - En camino (prepagas pendientes este mes): ${contexto.get('en_camino_mes', 0):,.0f}
@@ -217,7 +218,7 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
         ) + "\n\n"
 
     prompt_con_fecha = (
-        f"Fecha actual: {date.today().isoformat()}\n\n"
+        f"Fecha actual: {hoy_argentina().isoformat()}\n\n"
         f"{contexto_historial}"
         f"Mensaje del psicólogo: {texto}"
     )
@@ -250,7 +251,7 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
     try:
         fecha_extraida = date.fromisoformat(str(datos["fecha"]))
     except (ValueError, TypeError):
-        fecha_extraida = date.today()
+        fecha_extraida = hoy_argentina()
 
     try:
         monto = max(float(datos["monto"]), 0.0)
