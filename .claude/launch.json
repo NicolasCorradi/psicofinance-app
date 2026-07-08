@@ -1,1 +1,1 @@
-{"version":"0.0.1","configurations":[{"name":"psicofinance-frontend","runtimeExecutable":"node","runtimeArgs":["psicofinance-frontend/node_modules/next/dist/bin/next","dev"],"port":3000,"autoPort":true}]}
+{"version":"0.0.1","configurations":[{"name":"psicofinance-frontend","runtimeExecutable":"node","runtimeArgs":["psicofinance-frontend/node_modules/next/dist/bin/next","dev","psicofinance-frontend"],"port":3000,"autoPort":true}]}
