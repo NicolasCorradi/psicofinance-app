@@ -8,8 +8,16 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+      # Secret key nueva de Supabase (sb_secret_...) — setear en el dashboard.
+      # La legacy service_role quedó deshabilitada: con la vieja, la API da 500.
       - key: SUPABASE_KEY
         sync: false
+      - key: SUPABASE_URL
+        value: https://dhtlxsodjpbiuvfhkxhx.supabase.co
+      # Auth activa: valida tokens ES256 contra el JWKS público del proyecto.
+      # No requiere secreto (SUPABASE_JWT_SECRET solo aplica a proyectos legacy HS256).
+      - key: AUTH_ENABLED
+        value: "true"
       - key: SECRET_KEY
         sync: false
       - key: GEMINI_API_KEY
@@ -24,5 +32,10 @@ services:
         value: "16450000"
       - key: MONOTRIBUTO_UMBRAL_AMARILLO
         value: "0.80"
+      # DEVENGADO = facturado 12m por fecha de sesión (criterio ARCA, acordado con el PM)
+      - key: MONOTRIBUTO_CRITERIO
+        value: DEVENGADO
+      - key: DOLAR_FALLBACK
+        value: "1000"
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://psicofinance-app.vercel.app
