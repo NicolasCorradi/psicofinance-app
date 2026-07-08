@@ -5,6 +5,8 @@ import time
 import logging
 import httpx
 
+from app.config import config
+
 logger = logging.getLogger(__name__)
 
 _cache: dict = {}   # { "valor": float, "ts": float }
@@ -30,11 +32,11 @@ def get_dolar_blue() -> float:
         r.raise_for_status()
         data = r.json()
         # Usamos el precio de venta como referencia ("el dólar blue está a X")
-        valor = float(data.get("venta") or data.get("compra") or 1000)
+        valor = float(data.get("venta") or data.get("compra") or config.dolar_fallback)
         _cache.update({"valor": valor, "ts": ahora})
         logger.info("Dólar blue actualizado: %.2f", valor)
         return valor
     except Exception as exc:
         logger.warning("No se pudo obtener tipo de cambio: %s", exc)
-        # Devolver último valor conocido o fallback
-        return _cache.get("valor", 1000.0)
+        # Último valor conocido, o el fallback de config (DOLAR_FALLBACK en .env)
+        return _cache.get("valor", config.dolar_fallback)

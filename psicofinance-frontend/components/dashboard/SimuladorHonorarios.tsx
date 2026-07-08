@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { TrendingUp, Calculator } from "lucide-react";
 import { getPacientes } from "@/lib/api";
 import type { PacienteConStats } from "@/lib/types";
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
 export default function SimuladorHonorarios() {
   const [pacientes, setPacientes] = useState<PacienteConStats[]>([]);
@@ -25,24 +19,27 @@ export default function SimuladorHonorarios() {
   }, []);
 
   const conHonorario = pacientes.filter(p => p.honorario_actual && p.honorario_actual > 0);
+  // Solo pacientes con sesiones este mes: contar inactivos como 1 sesión
+  // inflaba el ingreso "Actual" y el adicional proyectado
+  const activos = conHonorario.filter(p => p.sesiones_mes > 0);
+  const inactivos = conHonorario.length - activos.length;
 
   const ajuste = Math.max(0, Math.min(Number(pct) || 0, 500));
 
   // Ingreso mensual realista = honorario × sesiones de este mes
-  // Si el paciente no tiene sesiones este mes usamos 1 como referencia
   const calcIngreso = (p: PacienteConStats, honorario: number) =>
-    honorario * Math.max(p.sesiones_mes, 1);
+    honorario * p.sesiones_mes;
 
-  const ingresoActual = conHonorario.reduce(
+  const ingresoActual = activos.reduce(
     (s, p) => s + calcIngreso(p, p.honorario_actual ?? 0), 0
   );
-  const ingresoNuevo = conHonorario.reduce(
+  const ingresoNuevo = activos.reduce(
     (s, p) => s + calcIngreso(p, (p.honorario_actual ?? 0) * (1 + ajuste / 100)), 0
   );
   const diferencia = ingresoNuevo - ingresoActual;
 
   // Top pacientes para mostrar la tabla de simulación
-  const topPacientes = [...conHonorario]
+  const topPacientes = [...activos]
     .sort((a, b) => (b.honorario_actual ?? 0) - (a.honorario_actual ?? 0))
     .slice(0, 6);
 
@@ -108,6 +105,10 @@ export default function SimuladorHonorarios() {
         <div className="rounded-xl bg-neutral-50 p-4 text-center text-xs text-neutral-400">
           Configurá el honorario base en los pacientes para usar el simulador.
         </div>
+      ) : activos.length === 0 ? (
+        <div className="rounded-xl bg-neutral-50 p-4 text-center text-xs text-neutral-400">
+          Sin sesiones registradas este mes: registrá sesiones para proyectar el ajuste.
+        </div>
       ) : (
         <>
           {/* Cards de comparación */}
@@ -135,6 +136,7 @@ export default function SimuladorHonorarios() {
           </div>
           <p className="mb-3 text-[10px] text-neutral-400">
             Proyección basada en sesiones del mes actual × honorario ajustado.
+            {inactivos > 0 && ` Excluye ${inactivos} paciente${inactivos > 1 ? "s" : ""} sin sesiones este mes.`}
           </p>
 
           {/* Tabla de pacientes */}
@@ -148,9 +150,7 @@ export default function SimuladorHonorarios() {
               <div key={p.id} className="grid grid-cols-3 border-b border-neutral-50 px-3 py-2 text-xs last:border-0">
                 <div className="truncate">
                   <span className="font-medium text-neutral-700">{p.nombre} {p.apellido[0]}.</span>
-                  {p.sesiones_mes > 0 && (
-                    <span className="ml-1 text-[10px] text-neutral-400">×{p.sesiones_mes}</span>
-                  )}
+                  <span className="ml-1 text-[10px] text-neutral-400">×{p.sesiones_mes}</span>
                 </div>
                 <span className="text-right tabular-nums text-neutral-500">
                   {fmtPesos(calcIngreso(p, p.honorario_actual ?? 0))}
@@ -160,9 +160,9 @@ export default function SimuladorHonorarios() {
                 </span>
               </div>
             ))}
-            {conHonorario.length > 6 && (
+            {activos.length > 6 && (
               <div className="px-3 py-2 text-center text-[10px] text-neutral-400">
-                +{conHonorario.length - 6} pacientes más
+                +{activos.length - 6} pacientes más
               </div>
             )}
           </div>

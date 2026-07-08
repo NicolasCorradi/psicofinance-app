@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSemaforo } from "@/lib/api";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
 const CX = 80, CY = 80, R = 58, GROSOR = 10;
 const CIRC = 2 * Math.PI * R;
@@ -15,20 +16,16 @@ function gradientId(estado: EstadoSemaforo): string {
   return `grad-${estado.toLowerCase()}`;
 }
 
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
-
 export default function MonotributoProgress() {
   const [s, set] = useState<ResultadoSemaforo | null>(null);
 
   useEffect(() => { getSemaforo().then(set).catch(() => {}); }, []);
 
-  const pct    = s ? Math.min(s.porcentaje_consumido, 100) : 0;
-  const offset = CIRC * (1 - pct / 100);
+  // El arco se capea en 100% pero el texto muestra el % real (130% del tope
+  // debe leerse como 130%, no como 100%)
+  const pctReal = s ? s.porcentaje_consumido : 0;
+  const pct     = Math.min(pctReal, 100);
+  const offset  = CIRC * (1 - pct / 100);
   const color  = s ? colorArco(s.estado) : "#E0E7FF";
   const gId    = s ? gradientId(s.estado) : "grad-empty";
 
@@ -65,7 +62,7 @@ export default function MonotributoProgress() {
           />
           {/* Porcentaje */}
           <text x={CX} y={CY - 7} textAnchor="middle" fontSize="24" fontWeight="700" fontFamily="inherit" fill="#111827">
-            {s ? `${pct.toFixed(0)}%` : "–"}
+            {s ? `${pctReal.toFixed(0)}%` : "–"}
           </text>
           {/* Categoría */}
           <text x={CX} y={CY + 13} textAnchor="middle" fontSize="11" fontFamily="inherit" fill="#9CA3AF">
@@ -91,6 +88,17 @@ export default function MonotributoProgress() {
             <span className="text-neutral-400">Tope {fmtPesos(s.tope_anual)}</span>
             <span style={{ color }} className="font-semibold">{fmtPesos(s.margen_disponible)} libre</span>
           </div>
+          {s.criterio && (
+            <p className="text-[10px] text-neutral-300">
+              Criterio {s.criterio === "PERCIBIDO" ? "percibido (por cobro)" : "devengado (por sesión)"}
+              {s.vigencia ? ` · Escala ${s.vigencia}` : ""}
+            </p>
+          )}
+          {s.advertencia && (
+            <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700 ring-1 ring-amber-200/60">
+              ⚠ {s.advertencia}
+            </p>
+          )}
         </div>
       )}
 

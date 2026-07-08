@@ -10,6 +10,7 @@ from decimal import Decimal
 import httpx
 from dateutil.relativedelta import relativedelta
 from app.config import config
+from app.utils import hoy_argentina
 
 logger = logging.getLogger(__name__)
 
@@ -38,60 +39,67 @@ def fetch_ipc_indec() -> dict:
         r.raise_for_status()
         data = r.json().get("data", [])
 
+        # Con menos de 2 puntos no se puede calcular variación: caer al fallback
+        # en vez de devolver un caché posiblemente vacío
+        if len(data) < 2:
+            raise ValueError(f"API IPC devolvió {len(data)} puntos (se necesitan >= 2)")
+
         tasas: dict[str, float] = {}
-        if len(data) >= 2:
-            for i in range(len(data) - 1):
-                periodo_iso = data[i][0]
-                idx_nuevo   = float(data[i][1])
-                idx_ant     = float(data[i + 1][1])
-                variacion   = (idx_nuevo - idx_ant) / idx_ant
-                mes_key     = periodo_iso[:7]
-                tasas[mes_key] = variacion
-                logger.debug("IPC %s: %.4f%%", mes_key, variacion * 100)
+        for i in range(len(data) - 1):
+            periodo_iso = data[i][0]
+            idx_nuevo   = float(data[i][1])
+            idx_ant     = float(data[i + 1][1])
+            variacion   = (idx_nuevo - idx_ant) / idx_ant
+            mes_key     = periodo_iso[:7]
+            tasas[mes_key] = variacion
+            logger.debug("IPC %s: %.4f%%", mes_key, variacion * 100)
 
-            # INDEC publica mes N alrededor del día 12-15 de mes N+1.
-            # datos.gob.ar a veces etiqueta el dato con la fecha de publicación
-            # (mes N+1) en vez del mes al que corresponde (mes N).
-            # Regla: el mes actual y el futuro NUNCA pueden estar publicados.
-            hoy = date.today()
-            mes_actual   = hoy.strftime("%Y-%m")
-            mes_anterior = (hoy - relativedelta(months=1)).strftime("%Y-%m")
+        # INDEC publica mes N alrededor del día 12-15 de mes N+1.
+        # datos.gob.ar a veces etiqueta el dato con la fecha de publicación
+        # (mes N+1) en vez del mes al que corresponde (mes N).
+        # Regla: el mes actual y el futuro NUNCA pueden estar publicados.
+        hoy = hoy_argentina()
+        mes_actual   = hoy.strftime("%Y-%m")
+        mes_anterior = (hoy - relativedelta(months=1)).strftime("%Y-%m")
 
-            # Eliminar períodos >= mes actual (no pueden existir aún)
-            for k in list(tasas.keys()):
-                if k >= mes_actual:
-                    logger.info("IPC: descartando período futuro/actual %s de la API", k)
-                    del tasas[k]
+        # Eliminar períodos >= mes actual (no pueden existir aún)
+        for k in list(tasas.keys()):
+            if k >= mes_actual:
+                logger.info("IPC: descartando período futuro/actual %s de la API", k)
+                del tasas[k]
 
-            if not tasas:
-                raise ValueError("Sin tasas válidas tras filtrar períodos futuros")
+        if not tasas:
+            raise ValueError("Sin tasas válidas tras filtrar períodos futuros")
 
-            # Período más reciente disponible en la API
-            ultimo_periodo = sorted(tasas.keys())[-1]
-            ultimo_valor   = tasas[ultimo_periodo] * 100
+        # Período más reciente disponible en la API
+        ultimo_periodo = sorted(tasas.keys())[-1]
+        ultimo_valor   = tasas[ultimo_periodo] * 100
+        estimado       = False
 
-            # Si el mes anterior aún no está en la API, completar con config
-            if mes_anterior not in tasas:
-                tasas[mes_anterior] = config.inflacion_mensual
-                ultimo_periodo = mes_anterior
-                ultimo_valor   = config.inflacion_mensual * 100
-                logger.info("IPC %s no publicado en API aún — usando config: %.2f%%",
-                            mes_anterior, ultimo_valor)
+        # Si el mes anterior aún no está en la API, completar con config
+        if mes_anterior not in tasas:
+            tasas[mes_anterior] = config.inflacion_mensual
+            ultimo_periodo = mes_anterior
+            ultimo_valor   = config.inflacion_mensual * 100
+            estimado       = True
+            logger.info("IPC %s no publicado en API aún — usando config: %.2f%%",
+                        mes_anterior, ultimo_valor)
 
-            _ipc_cache.update({
-                "tasas":            tasas,
-                "ultimo_periodo":   ultimo_periodo,
-                "ultimo_valor_pct": round(ultimo_valor, 2),
-                "ts":               ahora,
-            })
-            logger.info("IPC INDEC: %d meses. Último: %s → %.2f%%",
-                        len(tasas), ultimo_periodo, ultimo_valor)
+        _ipc_cache.update({
+            "tasas":            tasas,
+            "ultimo_periodo":   ultimo_periodo,
+            "ultimo_valor_pct": round(ultimo_valor, 2),
+            "estimado":         estimado,
+            "ts":               ahora,
+        })
+        logger.info("IPC INDEC: %d meses. Último: %s → %.2f%%",
+                    len(tasas), ultimo_periodo, ultimo_valor)
     except Exception as exc:
         logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
         if not _ipc_cache.get("tasas"):
             tasa_fb = config.inflacion_mensual
             tasas_fb: dict[str, float] = {}
-            hoy = date.today()
+            hoy = hoy_argentina()
             for i in range(13):
                 mes = (hoy - relativedelta(months=i)).strftime("%Y-%m")
                 tasas_fb[mes] = tasa_fb
@@ -100,6 +108,7 @@ def fetch_ipc_indec() -> dict:
                 "tasas":            tasas_fb,
                 "ultimo_periodo":   "config",
                 "ultimo_valor_pct": round(tasa_fb * 100, 2),
+                "estimado":         True,
                 "ts":               ahora - _IPC_CACHE_TTL + _FALLBACK_TTL,
             })
 
@@ -110,7 +119,11 @@ def inflacion_acumulada(desde: date, hasta: date, tasas: dict[str, float]) -> fl
     """Compone tasas mensuales reales de `desde` a `hasta`.
     Devuelve la tasa acumulada decimal (ej: 0.38 = 38% acumulado)."""
     if not tasas:
-        return config.inflacion_mensual
+        # Componer la tasa mensual de config por la cantidad de meses del rango:
+        # devolverla sin componer subestimaba ~10x la licuación de turnos viejos
+        meses = max((hasta.year - desde.year) * 12 + (hasta.month - desde.month), 0)
+        factor_fb = (Decimal("1") + Decimal(str(config.inflacion_mensual))) ** meses
+        return max(float(factor_fb - Decimal("1")), 0.0)
 
     tasa_fb = tasas.get(sorted(tasas.keys())[-1], config.inflacion_mensual)
 
