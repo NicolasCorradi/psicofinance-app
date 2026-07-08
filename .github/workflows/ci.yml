@@ -1,0 +1,51 @@
+# CI: corre los tests del backend y el typecheck del frontend en cada push/PR.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  backend:
+    name: Tests backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: psicofinance-backend
+    env:
+      # Valores dummy: los tests unitarios mockean Supabase y las APIs externas.
+      # conftest.py fuerza AUTH_ENABLED=false; los tests de integración
+      # detectan que no hay BD real y se saltean solos.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+      SUPABASE_KEY: "ci-dummy-key"
+      SECRET_KEY: "ci-dummy-secret"
+      INFLACION_MENSUAL: "0.03"
+      MONOTRIBUTO_CATEGORIA: "D"
+      MONOTRIBUTO_TOPE_ANUAL: "26212853.42"
+      GEMINI_API_KEY: "ci-dummy-gemini"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: psicofinance-backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests/ -v
+
+  frontend:
+    name: Typecheck frontend (tsc)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: psicofinance-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: psicofinance-frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit

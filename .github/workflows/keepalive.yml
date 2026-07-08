@@ -1,0 +1,31 @@
+# Keepalive: evita que el stack gratuito se apague por inactividad.
+# - Supabase Free pausa el proyecto tras ~7 días sin actividad (y NO se
+#   despierta solo: hay que restaurarlo a mano desde el dashboard).
+# - El endpoint /keepalive del backend hace un query liviano a Supabase,
+#   así que un solo ping mantiene vivos a los dos (Render + Supabase).
+# Corre 2 veces por día. GitHub desactiva crons en repos sin actividad
+# por 60 días — un push cualquiera lo reactiva.
+name: Keepalive
+
+on:
+  schedule:
+    - cron: "0 3,15 * * *" # 03:00 y 15:00 UTC (00:00 y 12:00 en Argentina)
+  workflow_dispatch: {} # permite dispararlo a mano desde la pestaña Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend + Supabase
+        run: |
+          # Render Free tarda ~50s en despertar de un arranque en frío:
+          # reintentar con paciencia antes de declarar fallo.
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" --max-time 90 \
+              "https://psicofinance-backend.onrender.com/api/v1/keepalive") && true
+            echo "Intento $i: HTTP $code — $(cat /tmp/resp.txt)"
+            [ "$code" = "200" ] && exit 0
+            sleep 30
+          done
+          echo "::error::El keepalive no respondió 200 tras 3 intentos"
+          exit 1

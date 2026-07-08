@@ -1,0 +1,38 @@
+# Backup semanal de la base: exporta las tablas de Supabase como JSON y las
+# guarda como artifact del workflow (retención 90 días). El plan Free de
+# Supabase no tiene backups restaurables por el usuario — esto es la red
+# de seguridad ante un borrado accidental.
+# Requiere los secrets del repo: SUPABASE_URL y SUPABASE_SECRET_KEY.
+name: Backup BD
+
+on:
+  schedule:
+    - cron: "30 3 * * 1" # lunes 03:30 UTC (00:30 en Argentina)
+  workflow_dispatch: {}
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exportar tablas
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          mkdir -p backup
+          fallo=0
+          for tabla in pacientes turnos egresos configuracion; do
+            code=$(curl -s -o "backup/${tabla}.json" -w "%{http_code}" --max-time 60 \
+              -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+              "$SUPABASE_URL/rest/v1/${tabla}?select=*&limit=100000")
+            filas=$(python3 -c "import json;print(len(json.load(open('backup/${tabla}.json'))))" 2>/dev/null || echo "?")
+            echo "$tabla: HTTP $code — $filas filas"
+            [ "$code" = "200" ] || fallo=1
+          done
+          [ "$fallo" = "0" ] || { echo "::error::Al menos una tabla no se pudo exportar"; exit 1; }
+      - name: Guardar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-supabase-${{ github.run_id }}
+          path: backup/
+          retention-days: 90
