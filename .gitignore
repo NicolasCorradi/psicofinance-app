@@ -14,6 +14,7 @@ psicofinance-frontend/.next/
 psicofinance-frontend/out/
 psicofinance-frontend/.env.local
 psicofinance-frontend/.env*.local
+psicofinance-frontend/.env.production
 
 # === LOGS ===
 *.log

@@ -2,6 +2,12 @@
 # Define fixtures reutilizables y marca los tests de integración
 # para que se salteen si la BD no está disponible.
 
+import os
+
+# Los tests corren sin autenticación (no dependen de tokens ni del JWKS remoto).
+# Debe setearse ANTES de importar la app/config.
+os.environ["AUTH_ENABLED"] = "false"
+
 import pytest
 import psycopg2
 from fastapi.testclient import TestClient

@@ -1,9 +1,16 @@
+import os
 import requests
 import uuid
 from datetime import datetime
 
-SUPABASE_URL = "https://dhtlxsodjpbiuvfhkxhx.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRodGx4c29kanBiaXV2ZmhreGh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzA0OTg1MywiZXhwIjoyMDkyNjI1ODUzfQ.zAuQHniJvFgF-wDFefFoG2BuMF2sJjBwEOYHikx7aFg"
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://dhtlxsodjpbiuvfhkxhx.supabase.co")
+# Requiere la service_role key (Supabase → Settings → API) en la variable de entorno.
+# NUNCA hardcodearla: bypasea RLS y da acceso total a la base.
+KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 H = {
     "apikey": KEY,
     "Authorization": f"Bearer {KEY}",

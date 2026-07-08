@@ -3,12 +3,12 @@
 
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-sqlalchemy>=2.0.36
-psycopg2-binary>=2.9.9
+psycopg2-binary>=2.9.9   # Solo para migraciones manuales y check de conectividad en tests
 pydantic-settings==2.2.1
 python-dotenv==1.0.1
-alembic==1.13.1
 pytest==8.2.0
 httpx>=0.28.0           # Cliente HTTP para tests de endpoints FastAPI
 python-dateutil==2.9.0  # Cálculo de diferencias en meses para la fórmula de inflación
+PyJWT>=2.8.0            # Validación del JWT de Supabase Auth en la API
+tzdata>=2024.1          # Base IANA para ZoneInfo (Windows no la trae; en Linux es no-op)
 google-genai>=1.73.0    # SDK oficial de Gemini (reemplaza el deprecado google-generativeai)

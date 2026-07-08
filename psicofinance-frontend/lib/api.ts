@@ -25,11 +25,25 @@ import type {
   ResumenEgresos,
   TipoEgreso,
   CategoriaEgreso,
+  IngresoExport,
 } from './types';
+
+import { createClient } from './supabase/client';
 
 // URL base del backend — se lee del .env.local en build time
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001';
 const PREFIJO = '/api/v1';
+
+/** Token de sesión de Supabase para autenticar contra el backend. */
+async function tokenSesion(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const { data } = await createClient().auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Error tipado del API
@@ -50,8 +64,13 @@ export class ApiError extends Error {
 // ---------------------------------------------------------------------------
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await tokenSesion();
   const res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
     ...init,
+    headers: {
+      ...init?.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     // En Next.js 16 App Router: 'no-store' desactiva caché para datos dinámicos
     cache: init?.method && init.method !== 'GET' ? undefined : 'no-store',
   });
@@ -96,9 +115,20 @@ function patch<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function del(path: string): Promise<void> {
-  const res = await fetch(`${API_BASE}${PREFIJO}${path}`, { method: 'DELETE' });
+  const token = await tokenSesion();
+  const res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok && res.status !== 204) {
-    throw new ApiError(res.status, `Error al eliminar: HTTP ${res.status}`);
+    let detalle = '';
+    try {
+      const json = await res.json();
+      detalle = json?.detail ?? '';
+    } catch {
+      // sin cuerpo JSON
+    }
+    throw new ApiError(res.status, detalle || `Error al eliminar: HTTP ${res.status}`);
   }
 }
 
@@ -187,7 +217,8 @@ export function aprobarBorrador(datos: {
 
 /** Turnos de un rango de fechas con nombre de paciente (para agenda). */
 export function getTurnosAgenda(desde: string, hasta: string): Promise<TurnoAgenda[]> {
-  return get<TurnoAgenda[]>(`/turnos/agenda?desde=${desde}&hasta=${hasta}`);
+  const params = new URLSearchParams({ desde, hasta });
+  return get<TurnoAgenda[]>(`/turnos/agenda?${params}`);
 }
 
 /** Semana modelo guardada. */
@@ -211,7 +242,7 @@ export function getTurnosCobradosMes(): Promise<TurnoResumen[]> {
 }
 
 /** Todos los turnos COBRADO históricos para exportar a CSV/Excel. */
-export function getExportIngresos(): Promise<Record<string, string | number>[]> {
+export function getExportIngresos(): Promise<IngresoExport[]> {
   return get('/dashboard/export-ingresos');
 }
 
