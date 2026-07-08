@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronLeft, ChevronRight, CalendarDays, Loader2,
   LayoutGrid, Plus, X, GripVertical, Check, Trash2,
+  RefreshCw, WifiOff,
 } from "lucide-react";
 import {
   getTurnosAgenda, getSemanaModelo, guardarSemanaModelo,
@@ -15,12 +16,10 @@ import type {
   SlotModelo, PacienteConStats,
 } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
+import { isoDate, MESES_ES, MEDIO_LABEL } from "@/lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 function lunesDe(d: Date): Date {
   const r = new Date(d);
   const diff = r.getDay() === 0 ? -6 : 1 - r.getDay();
@@ -30,7 +29,6 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
 const DIAS_CORTO = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-const MESES_ES   = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 function fmtRangoSemana(lunes: Date): string {
   const dom = addDays(lunes, 6);
   return lunes.getMonth() === dom.getMonth()
@@ -48,10 +46,6 @@ const ESTADO_DOT: Record<EstadoTurno, string> = {
 const TIPO_LABEL: Record<string, string> = {
   INASISTENCIA_JUSTIFICADA: "Canceló", INASISTENCIA_INJUSTIFICADA: "Faltó", CANCELACION_PROFESIONAL: "Cancelé",
 };
-const MEDIO_LABEL: Record<string, string> = {
-  EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", MERCADO_PAGO: "Mercado Pago", TARJETA: "Tarjeta",
-};
-
 // ── Modal Registrar (placeholder → nuevo turno) ───────────────────────────────
 
 interface ModalRegistrarProps {
@@ -110,7 +104,7 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
             <p className="text-xs text-neutral-400">{formatFecha(fecha)}</p>
             <h3 className="text-base font-bold text-neutral-900">{slot.paciente_nombre}</h3>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-neutral-300 hover:text-neutral-500"><X className="h-4 w-4"/></button>
+          <button onClick={onClose} className="rounded-lg p-2 text-neutral-300 hover:text-neutral-500"><X className="h-4 w-4"/></button>
         </div>
 
         {/* Tipo sesión */}
@@ -202,12 +196,19 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
     setGuardando(true); setError("");
     try {
       const hoy = isoDate(new Date());
+      const estadoFinal = esInasistencia ? "COBRADO" : estado;
+      // Al pasar a COBRADO se setea la fecha de cobro; al volver a DIFERIDO
+      // hay que mandar null explícito (undefined significa "no tocar" y el
+      // turno seguiría contando como cobrado del mes)
+      let fechaCobro: string | null | undefined;
+      if (estadoFinal === "COBRADO" && !turno.fecha_cobro_efectivo) fechaCobro = hoy;
+      else if (estadoFinal !== "COBRADO" && turno.fecha_cobro_efectivo) fechaCobro = null;
       await actualizarTurno(turno.id, {
         tipo_sesion:          tipoSesion,
         monto:                esInasistencia ? 0 : (Number(monto) || 0),
-        estado:               esInasistencia ? "COBRADO" : estado,
+        estado:               estadoFinal,
         medio_pago:           medioPago || null,
-        fecha_cobro_efectivo: (!esInasistencia && estado === "COBRADO" && !turno.fecha_cobro_efectivo) ? hoy : undefined,
+        ...(fechaCobro !== undefined ? { fecha_cobro_efectivo: fechaCobro } : {}),
       });
       toast.success("Turno actualizado");
       onGuardado();
@@ -240,7 +241,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
               {estadoLabel[turno.estado] ?? turno.estado}
             </span>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-neutral-300 hover:text-neutral-500"><X className="h-4 w-4"/></button>
+          <button onClick={onClose} className="rounded-lg p-2 text-neutral-300 hover:text-neutral-500"><X className="h-4 w-4"/></button>
         </div>
 
         {/* Tipo sesión */}
@@ -352,6 +353,29 @@ function TurnoCard({ t, onClick }: { t: TurnoAgenda; onClick: () => void }) {
   );
 }
 
+// ── Estado de error con reintento (mismo patrón que el dashboard) ─────────────
+
+function ErrorCarga({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 ring-1 ring-red-100">
+        <WifiOff className="h-6 w-6 text-red-400" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-neutral-700">No se pudo cargar la agenda</p>
+        <p className="mt-1 text-xs text-neutral-400">Revisá tu conexión o intentá de nuevo</p>
+      </div>
+      <button
+        onClick={onRetry}
+        className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
+        Reintentar
+      </button>
+    </div>
+  );
+}
+
 // ── Vista "Esta semana" ───────────────────────────────────────────────────────
 
 function VistaSemana() {
@@ -360,12 +384,14 @@ function VistaSemana() {
   const [modelo, setModelo]         = useState<SlotModelo[]>([]);
   const [pacientes, setPacientes]   = useState<PacienteConStats[]>([]);
   const [cargando, setCargando]     = useState(false);
+  const [error, setError]           = useState(false);
   const [modalReg, setModalReg]     = useState<{ slot: SlotModelo; fecha: string } | null>(null);
   const [modalEdit, setModalEdit]   = useState<TurnoAgenda | null>(null);
   const hoyIso = isoDate(new Date());
 
   const cargar = useCallback(async (ini: Date) => {
     setCargando(true);
+    setError(false);
     try {
       const [t, m, p] = await Promise.all([
         getTurnosAgenda(isoDate(ini), isoDate(addDays(ini, 6))),
@@ -373,7 +399,7 @@ function VistaSemana() {
         getPacientes(),
       ]);
       setTurnos(t); setModelo(m.slots); setPacientes(p);
-    } catch { /* silencioso */ } finally { setCargando(false); }
+    } catch { setError(true); } finally { setCargando(false); }
   }, []);
   useEffect(() => { cargar(lunes); }, [lunes, cargar]);
 
@@ -419,6 +445,8 @@ function VistaSemana() {
 
     {cargando
       ? <div className="flex items-center justify-center gap-2 py-16 text-sm text-neutral-400"><Loader2 className="h-4 w-4 animate-spin"/>Cargando…</div>
+      : error
+      ? <ErrorCarga onRetry={() => cargar(lunes)} />
       : <>
           {/* Desktop */}
           <div className="hidden md:grid grid-cols-7 gap-2">
@@ -502,29 +530,43 @@ function VistaModelo() {
   const [slots,      setSlots]      = useState<SlotModelo[]>([]);
   const [pacientes,  setPacientes]  = useState<PacienteConStats[]>([]);
   const [cargando,   setCargando]   = useState(true);
+  const [error,      setError]      = useState(false);
   const [guardando,  setGuardando]  = useState(false);
   const [guardado,   setGuardado]   = useState(false);
   const [dragPac,    setDragPac]    = useState<PacienteConStats | null>(null);
   const [dragSlot,   setDragSlot]   = useState<{dia:number;hora:string}|null>(null);
+  // Alternativa touch al drag & drop (HTML5 drag no funciona en celulares):
+  // tocás un paciente (o un slot ya asignado) y después tocás la celda destino
+  const [selPac,     setSelPac]     = useState<PacienteConStats | null>(null);
+  const [selSlot,    setSelSlot]    = useState<{dia:number;hora:string}|null>(null);
   const [nuevaHora,  setNuevaHora]  = useState("09:00");
   const [mostrarAdd, setMostrarAdd] = useState(false);
   const [horasExtra, setHorasExtra] = useState<string[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const toast = useToast();
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
+    setCargando(true);
+    setError(false);
     Promise.all([getSemanaModelo(), getPacientes()])
       .then(([m, p]) => { setSlots(m.slots); setPacientes(p); })
-      .catch(() => {}).finally(() => setCargando(false));
+      .catch(() => setError(true))
+      .finally(() => setCargando(false));
   }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  // Cleanup del timer de autoguardado al desmontar
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   const autoGuardar = useCallback((s: SlotModelo[]) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       setGuardando(true);
       try { await guardarSemanaModelo(s); setGuardado(true); setTimeout(() => setGuardado(false), 2000); }
-      catch { /* silencioso */ } finally { setGuardando(false); }
+      catch { toast.error("No se pudo guardar la semana modelo. Reintentá el último cambio."); }
+      finally { setGuardando(false); }
     }, 800);
-  }, []);
+  }, [toast]);
 
   const mutarSlots = useCallback((fn: (prev: SlotModelo[]) => SlotModelo[]) => {
     setSlots(prev => { const n = fn(prev); autoGuardar(n); return n; });
@@ -556,23 +598,35 @@ function VistaModelo() {
   const slotMap = new Map(slots.map(s => [`${s.dia}-${s.hora}`, s]));
 
   if (cargando) return <div className="flex items-center justify-center gap-2 py-20 text-sm text-neutral-400"><Loader2 className="h-4 w-4 animate-spin"/>Cargando…</div>;
+  if (error)    return <ErrorCarga onRetry={cargar} />;
 
   return (
-    <div className="flex gap-4 lg:gap-6">
+    // En mobile el panel de pacientes pasa arriba como carrusel horizontal:
+    // los 160px fijos del panel lateral dejaban la grilla inusable en 375px
+    <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
 
       {/* Panel pacientes */}
-      <div className="w-40 shrink-0">
+      <div className="w-full lg:w-40 lg:shrink-0">
         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Pacientes</p>
-        <p className="mb-3 text-[10px] text-neutral-400 leading-tight">Arrastrá a un horario</p>
-        <div className="space-y-1 max-h-[560px] overflow-y-auto pr-0.5">
+        <p className="mb-3 text-[10px] text-neutral-400 leading-tight">
+          <span className="lg:hidden">Tocá un paciente y después un horario</span>
+          <span className="hidden lg:inline">Arrastrá (o tocá y elegí horario)</span>
+        </p>
+        <div className="flex gap-1.5 overflow-x-auto pb-1.5 lg:block lg:space-y-1 lg:max-h-[560px] lg:overflow-y-auto lg:overflow-x-visible lg:pb-0 lg:pr-0.5">
           {pacientes.map(p => {
             const nombre = `${p.nombre} ${p.apellido}`.trim();
+            const seleccionado = selPac?.id === p.id;
             return (
               <div key={p.id} draggable
                 onDragStart={() => setDragPac(p)}
                 onDragEnd={() => setDragPac(null)}
-                className={`flex cursor-grab items-center gap-1.5 rounded-xl border border-neutral-100 bg-white px-2 py-1.5 shadow-sm transition-all select-none active:cursor-grabbing active:shadow-md active:ring-2 active:ring-indigo-300 ${dragPac?.id === p.id ? "opacity-40" : ""}`}>
-                <GripVertical className="h-3 w-3 shrink-0 text-neutral-300"/>
+                onClick={() => { setSelSlot(null); setSelPac(seleccionado ? null : p); }}
+                className={`flex shrink-0 cursor-grab items-center gap-1.5 rounded-xl border bg-white px-2 py-2 lg:py-1.5 shadow-sm transition-all select-none active:cursor-grabbing active:shadow-md ${
+                  seleccionado
+                    ? "border-indigo-400 ring-2 ring-indigo-200"
+                    : "border-neutral-100 active:ring-2 active:ring-indigo-300"
+                } ${dragPac?.id === p.id ? "opacity-40" : ""}`}>
+                <GripVertical className="hidden lg:block h-3 w-3 shrink-0 text-neutral-300"/>
                 <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[7px] font-bold ${avatarCls(nombre)}`}>{iniciales(nombre)}</div>
                 <p className="truncate text-[11px] font-medium text-neutral-700">{p.nombre}</p>
               </div>
@@ -610,8 +664,8 @@ function VistaModelo() {
                         setHorasExtra(prev => prev.filter(h => h !== hora));
                         mutarSlots(prev => prev.filter(s => s.hora !== hora));
                       }}
-                      className="ml-0.5 rounded p-0.5 text-neutral-200 hover:text-red-400" title="Eliminar esta hora">
-                      <Trash2 className="h-2.5 w-2.5"/>
+                      className="ml-0.5 rounded -m-1 p-2 lg:m-0 lg:p-0.5 text-neutral-200 hover:text-red-400" title="Eliminar esta hora">
+                      <Trash2 className="h-3.5 w-3.5 lg:h-2.5 lg:w-2.5"/>
                     </button>
                   </div>
                 </div>
@@ -620,28 +674,43 @@ function VistaModelo() {
                     const dia = i + 1;
                     const slot = slotMap.get(`${dia}-${hora}`);
                     const esDrop = dragPac || (dragSlot && !(dragSlot.dia === dia && dragSlot.hora === hora));
+                    const esDestinoTap = (selPac || selSlot) && !(selSlot?.dia === dia && selSlot?.hora === hora);
+                    const slotSeleccionado = selSlot?.dia === dia && selSlot?.hora === hora;
                     return (
                       <div key={dia}
                         className={`relative min-h-[52px] rounded-xl border-2 transition-all duration-100 ${
-                          slot ? "border-indigo-200 bg-indigo-50"
-                          : esDrop ? "border-dashed border-indigo-300 bg-indigo-50/40"
+                          slotSeleccionado ? "border-indigo-400 bg-indigo-100 ring-2 ring-indigo-200"
+                          : slot ? "border-indigo-200 bg-indigo-50"
+                          : esDrop || esDestinoTap ? "border-dashed border-indigo-300 bg-indigo-50/40"
                           : "border-dashed border-neutral-200 bg-neutral-50/50"}`}
                         onDragOver={e => e.preventDefault()}
                         onDrop={() => {
                           if (dragPac) { asignarPac(dia, hora, dragPac); setDragPac(null); }
                           else if (dragSlot) { moverSlot(dragSlot.dia, dragSlot.hora, dia, hora); setDragSlot(null); }
+                        }}
+                        onClick={() => {
+                          // Modo tap (touch): asignar el paciente o mover el slot seleccionado
+                          if (selPac) { asignarPac(dia, hora, selPac); setSelPac(null); }
+                          else if (selSlot && !slotSeleccionado) { moverSlot(selSlot.dia, selSlot.hora, dia, hora); setSelSlot(null); }
                         }}>
                         {slot ? (
                           <div className="h-full cursor-grab p-1.5 select-none" draggable
                             onDragStart={() => setDragSlot({ dia, hora })}
-                            onDragEnd={() => setDragSlot(null)}>
+                            onDragEnd={() => setDragSlot(null)}
+                            onClick={e => {
+                              if (selPac || selSlot) return; // deja que la celda resuelva la asignación
+                              e.stopPropagation();
+                              setSelSlot({ dia, hora }); // primer tap: seleccionar para mover
+                            }}>
                             <div className="flex items-start justify-between gap-0.5">
                               <div className="flex items-center gap-1 min-w-0">
                                 <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[7px] font-bold ${avatarCls(slot.paciente_nombre)}`}>{iniciales(slot.paciente_nombre)}</div>
                                 <p className="truncate text-[10px] font-semibold text-neutral-800 leading-tight">{slot.paciente_nombre.split(" ")[0]}</p>
                               </div>
-                              <button onClick={() => quitarSlot(dia, hora)} className="shrink-0 rounded p-0.5 text-neutral-300 hover:bg-red-50 hover:text-red-400">
-                                <X className="h-2.5 w-2.5"/>
+                              <button
+                                onClick={e => { e.stopPropagation(); quitarSlot(dia, hora); }}
+                                className="shrink-0 rounded -m-1 p-2 lg:m-0 lg:p-0.5 text-neutral-300 hover:bg-red-50 hover:text-red-400">
+                                <X className="h-3 w-3 lg:h-2.5 lg:w-2.5"/>
                               </button>
                             </div>
                           </div>
@@ -686,6 +755,22 @@ function VistaModelo() {
           </div>
         </div>
       </div>
+
+      {/* Barra de selección touch: qué está seleccionado y cómo cancelar */}
+      {(selPac || selSlot) && (
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-xl">
+          <span>
+            {selPac
+              ? <>Asignando a <strong>{selPac.nombre}</strong> — tocá un horario</>
+              : <>Moviendo turno — tocá el horario destino</>}
+          </span>
+          <button
+            onClick={() => { setSelPac(null); setSelSlot(null); }}
+            className="rounded-full bg-white/15 px-2.5 py-1 font-medium hover:bg-white/25">
+            Cancelar
+          </button>
+        </div>
+      )}
 
       {/* Toast guardado */}
       {(guardando || guardado) && (

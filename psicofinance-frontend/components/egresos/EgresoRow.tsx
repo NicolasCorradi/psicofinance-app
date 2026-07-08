@@ -57,6 +57,8 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
         <p className="truncate text-[11px] text-neutral-400">
           {label}
           {egreso.medio_pago ? ` · ${MEDIOS_PAGO[egreso.medio_pago]}` : ""}
+          {/* Fecha y tipo van en el subtítulo solo en mobile (sus columnas se ocultan) */}
+          <span className="sm:hidden"> · {fmtFecha(egreso.fecha)} · {egreso.tipo === "FIJO" ? "Fijo" : "Variable"}</span>
         </p>
       </div>
 
@@ -81,7 +83,7 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
       <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
         <button
           onClick={() => onEdit(egreso)}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-indigo-600"
+          className="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-indigo-600"
           aria-label="Editar"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -89,10 +91,10 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
         <button
           onClick={handleDelete}
           disabled={borrando}
-          className={`flex h-7 items-center justify-center rounded-lg transition-colors ${
+          className={`flex h-9 sm:h-7 items-center justify-center rounded-lg transition-colors ${
             confirmando
               ? "w-auto bg-red-50 px-2 text-[10px] font-semibold text-red-600"
-              : "w-7 text-neutral-400 hover:bg-red-50 hover:text-red-500"
+              : "w-9 sm:w-7 text-neutral-400 hover:bg-red-50 hover:text-red-500"
           }`}
           aria-label="Eliminar"
         >

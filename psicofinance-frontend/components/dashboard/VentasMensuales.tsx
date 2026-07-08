@@ -2,15 +2,9 @@
 
 import { useState } from "react";
 import type { VentaMensual } from "@/lib/types";
+import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
 interface Props { data: VentaMensual[] }
-
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
 
 function fmtK(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -76,6 +70,8 @@ export default function VentasMensuales({ data }: Props) {
                   className="relative flex flex-1 flex-col items-center gap-1.5"
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover(null)}
+                  // En touch no hay hover: el tap alterna el tooltip
+                  onClick={() => setHover(hover === i ? null : i)}
                 >
                   {/* Tooltip */}
                   {esHover && (

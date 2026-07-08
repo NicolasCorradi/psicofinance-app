@@ -120,14 +120,15 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
             </div>
           </div>
         ) : (
-          /* Vista de datos extraídos */
-          <div className="grid grid-cols-3 gap-2">
+          /* Vista de datos extraídos — el paciente ocupa fila completa en mobile
+             (nombres largos se cortaban en cards de ~105px) */
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
-              { l: "Paciente",  v: emisor || "Sin detectar" },
+              { l: "Paciente",  v: emisor || "Sin detectar", ancho: true },
               { l: "Monto",     v: `$ ${parseFloat(monto || "0").toLocaleString("es-AR")}`, highlight: true },
               { l: "Fecha",     v: fecha ? new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "—" },
-            ].map(({ l, v, highlight }) => (
-              <div key={l} className={`rounded-xl p-3 ring-1 ${highlight ? "bg-indigo-50 ring-indigo-100" : "bg-slate-50 ring-slate-100"}`}>
+            ].map(({ l, v, highlight, ancho }) => (
+              <div key={l} className={`rounded-xl p-3 ring-1 ${ancho ? "col-span-2 sm:col-span-1" : ""} ${highlight ? "bg-indigo-50 ring-indigo-100" : "bg-slate-50 ring-slate-100"}`}>
                 <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">{l}</p>
                 <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700" : "text-neutral-800"}`}>{v}</p>
               </div>

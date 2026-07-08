@@ -141,9 +141,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Header móvil ── */}
-      <header className="lg:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-3 backdrop-blur-xl">
+      <header className="lg:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl">
         {/* Logo */}
-        <div className="flex items-center gap-2 shrink-0 mr-3">
+        <div className="flex items-center gap-2 shrink-0 mr-1">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100">
             <BrainCircuit className="h-3.5 w-3.5 text-indigo-600" strokeWidth={1.8} />
           </div>
@@ -154,7 +154,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const active = pathname.startsWith(href);
             return (
               <Link key={href} href={href}
-                className={`flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors ${
+                className={`flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 transition-colors ${
                   active ? "text-indigo-600" : "text-neutral-400 hover:text-neutral-600"
                 }`}
               >
@@ -164,7 +164,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
           <button onClick={handleLogout}
-            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-neutral-400 hover:text-neutral-600 transition-colors">
+            className="flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-neutral-400 hover:text-neutral-600 transition-colors">
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
             <span className="text-[9px] font-semibold tracking-wide">Salir</span>
           </button>

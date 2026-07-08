@@ -8,34 +8,13 @@ import { exportCSV } from "@/lib/export";
 import PacienteDetalle from "@/components/pacientes/PacienteDetalle";
 import NuevoPaciente from "@/components/pacientes/NuevoPaciente";
 import { avatarCls, iniciales } from "@/lib/avatar";
+import { fmtPesosCompacto as fmtPesos, fmtPesos as fmtPesosExacto, isoHoy, fechaRel as fechaRelBase } from "@/lib/format";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtPesos(n: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS",
-    notation: "compact", maximumFractionDigits: 1,
-  }).format(n);
-}
-
-function fmtPesosExacto(n: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
-}
-
-function isoHoy(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function fechaRel(iso: string | null): string {
   if (!iso) return "Sin sesiones";
-  const f   = new Date(iso + "T12:00:00");
-  const dias = Math.round((Date.now() - f.getTime()) / 86_400_000);
-  if (dias === 0) return "Hoy";
-  if (dias === 1) return "Ayer";
-  if (dias < 7)  return `Hace ${dias}d`;
-  if (dias < 30) return `Hace ${Math.round(dias / 7)}sem`;
-  return f.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  return fechaRelBase(iso);
 }
 
 // ── Badge de estado ───────────────────────────────────────────────────────────
@@ -77,6 +56,7 @@ function EditarHonorario({
   const [error,    setError]    = useState("");
 
   const guardar = async () => {
+    if (guardando) return; // Enter rápido dispara doble submit
     const num = Number(valor.replace(/\D/g, ""));
     if (!num || num <= 0) { setError("Ingresá un monto válido"); return; }
     setGuardando(true);
@@ -168,11 +148,13 @@ export default function PacientesPage() {
   const [editando,     setEditando]     = useState<PacienteConStats | null>(null);
   const [ordenCampo,   setOrdenCampo]   = useState<OrdenCampo>("apellido");
   const [ordenDir,     setOrdenDir]     = useState<OrdenDir>("asc");
+  const [errorCarga,   setErrorCarga]   = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
+    setErrorCarga(false);
     try { setPacientes(await getPacientes()); }
-    catch { /* silencioso */ }
+    catch { setErrorCarga(true); } // sin esto, un fallo se ve igual que "sin pacientes"
     finally { setCargando(false); }
   }, []);
 
@@ -294,7 +276,7 @@ export default function PacientesPage() {
               <div key={label} className="relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
                 <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
                 <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400">{label}</p>
-                <p className={`mt-1.5 text-2xl font-bold tabular-nums ${color}`}>{value}</p>
+                <p className={`mt-1.5 text-xl sm:text-2xl font-bold tabular-nums ${color}`}>{value}</p>
               </div>
             ))}
           </div>
@@ -318,6 +300,14 @@ export default function PacientesPage() {
               <div key={i} className="h-14 animate-pulse rounded-xl bg-neutral-100" />
             ))}
           </div>
+        ) : errorCarga ? (
+          <div className="py-16 text-center">
+            <p className="text-sm text-neutral-500">No se pudieron cargar los pacientes.</p>
+            <button onClick={cargar}
+              className="mt-3 rounded-xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50">
+              Reintentar
+            </button>
+          </div>
         ) : filtradosOrdenados.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-sm text-neutral-400">
@@ -325,105 +315,138 @@ export default function PacientesPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-            {/* Header de tabla */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-              <button
-                onClick={() => toggleOrden("apellido")}
-                className="flex items-center gap-1 hover:text-neutral-700 transition-colors text-left"
-              >
-                Paciente <SortIcon campo="apellido" />
-              </button>
-              <span className="hidden sm:block">Estado</span>
-              <button
-                onClick={() => toggleOrden("total_sesiones")}
-                className="hidden md:flex items-center gap-1 hover:text-neutral-700 transition-colors"
-              >
-                Sesiones <SortIcon campo="total_sesiones" />
-              </button>
-              <button
-                onClick={() => toggleOrden("honorario_actual")}
-                className="hidden md:flex items-center gap-1 hover:text-neutral-700 transition-colors"
-              >
-                Honorario <SortIcon campo="honorario_actual" />
-              </button>
-              <button
-                onClick={() => toggleOrden("pendiente")}
-                className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
-              >
-                Pendiente <SortIcon campo="pendiente" />
-              </button>
-              <span className="text-right">Acciones</span>
+          <>
+            {/* ── Mobile: tarjetas apiladas (el modelo de tabla no entra en 375px) ── */}
+            <div className="space-y-2 md:hidden">
+              {filtradosOrdenados.map(p => (
+                <div key={p.id} className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+                  <button
+                    onClick={() => setSeleccionado(p.id)}
+                    className="flex w-full items-center gap-3 px-3.5 pt-3.5 pb-2 text-left"
+                  >
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarCls(`${p.nombre} ${p.apellido}`)}`}>
+                      {iniciales(p.nombre, p.apellido)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-neutral-800">{p.nombre} {p.apellido}</p>
+                      <p className="mt-0.5 text-[11px] text-neutral-400 tabular-nums">
+                        {p.total_sesiones} ses. · {fmtPesos(p.cobrado_total)}
+                        {p.ultima_sesion && <span> · {fechaRel(p.ultima_sesion)}</span>}
+                      </p>
+                    </div>
+                    <EstadoBadge p={p} />
+                  </button>
+                  <div className="flex items-center justify-between gap-2 border-t border-neutral-50 px-3.5 py-2.5">
+                    <div className="flex items-baseline gap-1.5 text-xs">
+                      <span className="text-neutral-400">Pendiente</span>
+                      <span className={`font-semibold tabular-nums ${p.pendiente > 0 ? "text-red-600" : "text-neutral-300"}`}>
+                        {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditando(p); }}
+                      className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm active:bg-indigo-50 active:text-indigo-700"
+                    >
+                      $ Honorario
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Filas */}
-            {filtradosOrdenados.map(p => (
-              <div
-                key={p.id}
-                className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-50 px-4 py-3 transition-colors last:border-0 hover:bg-neutral-50/60"
-              >
-                {/* Paciente */}
+            {/* ── Desktop: tabla de columnas ── */}
+            <div className="hidden overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 md:block">
+              {/* Header de tabla */}
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
                 <button
-                  onClick={() => setSeleccionado(p.id)}
-                  className="flex items-center gap-3 text-left min-w-0"
+                  onClick={() => toggleOrden("apellido")}
+                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors text-left"
                 >
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(`${p.nombre} ${p.apellido}`)}`}>
-                    {iniciales(p.nombre, p.apellido)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-neutral-800">
-                        {p.nombre} {p.apellido}
-                      </p>
-                      {p.sesiones_mes > 0 && (
-                        <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
-                          {p.sesiones_mes} este mes
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-neutral-400 tabular-nums">
-                      {p.total_sesiones} ses. · {fmtPesos(p.cobrado_total)}
-                      {p.ultima_sesion && <span> · {fechaRel(p.ultima_sesion)}</span>}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+                  Paciente <SortIcon campo="apellido" />
                 </button>
-
-                {/* Badge estado */}
-                <div className="hidden sm:block">
-                  <EstadoBadge p={p} />
-                </div>
-
-                {/* Sesiones totales */}
-                <span className="hidden md:block text-xs text-neutral-500 tabular-nums text-center">
-                  {p.total_sesiones}
-                </span>
-
-                {/* Honorario */}
-                <span className="hidden md:block text-xs text-neutral-500 tabular-nums whitespace-nowrap">
-                  {p.honorario_actual ? fmtPesosExacto(p.honorario_actual) : "—"}
-                </span>
-
-                {/* Pendiente */}
-                <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
-                  p.pendiente > 0 ? "text-red-600" : "text-neutral-300"
-                }`}>
-                  {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
-                </span>
-
-                {/* Acciones */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={e => { e.stopPropagation(); setEditando(p); }}
-                    className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                    title="Editar honorario"
-                  >
-                    $ Honorario
-                  </button>
-                </div>
+                <span>Estado</span>
+                <button
+                  onClick={() => toggleOrden("total_sesiones")}
+                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                >
+                  Sesiones <SortIcon campo="total_sesiones" />
+                </button>
+                <button
+                  onClick={() => toggleOrden("honorario_actual")}
+                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                >
+                  Honorario <SortIcon campo="honorario_actual" />
+                </button>
+                <button
+                  onClick={() => toggleOrden("pendiente")}
+                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                >
+                  Pendiente <SortIcon campo="pendiente" />
+                </button>
+                <span className="text-right">Acciones</span>
               </div>
-            ))}
-          </div>
+
+              {/* Filas */}
+              {filtradosOrdenados.map(p => (
+                <div
+                  key={p.id}
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-50 px-4 py-3 transition-colors last:border-0 hover:bg-neutral-50/60"
+                >
+                  <button
+                    onClick={() => setSeleccionado(p.id)}
+                    className="flex items-center gap-3 text-left min-w-0"
+                  >
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(`${p.nombre} ${p.apellido}`)}`}>
+                      {iniciales(p.nombre, p.apellido)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-neutral-800">
+                          {p.nombre} {p.apellido}
+                        </p>
+                        {p.sesiones_mes > 0 && (
+                          <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                            {p.sesiones_mes} este mes
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-neutral-400 tabular-nums">
+                        {p.total_sesiones} ses. · {fmtPesos(p.cobrado_total)}
+                        {p.ultima_sesion && <span> · {fechaRel(p.ultima_sesion)}</span>}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+                  </button>
+
+                  <div><EstadoBadge p={p} /></div>
+
+                  <span className="text-xs text-neutral-500 tabular-nums text-center">
+                    {p.total_sesiones}
+                  </span>
+
+                  <span className="text-xs text-neutral-500 tabular-nums whitespace-nowrap">
+                    {p.honorario_actual ? fmtPesosExacto(p.honorario_actual) : "—"}
+                  </span>
+
+                  <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
+                    p.pendiente > 0 ? "text-red-600" : "text-neutral-300"
+                  }`}>
+                    {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
+                  </span>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditando(p); }}
+                      className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      title="Editar honorario"
+                    >
+                      $ Honorario
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </main>
 

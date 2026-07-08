@@ -25,10 +25,6 @@ function saludo(): string {
   return "Buenas noches";
 }
 
-const fechaCompleta = new Date().toLocaleDateString("es-AR", {
-  weekday: "long", day: "numeric", month: "long", year: "numeric",
-});
-
 // ── Pantalla de error ─────────────────────────────────────────────────────────
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
@@ -82,6 +78,14 @@ export default function DashboardPage() {
   const [cargando,   setCargando]   = useState(true);
   const [error,      setError]      = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // En cliente tras montar: a nivel de módulo quedaba vieja después de
+  // medianoche y podía diferir entre servidor y cliente (hydration mismatch)
+  const [fechaCompleta, setFechaCompleta] = useState("");
+  useEffect(() => {
+    setFechaCompleta(new Date().toLocaleDateString("es-AR", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+    }));
+  }, []);
 
   const cargar = useCallback(async () => {
     setCargando(true);

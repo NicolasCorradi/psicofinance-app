@@ -10,6 +10,7 @@ import type { EgresoRead, ResumenEgresos, TipoEgreso, CategoriaEgreso } from "@/
 import EgresoModal from "@/components/egresos/EgresoModal";
 import EgresoRow from "@/components/egresos/EgresoRow";
 import { CATEGORIAS, fmtPesos } from "@/components/egresos/constantes";
+import { fmtPesosCompacto } from "@/lib/format";
 
 // ── Helpers de mes ────────────────────────────────────────────────────────────
 
@@ -44,9 +45,13 @@ function ChipsResumen({ resumen }: { resumen: ResumenEgresos | null }) {
           <div className={`h-1 bg-gradient-to-r ${gradient}`} />
           <div className="px-4 py-3">
             <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">{label}</p>
-            <p className={`mt-1.5 font-mono text-xl font-bold leading-none tabular-nums ${cls}`}>
+            <p className={`mt-1.5 font-mono text-lg sm:text-xl font-bold leading-none tabular-nums ${cls}`}>
               {valor != null
-                ? fmtPesos(valor)
+                ? <>
+                    {/* Compacto en mobile ($1,2M): el monto completo desborda la card de ~105px */}
+                    <span className="sm:hidden">{fmtPesosCompacto(valor)}</span>
+                    <span className="hidden sm:inline">{fmtPesos(valor)}</span>
+                  </>
                 : <span className="animate-pulse text-neutral-200">——</span>}
             </p>
             <p className="mt-1.5 hidden text-[11px] text-neutral-400 sm:block">{sub}</p>
