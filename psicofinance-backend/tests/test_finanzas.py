@@ -159,14 +159,19 @@ class TestPrecisionDecimal:
         """
         Python nativo usa banker's rounding (round-half-to-even).
         Nosotros debemos usar ROUND_HALF_UP (estándar financiero).
-        Ej: 2.675 → debe redondear a 2.68, no a 2.67.
+        Caso discriminante: 2.665 → HALF_UP da 2.67, HALF_EVEN da 2.66
+        (2.675 no sirve: ambos modos dan 2.68 porque el dígito previo es impar).
         """
-        # Construir un caso donde ROUND_HALF_UP difiere de banker's rounding
-        # 0.005 en Decimal("0.005") → ROUND_HALF_UP da 0.01, banker's da 0.00
         from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_EVEN
-        d = Decimal("2.675")
-        assert float(d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) == 2.68
-        assert float(d.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)) == 2.68  # coincide aquí
+        d = Decimal("2.665")
+        assert d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) == Decimal("2.67")
+        assert d.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN) == Decimal("2.66")
+
+        # A través del motor: 5.33 / (1 + 1.0)^1 = 2.665 exacto en Decimal.
+        # Con HALF_UP el valor real debe ser 2.67; con banker's daría 2.66.
+        r = calcular_valor_real(5.33, 1.0, 1)
+        assert r.valor_real == 2.67
+        assert r.perdida_absoluta == 2.67  # 5.33 - 2.665 = 2.665 → 2.67
 
     def test_suma_muchos_turnos_precision(self):
         """
