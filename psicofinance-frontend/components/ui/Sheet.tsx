@@ -12,6 +12,7 @@ interface SheetProps {
 
 export default function Sheet({ open, onClose, title, children }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -25,6 +26,16 @@ export default function Sheet({ open, onClose, title, children }: SheetProps) {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
+  // Mover el foco al panel al abrir y devolverlo al disparador al cerrar
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement as HTMLElement | null;
+      panelRef.current?.focus();
+    } else {
+      triggerRef.current?.focus();
+    }
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -35,7 +46,11 @@ export default function Sheet({ open, onClose, title, children }: SheetProps) {
       {/* Panel — bottom sheet en mobile, side panel en desktop */}
       <div
         ref={panelRef}
-        className="relative z-10 flex w-full flex-col bg-white shadow-2xl
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        className="relative z-10 flex w-full flex-col bg-white shadow-2xl outline-none
           rounded-t-2xl max-h-[85dvh]
           sm:rounded-none sm:h-full sm:max-h-full sm:max-w-md
           animate-in slide-in-from-bottom duration-250

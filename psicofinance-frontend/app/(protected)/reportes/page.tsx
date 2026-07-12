@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Users, DollarSign, Target, Award, Calendar, Download, Loader2 } from "lucide-react";
+import { TrendingUp, Users, DollarSign, Target, Award, Calendar, Download, Loader2, Printer } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -11,7 +11,7 @@ import type { MetricasDashboard, PacienteConStats, ResultadoSemaforo, ResumenEgr
 import { CATEGORIAS as CATEGORIAS_EGRESO } from "@/components/egresos/constantes";
 import { avatarCls, iniciales } from "@/lib/avatar";
 import { exportCSV } from "@/lib/export";
-import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
+import { fmtPesosCompacto as fmtPesos, fmtPesos as fmtPesosExacto } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 
 function fmtPesosEje(value: number): string {
@@ -32,7 +32,8 @@ function CustomTooltip({ active, payload, label }: {
         <div key={p.name} className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
           <span className="text-white/70">{p.name}:</span>
-          <span className="font-medium tabular-nums text-white">{fmtPesos(p.value)}</span>
+          {/* Monto exacto: el tooltip es donde el usuario va a leer el valor real */}
+          <span className="font-medium tabular-nums text-white">{fmtPesosExacto(p.value)}</span>
         </div>
       ))}
     </div>
@@ -128,9 +129,21 @@ export default function ReportesPage() {
           <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">Reportes</h1>
           <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
         </div>
-        <div className="flex flex-col gap-1.5 sm:items-end">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-neutral-400">Desde</span>
+        <div className="flex flex-col gap-1.5 sm:items-end print:hidden">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm transition hover:bg-neutral-50"
+              title="Imprimir el reporte o guardarlo como PDF"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Imprimir / PDF
+            </button>
+          </div>
+          {/* Rango solo para la exportación CSV — no filtra los gráficos de esta página */}
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/60 px-2 py-1.5">
+            <span className="text-[11px] font-medium text-neutral-500">Exportar CSV:</span>
+            <span className="text-[11px] text-neutral-400">desde</span>
             <input
               type="month"
               value={exportDesde}
@@ -196,7 +209,7 @@ export default function ReportesPage() {
       {/* KPIs */}
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { icon: DollarSign, label: "Facturado 12m",    value: kpis ? fmtPesos(kpis.cobradoAno)   : "—", gradient: "from-emerald-400 to-teal-500",  color: "text-emerald-600", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+          { icon: DollarSign, label: "Facturado (6 meses)", value: kpis ? fmtPesos(kpis.cobradoAno)   : "—", gradient: "from-emerald-400 to-teal-500",  color: "text-emerald-600", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
           { icon: Calendar,   label: "Promedio mensual", value: kpis ? fmtPesos(kpis.promedioMes)  : "—", gradient: "from-indigo-400 to-violet-500",  color: "text-indigo-600",  iconBg: "bg-indigo-100",  iconColor: "text-indigo-600"  },
           { icon: TrendingUp, label: "Ticket promedio",  value: kpis ? fmtPesos(kpis.ticket)       : "—", gradient: "from-amber-400 to-orange-400",   color: "text-amber-600",   iconBg: "bg-amber-100",   iconColor: "text-amber-600"   },
           { icon: Users,      label: "Activos este mes", value: kpis ? `${kpis.activos} / ${pacientes.length}` : "—", gradient: "from-cyan-400 to-blue-500", color: "text-cyan-600", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" },

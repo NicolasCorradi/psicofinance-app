@@ -59,7 +59,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
 
       {/* ── Sidebar desktop ── */}
-      <aside className="hidden lg:flex w-56 shrink-0 flex-col bg-sidebar bg-gradient-to-b from-indigo-950 via-slate-950 to-slate-950 border-r border-sidebar-border fixed inset-y-0 left-0 z-50 overflow-hidden">
+      <aside className="hidden lg:flex print:hidden w-56 shrink-0 flex-col bg-sidebar bg-gradient-to-b from-indigo-950 via-slate-950 to-slate-950 border-r border-sidebar-border fixed inset-y-0 left-0 z-50 overflow-hidden">
 
         {/* Luz ambiental superior — profundidad sin ruido */}
         <div className="pointer-events-none absolute -top-24 -left-16 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
@@ -141,7 +141,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Header móvil ── */}
-      <header className="lg:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl">
+      <header className="lg:hidden print:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl">
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0 mr-1">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100">
@@ -172,8 +172,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* ── Contenido principal ── */}
-      <div className="flex-1 lg:ml-56 min-w-0">
-        <div className="lg:hidden h-14" />
+      <div className="flex-1 lg:ml-56 print:ml-0 min-w-0">
+        <div className="lg:hidden print:hidden h-14" />
         {children}
       </div>
     </div>

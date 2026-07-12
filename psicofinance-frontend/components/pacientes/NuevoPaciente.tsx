@@ -5,6 +5,7 @@ import { X, UserPlus } from "lucide-react";
 import { crearPaciente } from "@/lib/api";
 import type { PacienteCreatePayload } from "@/lib/types";
 import { isoHoy } from "@/lib/format";
+import { useToast } from "@/lib/toast";
 
 interface Props {
   onCreado:  () => void;
@@ -13,10 +14,11 @@ interface Props {
 
 export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
   const [form, setForm] = useState<PacienteCreatePayload>({
-    nombre: "", apellido: "", email: null, honorario_actual: null,
+    nombre: "", apellido: "", email: null, telefono: null, honorario_actual: null,
   });
   const [guardando, setGuardando] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+  const toast = useToast();
 
   const set = (k: keyof PacienteCreatePayload, v: string) =>
     setForm((f) => ({ ...f, [k]: v || null }));
@@ -33,6 +35,7 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
         nombre:   form.nombre.trim(),
         apellido: form.apellido.trim(),
         email:    form.email?.trim() || null,
+        telefono: form.telefono?.trim() || null,
         honorario_actual: form.honorario_actual
           ? parseFloat(String(form.honorario_actual).replace(",", ".")) || null
           : null,
@@ -42,6 +45,7 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
             : null,
       };
       await crearPaciente(payload);
+      toast.success(`${payload.nombre} ${payload.apellido} agregado`);
       onCreado();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al crear el paciente.");
@@ -115,6 +119,19 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
                 className="rounded-lg border border-neutral-200 px-2.5 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 placeholder="ejemplo@mail.com"
               />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Celular (opcional)</label>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={form.telefono ?? ""}
+                onChange={(e) => set("telefono", e.target.value)}
+                className="rounded-lg border border-neutral-200 px-2.5 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                placeholder="Ej: 11 2233-4455"
+              />
+              <p className="text-[10px] text-neutral-400">Para enviar recordatorios de pago por WhatsApp.</p>
             </div>
 
             <div className="flex flex-col gap-1">

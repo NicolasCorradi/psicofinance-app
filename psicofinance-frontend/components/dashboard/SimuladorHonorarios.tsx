@@ -6,7 +6,7 @@ import { getPacientes } from "@/lib/api";
 import type { PacienteConStats } from "@/lib/types";
 import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
-export default function SimuladorHonorarios() {
+export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: number }) {
   const [pacientes, setPacientes] = useState<PacienteConStats[]>([]);
   const [pct,       setPct]       = useState<string>("10");
   const [cargando,  setCargando]  = useState(true);
@@ -16,7 +16,7 @@ export default function SimuladorHonorarios() {
       .then(setPacientes)
       .catch(() => {})
       .finally(() => setCargando(false));
-  }, []);
+  }, [refreshKey]);
 
   const conHonorario = pacientes.filter(p => p.honorario_actual && p.honorario_actual > 0);
   // Solo pacientes con sesiones este mes: contar inactivos como 1 sesión

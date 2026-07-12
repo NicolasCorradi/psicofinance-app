@@ -63,17 +63,35 @@ export class ApiError extends Error {
 // Helpers internos HTTP
 // ---------------------------------------------------------------------------
 
+// El backend en Render (free tier) puede tardar hasta ~50s en despertar
+// si estuvo inactivo. 55s da margen sin dejar al usuario esperando indefinidamente.
+const TIMEOUT_MS = 55_000;
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await tokenSesion();
-  const res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
-    ...init,
-    headers: {
-      ...init?.headers,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    // En Next.js 16 App Router: 'no-store' desactiva caché para datos dinámicos
-    cache: init?.method && init.method !== 'GET' ? undefined : 'no-store',
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        ...init?.headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      // En Next.js 16 App Router: 'no-store' desactiva caché para datos dinámicos
+      cache: init?.method && init.method !== 'GET' ? undefined : 'no-store',
+    });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new ApiError(0, 'El servidor está tardando en responder (puede estar iniciando). Probá de nuevo en un momento.');
+    }
+    throw new ApiError(0, 'No pudimos conectar con el servidor. Revisá tu conexión a internet.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!res.ok) {
     let detalle = '';
@@ -83,9 +101,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       detalle = await res.text().catch(() => '');
     }
+    if (res.status === 401) {
+      throw new ApiError(401, 'Tu sesión expiró. Iniciá sesión de nuevo.');
+    }
     throw new ApiError(res.status, detalle || `HTTP ${res.status} en ${path}`);
   }
 
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -115,21 +137,7 @@ function patch<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function del(path: string): Promise<void> {
-  const token = await tokenSesion();
-  const res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
-    method: 'DELETE',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  if (!res.ok && res.status !== 204) {
-    let detalle = '';
-    try {
-      const json = await res.json();
-      detalle = json?.detail ?? '';
-    } catch {
-      // sin cuerpo JSON
-    }
-    throw new ApiError(res.status, detalle || `Error al eliminar: HTTP ${res.status}`);
-  }
+  await apiFetch<void>(path, { method: 'DELETE' });
 }
 
 // ---------------------------------------------------------------------------

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock, Mail, Banknote, CreditCard, Smartphone, ArrowLeftRight, HelpCircle } from "lucide-react";
+import { X, Pencil, Check, Trash2, Calendar, TrendingUp, Clock, Mail, Phone, MessageCircle, Banknote, CreditCard, Smartphone, ArrowLeftRight, HelpCircle } from "lucide-react";
 import { getPacienteDetalle, actualizarPaciente, eliminarPaciente } from "@/lib/api";
 import type { PacienteDetalle as Detalle, TurnoEnDetalle, EstadoTurno, MedioPago, TipoSesion, PacienteUpdatePayload } from "@/lib/types";
 import { avatarCls } from "@/lib/avatar";
 import { fmtPesosCompacto as fmtPesos, isoHoy, fechaRel, MEDIO_LABEL_CORTO as MEDIO_LABELS } from "@/lib/format";
+import { linkWhatsApp, mensajeRecordatorioDeuda } from "@/lib/whatsapp";
+import { useToast } from "@/lib/toast";
 
 function fmtFecha(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("es-AR", {
@@ -77,6 +79,7 @@ interface EditForm {
   nombre:    string;
   apellido:  string;
   email:     string;
+  telefono:  string;
   honorario: string;
 }
 
@@ -91,7 +94,8 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [errorCarga, setErrorCarga] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState(false);
-  const [form, setForm] = useState<EditForm>({ nombre: "", apellido: "", email: "", honorario: "" });
+  const [form, setForm] = useState<EditForm>({ nombre: "", apellido: "", email: "", telefono: "", honorario: "" });
+  const toast = useToast();
 
   useEffect(() => {
     // Flag de cancelación: al cambiar rápido de paciente, una respuesta vieja
@@ -111,6 +115,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       nombre:    detalle.nombre,
       apellido:  detalle.apellido,
       email:     detalle.email ?? "",
+      telefono:  detalle.telefono ?? "",
       honorario: detalle.honorario_actual ? String(detalle.honorario_actual) : "",
     });
     setEditando(true);
@@ -125,6 +130,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
         nombre:   form.nombre.trim()   || undefined,
         apellido: form.apellido.trim() || undefined,
         email:    form.email.trim()    || null,
+        telefono: form.telefono.trim() || null,
       };
       const hon = parseFloat(form.honorario.replace(",", "."));
       if (!isNaN(hon) && hon > 0) {
@@ -135,6 +141,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       const d = await getPacienteDetalle(detalle.id);
       setDetalle(d);
       setEditando(false);
+      toast.success("Cambios guardados");
       onRefresh();
     } catch {
       setErrorGuardar(true); // sin catch quedaba en modo edición sin aviso
@@ -148,6 +155,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
     setGuardando(true);
     try {
       await eliminarPaciente(detalle.id);
+      toast.success(`${detalle.nombre} ${detalle.apellido} eliminado`);
       onRefresh();
       onClose();
     } catch (e: unknown) {
@@ -201,6 +209,12 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                       {detalle.email}
                     </p>
                   )}
+                  {detalle?.telefono && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-white/50">
+                      <Phone className="h-3 w-3" />
+                      {detalle.telefono}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -251,6 +265,26 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                   <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{sesionesReales} sesiones</span>
                   {inasistencias > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-300" />{inasistencias} inasistencias</span>}
                 </div>
+              </div>
+            )}
+
+            {/* Recordatorio de pago por WhatsApp — solo si hay deuda */}
+            {detalle.pendiente > 0 && (
+              <div className="border-b border-neutral-100 bg-white px-4 py-2.5">
+                <a
+                  href={linkWhatsApp(detalle.telefono, mensajeRecordatorioDeuda(detalle.nombre, detalle.pendiente))}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200 transition-colors hover:bg-emerald-100"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Recordar pago por WhatsApp · {fmtPesos(detalle.pendiente)}
+                </a>
+                {!detalle.telefono && (
+                  <p className="mt-1.5 text-center text-[11px] text-neutral-400">
+                    Sin celular cargado: WhatsApp te va a pedir elegir el contacto.
+                  </p>
+                )}
               </div>
             )}
           </>
@@ -319,6 +353,18 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                         placeholder="ejemplo@mail.com"
                         className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                       />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase text-neutral-400">Celular</label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={form.telefono}
+                        onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))}
+                        placeholder="Ej: 11 2233-4455"
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      />
+                      <p className="text-[10px] text-neutral-400">Para recordatorios de pago por WhatsApp.</p>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] uppercase text-neutral-400">Honorario actual $</label>

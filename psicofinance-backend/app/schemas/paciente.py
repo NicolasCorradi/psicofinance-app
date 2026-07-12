@@ -34,6 +34,7 @@ class PacienteBase(BaseModel):
     nombre:   str = Field(min_length=1, max_length=100)
     apellido: str = Field(min_length=1, max_length=100)
     email:    str | None = None
+    telefono: str | None = Field(default=None, max_length=30)
     honorario_actual:              float | None = Field(default=None, gt=0)
     fecha_ultimo_ajuste_honorario: date  | None = None
 
@@ -47,6 +48,7 @@ class PacienteUpdate(BaseModel):
     nombre:   str | None = Field(default=None, min_length=1, max_length=100)
     apellido: str | None = Field(default=None, min_length=1, max_length=100)
     email:    str | None = None
+    telefono: str | None = Field(default=None, max_length=30)
     honorario_actual:              float | None = Field(default=None, gt=0)
     fecha_ultimo_ajuste_honorario: date  | None = None
 

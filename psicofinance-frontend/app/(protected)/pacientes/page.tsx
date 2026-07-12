@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { UserPlus, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, X, Save, Download } from "lucide-react";
+import { UserPlus, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, X, Save, Download, MessageCircle } from "lucide-react";
+import { linkWhatsApp, mensajeRecordatorioDeuda } from "@/lib/whatsapp";
+import { useToast } from "@/lib/toast";
 import { getPacientes, actualizarPaciente } from "@/lib/api";
 import type { PacienteConStats } from "@/lib/types";
 import { exportCSV } from "@/lib/export";
@@ -54,6 +56,7 @@ function EditarHonorario({
   const [valor,    setValor]    = useState(String(paciente.honorario_actual ?? ""));
   const [guardando, setGuardando] = useState(false);
   const [error,    setError]    = useState("");
+  const toast = useToast();
 
   const guardar = async () => {
     if (guardando) return; // Enter rápido dispara doble submit
@@ -65,6 +68,7 @@ function EditarHonorario({
         honorario_actual: num,
         fecha_ultimo_ajuste_honorario: isoHoy(),
       });
+      toast.success(`Honorario de ${paciente.nombre} actualizado`);
       onGuardado();
       onCerrar();
     } catch {
@@ -343,12 +347,27 @@ export default function PacientesPage() {
                         {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
                       </span>
                     </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); setEditando(p); }}
-                      className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm active:bg-indigo-50 active:text-indigo-700"
-                    >
-                      $ Honorario
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {p.pendiente > 0 && (
+                        <a
+                          href={linkWhatsApp(p.telefono, mensajeRecordatorioDeuda(p.nombre, p.pendiente))}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 active:bg-emerald-100"
+                          title="Recordar pago por WhatsApp"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          Recordar
+                        </a>
+                      )}
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditando(p); }}
+                        className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm active:bg-indigo-50 active:text-indigo-700"
+                      >
+                        $ Honorario
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -434,7 +453,20 @@ export default function PacientesPage() {
                     {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
                   </span>
 
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-end gap-1.5">
+                    {p.pendiente > 0 && (
+                      <a
+                        href={linkWhatsApp(p.telefono, mensajeRecordatorioDeuda(p.nombre, p.pendiente))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 transition-all hover:bg-emerald-100"
+                        title={`Recordar pago por WhatsApp (${fmtPesosExacto(p.pendiente)})`}
+                        aria-label="Recordar pago por WhatsApp"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                     <button
                       onClick={e => { e.stopPropagation(); setEditando(p); }}
                       className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"

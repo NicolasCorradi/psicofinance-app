@@ -68,13 +68,19 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
   const esInasistencia = tipoSesion !== "SESION";
 
   async function confirmar() {
-    setGuardando(true); setError("");
+    setError("");
+    const montoNum = Number(monto) || 0;
+    if (!esInasistencia && montoNum <= 0) {
+      setError("Ingresá un monto mayor a $0 para registrar la sesión.");
+      return;
+    }
+    setGuardando(true);
     try {
       const hoy = isoDate(new Date());
       await crearTurno({
         paciente_id:          slot.paciente_id,
         fecha_turno:          fecha,
-        monto:                esInasistencia ? 0 : (Number(monto) || 0),
+        monto:                esInasistencia ? 0 : montoNum,
         estado:               esInasistencia ? "COBRADO" : estado,
         tipo_sesion:          tipoSesion,
         origen_pago:          "DIRECTO",
@@ -117,7 +123,7 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
               ["INASISTENCIA_INJUSTIFICADA",  "Faltó"],
               ["CANCELACION_PROFESIONAL",     "Cancelé yo"],
             ] as [TipoSesion, string][]).map(([val, label]) => (
-              <button key={val} onClick={() => setTipoSesion(val)}
+              <button key={val} onClick={() => { setTipoSesion(val); setError(""); }}
                 className={`rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${tipoSesion === val ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50"}`}>
                 {label}
               </button>
@@ -131,7 +137,7 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
             <p className="mb-1.5 text-xs font-semibold text-neutral-500">Monto</p>
             <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5">
               <span className="text-sm text-neutral-400">$</span>
-              <input type="number" value={monto} onChange={e => setMonto(e.target.value)}
+              <input type="number" min={0} value={monto} onChange={e => setMonto(e.target.value)}
                 placeholder="0" className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none"/>
             </div>
           </div>
@@ -193,7 +199,13 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
   const esInasistencia = tipoSesion !== "SESION";
 
   async function guardar() {
-    setGuardando(true); setError("");
+    setError("");
+    const montoNum = Number(monto) || 0;
+    if (!esInasistencia && montoNum <= 0) {
+      setError("Ingresá un monto mayor a $0 para registrar la sesión.");
+      return;
+    }
+    setGuardando(true);
     try {
       const hoy = isoDate(new Date());
       const estadoFinal = esInasistencia ? "COBRADO" : estado;
@@ -205,7 +217,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
       else if (estadoFinal !== "COBRADO" && turno.fecha_cobro_efectivo) fechaCobro = null;
       await actualizarTurno(turno.id, {
         tipo_sesion:          tipoSesion,
-        monto:                esInasistencia ? 0 : (Number(monto) || 0),
+        monto:                esInasistencia ? 0 : montoNum,
         estado:               estadoFinal,
         medio_pago:           medioPago || null,
         ...(fechaCobro !== undefined ? { fecha_cobro_efectivo: fechaCobro } : {}),
@@ -254,7 +266,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
               ["INASISTENCIA_INJUSTIFICADA",  "Faltó"],
               ["CANCELACION_PROFESIONAL",     "Cancelé yo"],
             ] as [TipoSesion, string][]).map(([val, label]) => (
-              <button key={val} onClick={() => setTipoSesion(val)}
+              <button key={val} onClick={() => { setTipoSesion(val); setError(""); }}
                 className={`rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${tipoSesion === val ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50"}`}>
                 {label}
               </button>
@@ -268,7 +280,7 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
             <p className="mb-1.5 text-xs font-semibold text-neutral-500">Monto</p>
             <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5">
               <span className="text-sm text-neutral-400">$</span>
-              <input type="number" value={monto} onChange={e => setMonto(e.target.value)}
+              <input type="number" min={0} value={monto} onChange={e => setMonto(e.target.value)}
                 className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none"/>
             </div>
           </div>

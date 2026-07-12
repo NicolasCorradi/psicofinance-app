@@ -32,7 +32,7 @@ interface SesionHoy {
 
 // ── Componente ────────────────────────────────────────────────────────────────
 
-export default function MiniAgenda() {
+export default function MiniAgenda({ refreshKey = 0 }: { refreshKey?: number }) {
   const [sesiones,  setSesiones]  = useState<SesionHoy[]>([]);
   const [cargando,  setCargando]  = useState(true);
 
@@ -90,7 +90,7 @@ export default function MiniAgenda() {
 
       setSesiones(lista);
     }).catch(() => {}).finally(() => setCargando(false));
-  }, []);
+  }, [refreshKey]);
 
   const registradas   = sesiones.filter(s => s.estado !== "sin_registrar").length;
   const total         = sesiones.length;

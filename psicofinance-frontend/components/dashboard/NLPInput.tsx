@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Paperclip, X, Sparkles, Command, RotateCcw, Mic, MicOff } from "lucide-react";
-import { enviarMensajeChat, procesarComprobante, enviarAudio } from "@/lib/api";
+import { ArrowUp, Paperclip, X, Sparkles, Command, RotateCcw, Mic, MicOff, RefreshCw, Undo2 } from "lucide-react";
+import { enviarMensajeChat, procesarComprobante, enviarAudio, eliminarTurno } from "@/lib/api";
 import type { ChatResponse, DatosBorrador, DatosExtraidos } from "@/lib/types";
 import BorradorAprobacion from "./BorradorAprobacion";
 
@@ -17,7 +17,14 @@ type Mensaje = {
   accion?:        string;
   datos?:         DatosExtraidos | null;
   pacienteNuevo?: boolean;
+  turnoId?:       string;   // presente si accion === "turno_registrado" — permite deshacer
+  deshecho?:      boolean;
 };
+
+// Último envío fallido — permite reintentar sin retipear/regrabar
+type EnvioPendiente =
+  | { tipo: "texto"; mensaje: string; historial: { rol: string; texto: string }[] }
+  | { tipo: "audio"; blob: Blob };
 
 const CHAT_KEY = "psico_chat_history";
 const MAX_HISTORY = 20;
@@ -51,20 +58,25 @@ function getSugerencias(ultimoPaciente?: string): string[] {
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 
 export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
-  const [texto,    setTexto]    = useState("");
-  const [adjunto,  setAdjunto]  = useState(false);
-  const [cargando, setCargando] = useState(false);
-  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
-  const [borrador, setBorrador] = useState<DatosBorrador | null>(null);
-  const [error,    setError]    = useState<string | null>(null);
-  const [focused,  setFocused]  = useState(false);
-  const [grabando, setGrabando] = useState(false);
+  const [texto,      setTexto]      = useState("");
+  const [adjunto,    setAdjunto]    = useState(false);
+  const [cargando,   setCargando]   = useState(false);
+  const [mensajes,   setMensajes]   = useState<Mensaje[]>([]);
+  const [borrador,   setBorrador]   = useState<DatosBorrador | null>(null);
+  const [error,      setError]      = useState<string | null>(null);
+  const [focused,    setFocused]    = useState(false);
+  const [grabando,   setGrabando]   = useState(false);
+  const [segundos,   setSegundos]   = useState(0);
+  const [deshaciendo, setDeshaciendo] = useState<string | null>(null); // turnoId en proceso de deshacer
 
   const inputFileRef      = useRef<HTMLInputElement>(null);
   const textareaRef       = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef  = useRef<HTMLDivElement>(null);
   const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
   const chunksRef         = useRef<Blob[]>([]);
+  const canceladoRef      = useRef(false);
+  const timerRef          = useRef<ReturnType<typeof setInterval> | null>(null);
+  const envioPendienteRef = useRef<EnvioPendiente | null>(null);
 
   // ── Restaurar historial desde localStorage ────────────────────────────────
   useEffect(() => {
@@ -106,6 +118,11 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
     }
   }, [mensajes]);
 
+  // Limpiar el timer de grabación si el componente se desmonta a mitad de una grabación
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
@@ -115,35 +132,67 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
     const msg = texto.trim();
     if (!msg || cargando) return;
 
-    const msgUsuario: Mensaje = { tipo: "user", texto: msg };
-    setMensajes(prev => [...prev, msgUsuario]);
+    // Historial SIN el mensaje nuevo: ya viaja en `mensaje` y duplicarlo
+    // confunde al modelo (puede registrar el turno dos veces)
+    const historialParaApi = mensajes.map(m => ({
+      rol: m.tipo === "user" ? "user" : "assistant",
+      texto: m.texto,
+    }));
+
+    setMensajes(prev => [...prev, { tipo: "user", texto: msg }]);
     setTexto("");
     setError(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
+    await enviarTexto(msg, historialParaApi);
+  };
+
+  const enviarTexto = async (msg: string, historial: { rol: string; texto: string }[]) => {
     setCargando(true);
     try {
-      // Historial SIN el mensaje nuevo: ya viaja en `mensaje` y duplicarlo
-      // confunde al modelo (puede registrar el turno dos veces)
-      const historialParaApi = mensajes.map(m => ({
-        rol: m.tipo === "user" ? "user" : "assistant",
-        texto: m.texto,
-      }));
-      const res: ChatResponse = await enviarMensajeChat(msg, historialParaApi);
+      const res: ChatResponse = await enviarMensajeChat(msg, historial);
       const msgBot: Mensaje = {
         tipo:          "bot",
         texto:         res.confirmacion,
         accion:        res.accion,
         datos:         res.datos_extraidos,
         pacienteNuevo: res.paciente_nuevo,
+        turnoId:       res.turno_creado?.id,
       };
       setMensajes(prev => [...prev, msgBot]);
+      envioPendienteRef.current = null;
       if (res.accion === "turno_registrado") onTurnoCreado?.();
     } catch (e) {
+      // No borramos el mensaje del usuario: queda visible en el historial
+      // y el botón "Reintentar" del banner de error reenvía el mismo payload.
+      envioPendienteRef.current = { tipo: "texto", mensaje: msg, historial };
       setError(e instanceof Error ? e.message : "Error al conectar.");
-      setMensajes(prev => prev.slice(0, -1));
     } finally {
       setCargando(false);
+    }
+  };
+
+  const reintentar = async () => {
+    const pendiente = envioPendienteRef.current;
+    if (!pendiente || cargando) return;
+    setError(null);
+    if (pendiente.tipo === "texto") {
+      await enviarTexto(pendiente.mensaje, pendiente.historial);
+    } else {
+      await enviarBlobAudio(pendiente.blob);
+    }
+  };
+
+  const deshacerTurno = async (turnoId: string) => {
+    setDeshaciendo(turnoId);
+    try {
+      await eliminarTurno(turnoId);
+      setMensajes(prev => prev.map(m => m.turnoId === turnoId ? { ...m, deshecho: true } : m));
+      onTurnoCreado?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo deshacer el turno.");
+    } finally {
+      setDeshaciendo(null);
     }
   };
 
@@ -177,6 +226,41 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
     textareaRef.current?.focus();
   };
 
+  const detenerTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setSegundos(0);
+  };
+
+  const enviarBlobAudio = async (blob: Blob) => {
+    setCargando(true);
+    try {
+      const res = await enviarAudio(blob);
+      const textoUsuario = res.transcripcion ?? "🎤 (audio)";
+      const msgUsuario: Mensaje = { tipo: "user", texto: textoUsuario };
+      const msgBot: Mensaje = {
+        tipo: "bot",
+        texto: res.confirmacion,
+        accion: res.accion,
+        datos: res.datos_extraidos,
+        pacienteNuevo: res.paciente_nuevo,
+        turnoId: res.turno_creado?.id,
+      };
+      setMensajes(prev => [...prev, msgUsuario, msgBot]);
+      envioPendienteRef.current = null;
+      if (res.accion === "turno_registrado") onTurnoCreado?.();
+    } catch (e) {
+      envioPendienteRef.current = { tipo: "audio", blob };
+      setError(e instanceof Error ? e.message : "Error al procesar el audio.");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const cancelarGrabacion = () => {
+    canceladoRef.current = true;
+    mediaRecorderRef.current?.stop();
+  };
+
   const toggleGrabacion = async () => {
     if (grabando) {
       mediaRecorderRef.current?.stop();
@@ -189,39 +273,25 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
       const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
       const recorder = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
+      canceladoRef.current = false;
 
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
 
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         setGrabando(false);
+        detenerTimer();
+        if (canceladoRef.current) return;
         const blob = new Blob(chunksRef.current, { type: mimeType });
         if (blob.size < 1000) return;
-
-        setCargando(true);
-        try {
-          const res = await enviarAudio(blob);
-          const textoUsuario = res.transcripcion ?? "🎤 (audio)";
-          const msgUsuario: Mensaje = { tipo: "user", texto: textoUsuario };
-          const msgBot: Mensaje = {
-            tipo: "bot",
-            texto: res.confirmacion,
-            accion: res.accion,
-            datos: res.datos_extraidos,
-            pacienteNuevo: res.paciente_nuevo,
-          };
-          setMensajes(prev => [...prev, msgUsuario, msgBot]);
-          if (res.accion === "turno_registrado") onTurnoCreado?.();
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Error al procesar el audio.");
-        } finally {
-          setCargando(false);
-        }
+        await enviarBlobAudio(blob);
       };
 
       recorder.start();
       mediaRecorderRef.current = recorder;
       setGrabando(true);
+      setSegundos(0);
+      timerRef.current = setInterval(() => setSegundos(s => s + 1), 1000);
     } catch {
       setError("No se pudo acceder al micrófono. Verificá los permisos del navegador.");
     }
@@ -299,9 +369,9 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
                     <p className="text-sm text-white">{m.texto}</p>
                   </div>
                 ) : (
-                  <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-indigo-50 px-3.5 py-2.5 ring-1 ring-indigo-100">
-                    <p className="text-sm leading-relaxed text-neutral-800">{m.texto}</p>
-                    {m.accion === "turno_registrado" && m.datos && m.datos.paciente !== "Sin identificar" && (
+                  <div className={`max-w-[90%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 ring-1 ${m.deshecho ? "bg-neutral-50 ring-neutral-100" : "bg-indigo-50 ring-indigo-100"}`}>
+                    <p className={`text-sm leading-relaxed ${m.deshecho ? "text-neutral-400 line-through" : "text-neutral-800"}`}>{m.texto}</p>
+                    {m.accion === "turno_registrado" && m.datos && m.datos.paciente !== "Sin identificar" && !m.deshecho && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <Tag>{m.datos.paciente}</Tag>
                         {m.datos.monto > 0 && (
@@ -321,6 +391,18 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
                         )}
                         {m.pacienteNuevo && <Tag color="blue">Paciente nuevo</Tag>}
                       </div>
+                    )}
+                    {m.turnoId && !m.deshecho && (
+                      <button onClick={() => deshacerTurno(m.turnoId!)} disabled={deshaciendo === m.turnoId}
+                        className="mt-2 flex items-center gap-1 text-[11px] font-medium text-neutral-400 hover:text-red-600 transition-colors disabled:opacity-50">
+                        {deshaciendo === m.turnoId
+                          ? <><span className="h-2.5 w-2.5 animate-spin rounded-full border border-neutral-300 border-t-neutral-500" /> Deshaciendo…</>
+                          : <><Undo2 className="h-3 w-3" /> Deshacer</>
+                        }
+                      </button>
+                    )}
+                    {m.deshecho && (
+                      <p className="mt-1 text-[11px] text-neutral-400">Turno eliminado.</p>
                     )}
                   </div>
                 )}
@@ -345,7 +427,15 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
         {error && (
           <div className="mx-4 mt-3 mb-1 rounded-xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100">
             <p className="text-xs text-red-600">{error}</p>
-            <button onClick={() => setError(null)} className="mt-1 text-[10px] text-red-400 hover:text-red-600">Cerrar</button>
+            <div className="mt-1.5 flex items-center gap-3">
+              {envioPendienteRef.current && (
+                <button onClick={reintentar} disabled={cargando}
+                  className="flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-700 disabled:opacity-50">
+                  <RefreshCw className="h-3 w-3" /> Reintentar
+                </button>
+              )}
+              <button onClick={() => setError(null)} className="text-[10px] text-red-400 hover:text-red-600">Cerrar</button>
+            </div>
           </div>
         )}
 
@@ -396,13 +486,27 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
             </span>
           )}
 
+          {grabando && (
+            <span className="mb-0.5 flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-[11px] font-mono font-medium text-red-500">
+              {Math.floor(segundos / 60)}:{String(segundos % 60).padStart(2, "0")}
+            </span>
+          )}
+
+          {grabando && (
+            <button onClick={cancelarGrabacion}
+              className="mb-0.5 flex h-9 w-9 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 transition-colors"
+              title="Cancelar grabación">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+
           <button onClick={toggleGrabacion} disabled={cargando}
             className={`mb-0.5 flex h-9 w-9 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full transition-all ${
               grabando
                 ? "bg-red-500 text-white animate-pulse"
-                : "text-neutral-300 hover:text-neutral-500"
+                : "text-indigo-400 hover:text-indigo-600"
             } disabled:opacity-30`}
-            title={grabando ? "Detener grabación" : "Grabar mensaje de voz"}>
+            title={grabando ? "Detener y enviar grabación" : "Grabar mensaje de voz"}>
             {grabando ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
           </button>
 

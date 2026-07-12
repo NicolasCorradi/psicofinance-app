@@ -6,16 +6,17 @@ import { getAlertasHonorarios } from "@/lib/api";
 import type { AlertaHonorario } from "@/lib/types";
 import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
 
-export default function AlertasHonorarios() {
+export default function AlertasHonorarios({ refreshKey = 0 }: { refreshKey?: number }) {
   const [alertas, setAlertas]   = useState<AlertaHonorario[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [error, setError]       = useState(false);
 
   useEffect(() => {
     getAlertasHonorarios()
-      .then(setAlertas)
-      .catch(() => setAlertas([]))
+      .then(a => { setAlertas(a); setError(false); })
+      .catch(() => setError(true))
       .finally(() => setCargando(false));
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
@@ -38,8 +39,16 @@ export default function AlertasHonorarios() {
         </div>
       )}
 
+      {/* Error de carga — nunca confundir con "sin alertas" */}
+      {!cargando && error && (
+        <div className="py-5 text-center">
+          <p className="text-sm font-medium text-neutral-500">No se pudo cargar.</p>
+          <p className="mt-1 text-xs text-neutral-400">Revisá tu conexión e intentá de nuevo.</p>
+        </div>
+      )}
+
       {/* Sin alertas */}
-      {!cargando && alertas.length === 0 && (
+      {!cargando && !error && alertas.length === 0 && (
         <div className="py-5 text-center">
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50">
             <span className="text-lg">✓</span>
@@ -52,7 +61,7 @@ export default function AlertasHonorarios() {
       )}
 
       {/* Lista */}
-      {!cargando && alertas.length > 0 && (
+      {!cargando && !error && alertas.length > 0 && (
         <div className="space-y-1">
           {alertas.map((a) => (
             <div

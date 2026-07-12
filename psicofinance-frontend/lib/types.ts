@@ -128,6 +128,7 @@ export interface PacienteRead {
   nombre:                        string;
   apellido:                      string;
   email:                         string | null;
+  telefono:                      string | null;
   honorario_actual:              number | null;
   fecha_ultimo_ajuste_honorario: string | null;
   created_at:                    string;
@@ -166,6 +167,7 @@ export interface PacienteCreatePayload {
   nombre:                        string;
   apellido:                      string;
   email?:                        string | null;
+  telefono?:                     string | null;
   honorario_actual?:             number | null;
   fecha_ultimo_ajuste_honorario?: string | null;
 }
@@ -174,6 +176,7 @@ export interface PacienteUpdatePayload {
   nombre?:                       string;
   apellido?:                     string;
   email?:                        string | null;
+  telefono?:                     string | null;
   honorario_actual?:             number | null;
   fecha_ultimo_ajuste_honorario?: string | null;
 }

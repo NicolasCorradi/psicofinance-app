@@ -35,6 +35,7 @@ def _build_con_stats(row: dict) -> PacienteConStats:
     return PacienteConStats(
         id=p["id"], nombre=p["nombre"], apellido=p["apellido"],
         email=p.get("email"),
+        telefono=p.get("telefono"),
         honorario_actual=p.get("honorario_actual"),
         fecha_ultimo_ajuste_honorario=p.get("fecha_ultimo_ajuste_honorario"),
         created_at=p.get("created_at"),
@@ -52,6 +53,7 @@ def _build_detalle(row: dict) -> PacienteDetalle:
     return PacienteDetalle(
         id=p["id"], nombre=p["nombre"], apellido=p["apellido"],
         email=p.get("email"),
+        telefono=p.get("telefono"),
         honorario_actual=p.get("honorario_actual"),
         fecha_ultimo_ajuste_honorario=p.get("fecha_ultimo_ajuste_honorario"),
         created_at=p.get("created_at"),

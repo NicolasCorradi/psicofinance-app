@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, WifiOff, Sparkles } from "lucide-react";
-import { getMetricasDashboard } from "@/lib/api";
-import type { MetricasDashboard } from "@/lib/types";
+import { getMetricasDashboard, getResumenEgresos } from "@/lib/api";
+import type { MetricasDashboard, ResumenEgresos } from "@/lib/types";
 
 import NLPInput            from "@/components/dashboard/NLPInput";
+import IngresoNetoHero     from "@/components/dashboard/IngresoNetoHero";
 import CashFlowCards       from "@/components/dashboard/CashFlowCards";
 import VentasMensuales     from "@/components/dashboard/VentasMensuales";
 import MonotributoProgress from "@/components/dashboard/MonotributoProgress";
 import MiniAgenda          from "@/components/dashboard/MiniAgenda";
 import AlertasHonorarios   from "@/components/dashboard/AlertasHonorarios";
 import TurnosTable         from "@/components/dashboard/TurnosTable";
-import EgresosCard         from "@/components/dashboard/EgresosCard";
 import SimuladorHonorarios from "@/components/dashboard/SimuladorHonorarios";
 import GuiaDashboard       from "@/components/dashboard/GuiaDashboard";
 
@@ -78,6 +78,11 @@ export default function DashboardPage() {
   const [cargando,   setCargando]   = useState(true);
   const [error,      setError]      = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Resumen de egresos — alimenta tanto el hero de ingreso neto como la card de Egresos
+  const [resumenEgresos, setResumenEgresos] = useState<ResumenEgresos | null>(null);
+  const [errorEgresos,   setErrorEgresos]   = useState(false);
+
   // En cliente tras montar: a nivel de módulo quedaba vieja después de
   // medianoche y podía diferir entre servidor y cliente (hydration mismatch)
   const [fechaCompleta, setFechaCompleta] = useState("");
@@ -101,6 +106,12 @@ export default function DashboardPage() {
 
   useEffect(() => { cargar(); }, [cargar, refreshKey]);
 
+  useEffect(() => {
+    getResumenEgresos()
+      .then(r => { setResumenEgresos(r); setErrorEgresos(false); })
+      .catch(() => setErrorEgresos(true));
+  }, [refreshKey]);
+
   const handleTurnoCreado = () => setRefreshKey(k => k + 1);
 
   const esVacio = !cargando && !error && metricas && metricas.ultimos_turnos.length === 0;
@@ -119,12 +130,14 @@ export default function DashboardPage() {
         {/* Botones header */}
         <div className="flex items-center gap-2 shrink-0">
           <GuiaDashboard />
-          {!cargando && !error && (
+          {!error && (
             <button
               onClick={() => setRefreshKey(k => k + 1)}
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors"
+              disabled={cargando}
+              aria-busy={cargando}
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors disabled:opacity-60"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className={`h-3.5 w-3.5 ${cargando ? "animate-spin" : ""}`} />
               Actualizar
             </button>
           )}
@@ -149,14 +162,18 @@ export default function DashboardPage() {
           {/* Empty state */}
           {esVacio && <EmptyState />}
 
-          {/* Métricas */}
+          {/* Hero: ingreso neto del mes — el número más accionable, destacado */}
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "80ms" }}>
-            <CashFlowCards metricas={metricas} />
+            <IngresoNetoHero
+              cobradoMes={metricas?.cobrado_mes ?? null}
+              resumenEgresos={resumenEgresos}
+              errorEgresos={errorEgresos}
+            />
           </div>
 
-          {/* Egresos + neto */}
+          {/* Métricas secundarias */}
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "110ms" }}>
-            <EgresosCard cobradoMes={metricas?.cobrado_mes ?? null} />
+            <CashFlowCards metricas={metricas} resumenEgresos={resumenEgresos} />
           </div>
 
           {/* Gráfico + Monotributo */}
@@ -164,18 +181,18 @@ export default function DashboardPage() {
             <div className="lg:col-span-2">
               <VentasMensuales data={metricas?.ventas_mensuales ?? []} />
             </div>
-            <MonotributoProgress />
+            <MonotributoProgress refreshKey={refreshKey} />
           </div>
 
           {/* Mini agenda + Alertas */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "220ms" }}>
-            <MiniAgenda />
-            <AlertasHonorarios />
+            <MiniAgenda refreshKey={refreshKey} />
+            <AlertasHonorarios refreshKey={refreshKey} />
           </div>
 
           {/* Simulador */}
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "280ms" }}>
-            <SimuladorHonorarios />
+            <SimuladorHonorarios refreshKey={refreshKey} />
           </div>
 
           {/* Tabla de turnos */}

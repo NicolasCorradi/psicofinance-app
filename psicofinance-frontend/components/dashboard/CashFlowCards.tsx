@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, Clock, AlertCircle, ChevronRight } from "lucide-react";
-import type { MetricasDashboard, TurnoResumen } from "@/lib/types";
+import Link from "next/link";
+import { TrendingUp, TrendingDown, Clock, AlertCircle, ChevronRight } from "lucide-react";
+import type { MetricasDashboard, TurnoResumen, ResumenEgresos } from "@/lib/types";
 import { getTurnosDiferidos, getTurnosCobradosMes } from "@/lib/api";
 import Sheet from "@/components/ui/Sheet";
 import { fmtPesosCompacto as fmtPesos } from "@/lib/format";
@@ -16,9 +17,12 @@ function fmtFecha(s: string | null): string {
 
 type TipoSheet = "cobrado_mes" | "en_camino" | "sin_cobrar" | null;
 
-interface Props { metricas: MetricasDashboard | null }
+interface Props {
+  metricas:       MetricasDashboard | null;
+  resumenEgresos: ResumenEgresos | null;
+}
 
-export default function CashFlowCards({ metricas: m }: Props) {
+export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
   const sinCobrar = m?.deudores ?? 0;
   const hayDeuda  = sinCobrar > 0;
 
@@ -81,7 +85,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
       iconColor:  "text-emerald-600",
       valorColor: "text-emerald-600",
       gradient:   "from-emerald-400 to-teal-500",
-      clickable:  true,
+      href:       null as string | null,
     },
     {
       tipo:       "en_camino" as TipoSheet,
@@ -93,7 +97,7 @@ export default function CashFlowCards({ metricas: m }: Props) {
       iconColor:  "text-amber-600",
       valorColor: "text-amber-600",
       gradient:   "from-amber-400 to-orange-400",
-      clickable:  true,
+      href:       null as string | null,
     },
     {
       tipo:       "sin_cobrar" as TipoSheet,
@@ -105,7 +109,21 @@ export default function CashFlowCards({ metricas: m }: Props) {
       iconColor:  hayDeuda ? "text-red-500"   : "text-emerald-600",
       valorColor: hayDeuda ? "text-red-600"   : "text-emerald-600",
       gradient:   hayDeuda ? "from-red-400 to-rose-500" : "from-emerald-400 to-teal-500",
-      clickable:  true,
+      href:       null as string | null,
+    },
+    {
+      tipo:       null as TipoSheet,
+      titulo:     "Egresos del mes",
+      valor:      resumenEgresos?.total ?? null,
+      sub:        resumenEgresos
+        ? `Fijos ${fmtPesos(resumenEgresos.total_fijos)} · Variables ${fmtPesos(resumenEgresos.total_variables)}`
+        : "–",
+      Icon:       TrendingDown,
+      iconBg:     "bg-red-50",
+      iconColor:  "text-red-400",
+      valorColor: "text-red-500",
+      gradient:   "from-red-400 to-rose-400",
+      href:       "/egresos" as string | null,
     },
   ];
 
@@ -116,42 +134,44 @@ export default function CashFlowCards({ metricas: m }: Props) {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {cards.map(({ tipo, titulo, valor, sub, Icon, iconBg, iconColor, valorColor, gradient, clickable }) => (
-          <div
-            key={titulo}
-            onClick={() => clickable && setSheetTipo(tipo)}
-            className={`relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition-all duration-150 ${
-              clickable
-                ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                : ""
-            }`}
-          >
-            <div className={`h-1 bg-gradient-to-r ${gradient}`} />
-            <div className="p-5">
-              <div className="flex items-start justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-                  {titulo}
-                </p>
-                <div className="flex items-center gap-1">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${iconBg}`}>
-                    <Icon className={`h-4 w-4 ${iconColor}`} strokeWidth={2} />
-                  </div>
-                  {clickable && (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {cards.map(({ tipo, titulo, valor, sub, Icon, iconBg, iconColor, valorColor, gradient, href }) => {
+          const inner = (
+            <>
+              <div className={`h-1 bg-gradient-to-r ${gradient}`} />
+              <div className="p-5">
+                <div className="flex items-start justify-between">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                    {titulo}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${iconBg}`}>
+                      <Icon className={`h-4 w-4 ${iconColor}`} strokeWidth={2} />
+                    </div>
                     <ChevronRight className="h-3.5 w-3.5 text-neutral-300" />
-                  )}
+                  </div>
                 </div>
+                <p className={`mt-3 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums ${valorColor}`}>
+                  {valor !== null
+                    ? fmtPesos(valor)
+                    : <span className="animate-pulse text-neutral-200">——</span>
+                  }
+                </p>
+                <p className="mt-2 text-xs text-neutral-400">{sub}</p>
               </div>
-              <p className={`mt-3 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums ${valorColor}`}>
-                {valor !== null
-                  ? fmtPesos(valor)
-                  : <span className="animate-pulse text-neutral-200">——</span>
-                }
-              </p>
-              <p className="mt-2 text-xs text-neutral-400">{sub}</p>
-            </div>
-          </div>
-        ))}
+            </>
+          );
+
+          const cls = "relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition-all duration-150 text-left cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400";
+
+          return href ? (
+            <Link key={titulo} href={href} className={cls}>{inner}</Link>
+          ) : (
+            <button key={titulo} type="button" onClick={() => setSheetTipo(tipo)} className={`w-full ${cls}`}>
+              {inner}
+            </button>
+          );
+        })}
       </div>
 
       {/* Sheet de desglose */}

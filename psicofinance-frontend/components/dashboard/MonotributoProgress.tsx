@@ -16,10 +16,10 @@ function gradientId(estado: EstadoSemaforo): string {
   return `grad-${estado.toLowerCase()}`;
 }
 
-export default function MonotributoProgress() {
+export default function MonotributoProgress({ refreshKey = 0 }: { refreshKey?: number }) {
   const [s, set] = useState<ResultadoSemaforo | null>(null);
 
-  useEffect(() => { getSemaforo().then(set).catch(() => {}); }, []);
+  useEffect(() => { getSemaforo().then(set).catch(() => {}); }, [refreshKey]);
 
   // El arco se capea en 100% pero el texto muestra el % real (130% del tope
   // debe leerse como 130%, no como 100%)
