@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, TrendingDown, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, TrendingDown, LogOut, KeyRound, UserCircle } from "lucide-react";
 import { getSemaforo, getTurnosAgenda } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
 import { ToastProvider } from "@/lib/toast";
+import CambiarPassword from "./CambiarPassword";
+import Sheet from "@/components/ui/Sheet";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -32,6 +34,8 @@ const CHIP_CLS: Record<EstadoSemaforo, string> = {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [semaforo,       setSemaforo]       = useState<ResultadoSemaforo | null>(null);
   const [sesionesHoy,    setSesionesHoy]    = useState(0);
+  const [cambiarPassword, setCambiarPassword] = useState(false);
+  const [menuCuenta,      setMenuCuenta]      = useState(false); // mobile: sheet con opciones de cuenta
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
@@ -129,6 +133,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
           <p className="px-3 text-[11px] capitalize text-white/40">{today}</p>
 
+          {/* Cambiar contraseña */}
+          <button
+            onClick={() => setCambiarPassword(true)}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-white/30 transition-all hover:bg-white/5 hover:text-white/60"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Cambiar contraseña
+          </button>
+
           {/* Logout */}
           <button
             onClick={handleLogout}
@@ -163,19 +176,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-          <button onClick={handleLogout}
+          <button onClick={() => setMenuCuenta(true)}
             className="flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-neutral-400 hover:text-neutral-600 transition-colors">
-            <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            <span className="text-[9px] font-semibold tracking-wide">Salir</span>
+            <UserCircle className="h-4 w-4" strokeWidth={1.8} />
+            <span className="text-[9px] font-semibold tracking-wide">Cuenta</span>
           </button>
         </nav>
       </header>
+
+      {/* Sheet mobile: opciones de cuenta */}
+      <Sheet open={menuCuenta} onClose={() => setMenuCuenta(false)} title="Cuenta">
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() => { setMenuCuenta(false); setCambiarPassword(true); }}
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+          >
+            <KeyRound className="h-4 w-4 text-neutral-400" />
+            Cambiar contraseña
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      </Sheet>
 
       {/* ── Contenido principal ── */}
       <div className="flex-1 lg:ml-56 print:ml-0 min-w-0">
         <div className="lg:hidden print:hidden h-14" />
         {children}
       </div>
+
+      {cambiarPassword && <CambiarPassword onCerrar={() => setCambiarPassword(false)} />}
     </div>
     </ToastProvider>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BrainCircuit, Lock, Mail, Eye, EyeOff, Loader2 } from "lucide-react";
+import { BrainCircuit, Lock, Mail, Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -14,6 +14,13 @@ export default function LoginPage() {
   const [mostrar,   setMostrar]   = useState(false);
   const [cargando,  setCargando]  = useState(false);
   const [error,     setError]     = useState("");
+
+  // Flujo de "olvidé mi contraseña" — reemplaza el form de login por un pedido de mail
+  const [modoReset,      setModoReset]      = useState(false);
+  const [emailReset,     setEmailReset]     = useState("");
+  const [enviandoReset,  setEnviandoReset]  = useState(false);
+  const [resetEnviado,   setResetEnviado]   = useState(false);
+  const [errorReset,     setErrorReset]     = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +40,19 @@ export default function LoginPage() {
 
     router.push("/dashboard");
     router.refresh();
+  };
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorReset("");
+    setEnviandoReset(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(emailReset, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setEnviandoReset(false);
+    // No revelamos si el mail existe o no — solo confirmamos el envío
+    if (err) { setErrorReset("No se pudo enviar el link. Intentá de nuevo."); return; }
+    setResetEnviado(true);
   };
 
   return (
@@ -57,8 +77,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Card de login */}
+        {/* Card de login / reset */}
         <div className="overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10 backdrop-blur-sm shadow-2xl">
+          {!modoReset ? (
           <form onSubmit={handleLogin} className="p-6 flex flex-col gap-4">
 
             {/* Email */}
@@ -82,9 +103,18 @@ export default function LoginPage() {
 
             {/* Contraseña */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-white/60">
-                Contraseña
-              </label>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-xs font-medium text-white/60">
+                  Contraseña
+                </label>
+                <button
+                  type="button"
+                  onClick={() => { setModoReset(true); setEmailReset(email); setError(""); }}
+                  className="text-[11px] text-indigo-300/70 hover:text-indigo-300 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
               <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                 <Lock className="h-4 w-4 shrink-0 text-white/30" />
                 <input
@@ -129,6 +159,68 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+          ) : (
+          <div className="p-6">
+            {!resetEnviado ? (
+              <form onSubmit={handleReset} className="flex flex-col gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">Restablecer contraseña</p>
+                  <p className="mt-1 text-xs text-white/40">Te mandamos un link para elegir una nueva.</p>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-white/60">Email</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                    <Mail className="h-4 w-4 shrink-0 text-white/30" />
+                    <input
+                      type="email"
+                      required
+                      value={emailReset}
+                      onChange={e => setEmailReset(e.target.value)}
+                      placeholder="tu@email.com"
+                      autoComplete="email"
+                      className="flex-1 bg-transparent text-sm text-white placeholder:text-white/25 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                {errorReset && (
+                  <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-400 ring-1 ring-red-500/20">
+                    {errorReset}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={enviandoReset}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:bg-indigo-500 disabled:opacity-60"
+                >
+                  {enviandoReset ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Enviando…</>
+                  ) : "Enviar link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setModoReset(false); setErrorReset(""); }}
+                  className="text-xs text-white/40 hover:text-white/70 transition-colors"
+                >
+                  ← Volver a ingresar
+                </button>
+              </form>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+                <p className="text-sm font-medium text-white">Listo, revisá tu mail</p>
+                <p className="text-xs text-white/40">
+                  Si <span className="text-white/60">{emailReset}</span> tiene una cuenta, va a recibir un link para restablecer la contraseña.
+                </p>
+                <button
+                  onClick={() => { setModoReset(false); setResetEnviado(false); }}
+                  className="mt-2 text-xs text-indigo-300/70 hover:text-indigo-300 transition-colors"
+                >
+                  ← Volver a ingresar
+                </button>
+              </div>
+            )}
+          </div>
+          )}
         </div>
 
         <p className="mt-6 text-center text-[11px] text-white/20">
