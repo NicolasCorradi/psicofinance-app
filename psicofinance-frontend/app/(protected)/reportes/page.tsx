@@ -45,7 +45,7 @@ export default function ReportesPage() {
   const [pacientes,  setPacientes]  = useState<PacienteConStats[]>([]);
   const [semaforo,   setSemaforo]   = useState<ResultadoSemaforo | null>(null);
   const [cargando,   setCargando]   = useState(true);
-  const [ipc, setIpc] = useState<{ valor: number; periodo: string; fuente: string } | null>(null);
+  const [ipc, setIpc] = useState<{ valor: number; periodo: string; estimado: boolean; fuente: string } | null>(null);
   const [egresos, setEgresos] = useState<ResumenEgresos | null>(null);
   const [exportando,   setExportando]   = useState(false);
   const [errorExport,  setErrorExport]  = useState<string | null>(null);
@@ -277,13 +277,13 @@ export default function ReportesPage() {
             <div className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-1.5">
               <span className="text-xs text-indigo-500">IPC mensual:</span>
               <span className="text-xs font-bold tabular-nums text-indigo-700">
-                {ipc ? `${ipc.valor.toFixed(1)}%` : "…"}
+                {!ipc ? "…" : ipc.estimado ? "N/D" : `${ipc.valor.toFixed(1)}%`}
               </span>
             </div>
             {ipc && (
               <span className="text-[10px] text-neutral-400">
-                {ipc.periodo === "config"
-                  ? "Valor manual · pendiente INDEC"
+                {ipc.estimado
+                  ? "INDEC aún no publicó el dato de este mes"
                   : `INDEC · ${ipc.periodo}`}
               </span>
             )}

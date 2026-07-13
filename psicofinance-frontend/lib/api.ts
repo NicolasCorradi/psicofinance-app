@@ -164,7 +164,7 @@ export function actualizarCategoria(categoria: string): Promise<ResultadoSemafor
 }
 
 /** Último dato de IPC mensual desde INDEC via datos.gob.ar. */
-export function getInflacion(): Promise<{ valor: number; periodo: string; fuente: string }> {
+export function getInflacion(): Promise<{ valor: number; periodo: string; estimado: boolean; fuente: string }> {
   return get('/dashboard/inflacion');
 }
 
