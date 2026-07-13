@@ -45,7 +45,7 @@ export default function ReportesPage() {
   const [pacientes,  setPacientes]  = useState<PacienteConStats[]>([]);
   const [semaforo,   setSemaforo]   = useState<ResultadoSemaforo | null>(null);
   const [cargando,   setCargando]   = useState(true);
-  const [ipc, setIpc] = useState<{ valor: number; periodo: string; estimado: boolean; fuente: string } | null>(null);
+  const [ipc, setIpc] = useState<{ valor: number; periodo: string; estimado: boolean; ultimo_real_periodo: string | null; fuente: string } | null>(null);
   const [egresos, setEgresos] = useState<ResumenEgresos | null>(null);
   const [exportando,   setExportando]   = useState(false);
   const [errorExport,  setErrorExport]  = useState<string | null>(null);
@@ -283,7 +283,9 @@ export default function ReportesPage() {
             {ipc && (
               <span className="text-[10px] text-neutral-400">
                 {ipc.estimado
-                  ? "INDEC aún no publicó el dato de este mes"
+                  ? ipc.ultimo_real_periodo
+                    ? `INDEC aún no publicó este mes · último: ${ipc.ultimo_real_periodo}`
+                    : "INDEC aún no publicó datos"
                   : `INDEC · ${ipc.periodo}`}
               </span>
             )}

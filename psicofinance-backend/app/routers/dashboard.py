@@ -300,8 +300,9 @@ def get_inflacion():
     periodo = ipc.get("ultimo_periodo", "—")
     estimado = bool(ipc.get("estimado", False)) or periodo == "config"
     return {
-        "valor":    round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
-        "periodo":  periodo,
-        "estimado": estimado,
-        "fuente":   "Valor de configuración (INDEC aún no publicó)" if estimado else "INDEC — IPC Nacional Nivel General",
+        "valor":              round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
+        "periodo":            periodo,
+        "estimado":           estimado,
+        "ultimo_real_periodo": ipc.get("ultimo_real_periodo"),
+        "fuente":             "Valor de configuración (INDEC aún no publicó)" if estimado else "INDEC — IPC Nacional Nivel General",
     }

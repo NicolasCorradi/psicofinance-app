@@ -71,8 +71,11 @@ def fetch_ipc_indec() -> dict:
         if not tasas:
             raise ValueError("Sin tasas válidas tras filtrar períodos futuros")
 
-        # Período más reciente disponible en la API
-        ultimo_periodo = sorted(tasas.keys())[-1]
+        # Período más reciente realmente publicado por INDEC (antes de rellenar
+        # con el fallback de config, para poder mostrarlo aunque el mes actual
+        # todavía sea estimado)
+        ultimo_real_periodo = sorted(tasas.keys())[-1]
+        ultimo_periodo = ultimo_real_periodo
         ultimo_valor   = tasas[ultimo_periodo] * 100
         estimado       = False
 
@@ -86,11 +89,12 @@ def fetch_ipc_indec() -> dict:
                         mes_anterior, ultimo_valor)
 
         _ipc_cache.update({
-            "tasas":            tasas,
-            "ultimo_periodo":   ultimo_periodo,
-            "ultimo_valor_pct": round(ultimo_valor, 2),
-            "estimado":         estimado,
-            "ts":               ahora,
+            "tasas":               tasas,
+            "ultimo_periodo":      ultimo_periodo,
+            "ultimo_valor_pct":    round(ultimo_valor, 2),
+            "estimado":            estimado,
+            "ultimo_real_periodo": ultimo_real_periodo,
+            "ts":                  ahora,
         })
         logger.info("IPC INDEC: %d meses. Último: %s → %.2f%%",
                     len(tasas), ultimo_periodo, ultimo_valor)
@@ -105,11 +109,12 @@ def fetch_ipc_indec() -> dict:
                 tasas_fb[mes] = tasa_fb
             # TTL corto: reintenta en 5 min en vez de bloquear 6 horas
             _ipc_cache.update({
-                "tasas":            tasas_fb,
-                "ultimo_periodo":   "config",
-                "ultimo_valor_pct": round(tasa_fb * 100, 2),
-                "estimado":         True,
-                "ts":               ahora - _IPC_CACHE_TTL + _FALLBACK_TTL,
+                "tasas":               tasas_fb,
+                "ultimo_periodo":      "config",
+                "ultimo_valor_pct":    round(tasa_fb * 100, 2),
+                "estimado":            True,
+                "ultimo_real_periodo": None,
+                "ts":                  ahora - _IPC_CACHE_TTL + _FALLBACK_TTL,
             })
 
     return _ipc_cache
