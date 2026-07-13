@@ -43,7 +43,7 @@ class TestResumenCaja:
             {"monto": 50_000, "moneda": "ARS"},
             {"monto": 100, "moneda": "USD", "tipo_cambio": 1000},
         ])
-        r = obtener_resumen_caja(sb)
+        r = obtener_resumen_caja(sb, "test-user")
         assert r.caja_liquida_total == pytest.approx(150_000.0, abs=0.01)
         assert r.cantidad_turnos_cobrados == 2
         assert r.caja_diferida_nominal == 0.0
@@ -58,7 +58,7 @@ class TestResumenCaja:
                 "fecha_cobro_estimada": "2025-03-01",
             },
         ])
-        r = obtener_resumen_caja(sb)
+        r = obtener_resumen_caja(sb, "test-user")
         assert r.caja_diferida_nominal == pytest.approx(10_000.0, abs=0.01)
         # Valor real = 10000 / 1.05^2 = 9070.29 (caso validado por el PM)
         assert r.caja_diferida_real == pytest.approx(9070.29, abs=0.01)
@@ -77,7 +77,7 @@ class TestResumenCaja:
                 "fecha_cobro_estimada": "2025-02-01",
             },
         ])
-        r = obtener_resumen_caja(sb)
+        r = obtener_resumen_caja(sb, "test-user")
         assert r.caja_diferida_nominal == pytest.approx(100_000.0, abs=0.01)
         assert r.perdida_estimada_total > 0
 
@@ -86,13 +86,13 @@ class TestResumenCaja:
         sb = FakeSupabaseCaja(diferidos=[
             {"monto": 10_000, "moneda": "ARS", "fecha_turno": None},
         ])
-        r = obtener_resumen_caja(sb)
+        r = obtener_resumen_caja(sb, "test-user")
         assert r.cantidad_turnos_diferidos == 1
         assert r.caja_diferida_nominal == 0.0
         assert r.perdida_estimada_total == 0.0
 
     def test_sin_turnos_todo_en_cero(self):
-        r = obtener_resumen_caja(FakeSupabaseCaja())
+        r = obtener_resumen_caja(FakeSupabaseCaja(), "test-user")
         assert r.caja_liquida_total == 0.0
         assert r.caja_diferida_nominal == 0.0
         assert r.caja_diferida_real == 0.0

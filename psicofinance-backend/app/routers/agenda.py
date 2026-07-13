@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agenda", tags=["Agenda"])
@@ -29,9 +30,11 @@ class SemanaModeloPayload(BaseModel):
 
 # ── Helpers BD ────────────────────────────────────────────────────────────────
 
-def _leer_modelo(sb: SupabaseClient) -> list[dict]:
+def _leer_modelo(sb: SupabaseClient, user_id: str) -> list[dict]:
     try:
-        rows = sb.select("configuracion", {"clave": f"eq.{CLAVE_MODELO}", "select": "valor"})
+        rows = sb.select("configuracion", {
+            "clave": f"eq.{CLAVE_MODELO}", "user_id": f"eq.{user_id}", "select": "valor",
+        })
         if rows:
             return json.loads(rows[0]["valor"])
     except Exception as exc:
@@ -39,23 +42,27 @@ def _leer_modelo(sb: SupabaseClient) -> list[dict]:
     return []
 
 
-def _guardar_modelo(sb: SupabaseClient, slots: list[dict]) -> None:
+def _guardar_modelo(sb: SupabaseClient, slots: list[dict], user_id: str) -> None:
     valor = json.dumps(slots, ensure_ascii=False)
-    sb.upsert("configuracion", {"clave": CLAVE_MODELO, "valor": valor}, on_conflict="clave")
+    sb.upsert(
+        "configuracion",
+        {"clave": CLAVE_MODELO, "valor": valor, "user_id": user_id},
+        on_conflict="clave,user_id",
+    )
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/semana-modelo", response_model=dict)
-def get_semana_modelo(sb: SupabaseClient = Depends(get_supabase)):
+def get_semana_modelo(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Devuelve la semana modelo guardada."""
-    slots = _leer_modelo(sb)
+    slots = _leer_modelo(sb, usuario_id)
     return {"slots": slots}
 
 
 @router.patch("/semana-modelo", response_model=dict, status_code=status.HTTP_200_OK)
-def patch_semana_modelo(body: SemanaModeloPayload, sb: SupabaseClient = Depends(get_supabase)):
+def patch_semana_modelo(body: SemanaModeloPayload, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Guarda la semana modelo completa (reemplaza la anterior)."""
     slots = [s.model_dump() for s in body.slots]
-    _guardar_modelo(sb, slots)
+    _guardar_modelo(sb, slots, usuario_id)
     return {"slots": slots}

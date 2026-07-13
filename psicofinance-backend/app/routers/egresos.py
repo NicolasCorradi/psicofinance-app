@@ -5,6 +5,7 @@ import uuid
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 from app.models.enums import TipoEgreso, CategoriaEgreso
 from app.schemas.egreso import (
     EgresoCreate, EgresoRead, EgresoUpdate,
@@ -34,9 +35,9 @@ def _rango_mes(mes: str) -> tuple[date, date]:
 
 
 @router.post("/", response_model=EgresoRead, status_code=status.HTTP_201_CREATED)
-def registrar_egreso(datos: EgresoCreate, sb: SupabaseClient = Depends(get_supabase)):
+def registrar_egreso(datos: EgresoCreate, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Registra un egreso nuevo."""
-    return crear_egreso(sb, datos)
+    return crear_egreso(sb, datos, usuario_id)
 
 
 @router.get("/", response_model=list[EgresoRead])
@@ -47,12 +48,13 @@ def listar(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
 ):
     """Lista egresos con filtros opcionales por mes, tipo y categoría."""
     desde = hasta = None
     if mes:
         desde, hasta = _rango_mes(mes)
-    return listar_egresos(sb, desde=desde, hasta=hasta, tipo=tipo, categoria=categoria, offset=offset, limit=limit)
+    return listar_egresos(sb, usuario_id, desde=desde, hasta=hasta, tipo=tipo, categoria=categoria, offset=offset, limit=limit)
 
 
 # ⚠ IMPORTANTE: /resumen debe ir ANTES de /{egreso_id} para que FastAPI no
@@ -61,6 +63,7 @@ def listar(
 def resumen(
     mes: str | None = Query(default=None, description="Mes a consultar, formato YYYY-MM. Default: mes actual"),
     sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
 ):
     """Totales fijos vs variables del mes + breakdown por categoría + últimos 6 meses.
     Las agregaciones se hacen en Python sobre un solo select (PostgREST no agrupa)."""
@@ -72,6 +75,7 @@ def resumen(
     # Rango completo server-side: filtrar después de paginar perdería filas.
     inicio_serie = _retroceder_meses(desde_mes, 5)
     rows = sb.select("egresos", {
+        "user_id": f"eq.{usuario_id}",
         "and": f"(fecha.gte.{inicio_serie.isoformat()},fecha.lte.{hasta_mes.isoformat()})",
         "select": "monto,tipo,categoria,fecha",
         "limit": "5000",
@@ -128,26 +132,26 @@ def _retroceder_meses(d: date, n: int) -> date:
 
 
 @router.get("/{egreso_id}", response_model=EgresoRead)
-def obtener(egreso_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase)):
+def obtener(egreso_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Devuelve un egreso por su ID."""
-    egreso = obtener_egreso(sb, egreso_id)
+    egreso = obtener_egreso(sb, egreso_id, usuario_id)
     if egreso is None:
         raise HTTPException(status_code=404, detail="Egreso no encontrado")
     return egreso
 
 
 @router.patch("/{egreso_id}", response_model=EgresoRead)
-def actualizar(egreso_id: uuid.UUID, datos: EgresoUpdate, sb: SupabaseClient = Depends(get_supabase)):
+def actualizar(egreso_id: uuid.UUID, datos: EgresoUpdate, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Actualización parcial de un egreso."""
-    egreso = actualizar_egreso(sb, egreso_id, datos)
+    egreso = actualizar_egreso(sb, egreso_id, datos, usuario_id)
     if egreso is None:
         raise HTTPException(status_code=404, detail="Egreso no encontrado")
     return egreso
 
 
 @router.delete("/{egreso_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar(egreso_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase)):
+def eliminar(egreso_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Elimina un egreso permanentemente."""
-    ok = eliminar_egreso(sb, egreso_id)
+    ok = eliminar_egreso(sb, egreso_id, usuario_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Egreso no encontrado")

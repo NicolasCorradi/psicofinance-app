@@ -1,5 +1,7 @@
 # CRUD de Turnos usando Supabase REST API.
 # Reemplaza SQLAlchemy para evitar problemas de conectividad PostgreSQL en Render free.
+#
+# Multi-tenant: toda función recibe user_id y filtra por él.
 
 import uuid
 from datetime import date
@@ -11,7 +13,7 @@ from app.schemas.turno import TurnoCreate, TurnoUpdate
 from app.utils import monto_ars, parse_fecha as _parse_date
 
 
-def crear_turno(sb: SupabaseClient, datos: TurnoCreate) -> dict:
+def crear_turno(sb: SupabaseClient, datos: TurnoCreate, user_id: str) -> dict:
     data = {}
     for k, v in datos.model_dump().items():
         if v is None:
@@ -25,23 +27,30 @@ def crear_turno(sb: SupabaseClient, datos: TurnoCreate) -> dict:
         else:
             data[k] = v
     data["id"] = str(uuid.uuid4())
+    data["user_id"] = user_id
     return sb.insert("turnos", data)
 
 
-def obtener_turno(sb: SupabaseClient, turno_id: uuid.UUID) -> dict | None:
-    rows = sb.select("turnos", {"id": f"eq.{turno_id}"})
+def obtener_turno(sb: SupabaseClient, turno_id: uuid.UUID, user_id: str) -> dict | None:
+    rows = sb.select("turnos", {"id": f"eq.{turno_id}", "user_id": f"eq.{user_id}"})
     return rows[0] if rows else None
 
 
 def listar_turnos(
     sb: SupabaseClient,
+    user_id: str,
     estado: str | None = None,
     desde: date | None = None,
     hasta: date | None = None,
     offset: int = 0,
     limit: int = 100,
 ) -> list[dict]:
-    params: dict = {"order": "fecha_turno.desc", "offset": str(offset), "limit": str(limit)}
+    params: dict = {
+        "user_id": f"eq.{user_id}",
+        "order": "fecha_turno.desc",
+        "offset": str(offset),
+        "limit": str(limit),
+    }
     if estado:
         params["estado"] = f"eq.{estado.value if hasattr(estado, 'value') else estado}"
     # Con ambos límites hay que usar and=(): dos claves "fecha_turno" se pisarían
@@ -54,7 +63,7 @@ def listar_turnos(
     return sb.select("turnos", params)
 
 
-def actualizar_turno(sb: SupabaseClient, turno_id: uuid.UUID, datos: TurnoUpdate) -> dict | None:
+def actualizar_turno(sb: SupabaseClient, turno_id: uuid.UUID, datos: TurnoUpdate, user_id: str) -> dict | None:
     # exclude_unset (no exclude_none): un null explícito debe llegar a la BD
     # para poder limpiar campos como fecha_cobro_efectivo al volver a DIFERIDO
     cambios = {}
@@ -68,23 +77,25 @@ def actualizar_turno(sb: SupabaseClient, turno_id: uuid.UUID, datos: TurnoUpdate
         else:
             cambios[k] = v
     if not cambios:
-        return obtener_turno(sb, turno_id)
-    return sb.update("turnos", {"id": f"eq.{turno_id}"}, cambios)
+        return obtener_turno(sb, turno_id, user_id)
+    return sb.update("turnos", {"id": f"eq.{turno_id}", "user_id": f"eq.{user_id}"}, cambios)
 
 
-def eliminar_turno(sb: SupabaseClient, turno_id: uuid.UUID) -> bool:
-    turno = obtener_turno(sb, turno_id)
+def eliminar_turno(sb: SupabaseClient, turno_id: uuid.UUID, user_id: str) -> bool:
+    turno = obtener_turno(sb, turno_id, user_id)
     if turno is None:
         return False
-    sb.delete("turnos", {"id": f"eq.{turno_id}"})
+    sb.delete("turnos", {"id": f"eq.{turno_id}", "user_id": f"eq.{user_id}"})
     return True
 
 
-def listar_turnos_diferidos(sb: SupabaseClient) -> list[dict]:
-    return sb.select("turnos", {"estado": "eq.DIFERIDO"})
+def listar_turnos_diferidos(sb: SupabaseClient, user_id: str) -> list[dict]:
+    return sb.select("turnos", {"estado": "eq.DIFERIDO", "user_id": f"eq.{user_id}"})
 
 
-def sumar_facturado_ultimos_12_meses(sb: SupabaseClient, hasta: date, criterio: str = "DEVENGADO") -> float:
+def sumar_facturado_ultimos_12_meses(
+    sb: SupabaseClient, hasta: date, user_id: str, criterio: str = "DEVENGADO",
+) -> float:
     """Facturación de los últimos 12 meses rodantes para el semáforo Monotributo.
 
     DEVENGADO: por fecha de sesión, COBRADO + DIFERIDO (proxy de facturación
@@ -96,12 +107,14 @@ def sumar_facturado_ultimos_12_meses(sb: SupabaseClient, hasta: date, criterio: 
     if criterio.upper() == "PERCIBIDO":
         params = {
             "estado": "eq.COBRADO",
+            "user_id": f"eq.{user_id}",
             "and": f"(fecha_cobro_efectivo.gte.{desde.isoformat()},fecha_cobro_efectivo.lte.{hasta.isoformat()})",
             "select": "monto,moneda,tipo_cambio",
         }
     else:
         params = {
             "estado": "neq.INCOBRABLE",
+            "user_id": f"eq.{user_id}",
             "and": f"(fecha_turno.gte.{desde.isoformat()},fecha_turno.lte.{hasta.isoformat()})",
             "select": "monto,moneda,tipo_cambio",
         }

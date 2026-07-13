@@ -5,6 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from datetime import date
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 from app.models.enums import EstadoTurno
 from app.schemas.turno import TurnoCreate, TurnoRead, TurnoUpdate
 from app.crud.turno import crear_turno, obtener_turno, listar_turnos, actualizar_turno, eliminar_turno
@@ -13,9 +14,9 @@ router = APIRouter(prefix="/turnos", tags=["Turnos"])
 
 
 @router.post("/", response_model=TurnoRead, status_code=status.HTTP_201_CREATED)
-def registrar_turno(datos: TurnoCreate, sb: SupabaseClient = Depends(get_supabase)):
+def registrar_turno(datos: TurnoCreate, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Registra un turno nuevo."""
-    return crear_turno(sb, datos)
+    return crear_turno(sb, datos, usuario_id)
 
 
 @router.get("/", response_model=list[TurnoRead])
@@ -26,9 +27,10 @@ def listar(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
 ):
     """Lista turnos con filtros opcionales por estado y rango de fechas."""
-    return listar_turnos(sb, estado=estado, desde=desde, hasta=hasta, offset=offset, limit=limit)
+    return listar_turnos(sb, usuario_id, estado=estado, desde=desde, hasta=hasta, offset=offset, limit=limit)
 
 
 # ⚠ IMPORTANTE: /agenda debe ir ANTES de /{turno_id} para que FastAPI no
@@ -38,18 +40,20 @@ def agenda(
     desde: date = Query(...),
     hasta: date = Query(...),
     sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
 ):
     """Turnos en un rango de fechas (para la vista de agenda/calendario).
     Devuelve cada turno enriquecido con el nombre del paciente."""
     # and=() permite ambos límites del rango en un solo query
     turnos_raw = sb.select("turnos", {
+        "user_id": f"eq.{usuario_id}",
         "and": f"(fecha_turno.gte.{desde.isoformat()},fecha_turno.lte.{hasta.isoformat()})",
         "select": "id,paciente_id,fecha_turno,monto,estado,tipo_sesion,origen_pago,prepaga,medio_pago,moneda,tipo_cambio,fecha_cobro_efectivo",
         "order": "fecha_turno.asc",
     })
 
     # Join con pacientes
-    pacientes = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pacientes = sb.select("pacientes", {"user_id": f"eq.{usuario_id}", "select": "id,nombre,apellido"})
     pac_map = {
         p["id"]: f"{p.get('nombre', '')} {p.get('apellido', '')}".strip()
         for p in pacientes
@@ -76,26 +80,26 @@ def agenda(
 
 
 @router.get("/{turno_id}", response_model=TurnoRead)
-def obtener(turno_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase)):
+def obtener(turno_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Devuelve un turno por su ID."""
-    turno = obtener_turno(sb, turno_id)
+    turno = obtener_turno(sb, turno_id, usuario_id)
     if turno is None:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return turno
 
 
 @router.patch("/{turno_id}", response_model=TurnoRead)
-def actualizar(turno_id: uuid.UUID, datos: TurnoUpdate, sb: SupabaseClient = Depends(get_supabase)):
+def actualizar(turno_id: uuid.UUID, datos: TurnoUpdate, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Actualización parcial de un turno."""
-    turno = actualizar_turno(sb, turno_id, datos)
+    turno = actualizar_turno(sb, turno_id, datos, usuario_id)
     if turno is None:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return turno
 
 
 @router.delete("/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar(turno_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase)):
+def eliminar(turno_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Elimina un turno permanentemente."""
-    ok = eliminar_turno(sb, turno_id)
+    ok = eliminar_turno(sb, turno_id, usuario_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Turno no encontrado")

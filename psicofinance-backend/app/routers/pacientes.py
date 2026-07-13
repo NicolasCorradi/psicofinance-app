@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 from app.config import config
 from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada
 from app.utils import hoy_argentina
@@ -70,19 +71,19 @@ def _build_detalle(row: dict) -> PacienteDetalle:
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/", response_model=list[PacienteConStats])
-def listar(sb: SupabaseClient = Depends(get_supabase)):
+def listar(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Lista todos los pacientes con estadísticas agregadas."""
-    return [_build_con_stats(row) for row in listar_pacientes_con_stats(sb)]
+    return [_build_con_stats(row) for row in listar_pacientes_con_stats(sb, usuario_id)]
 
 
 @router.post("/", response_model=PacienteRead, status_code=status.HTTP_201_CREATED)
-def crear(datos: PacienteCreate, sb: SupabaseClient = Depends(get_supabase)):
+def crear(datos: PacienteCreate, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Crea un paciente nuevo."""
-    return crear_paciente_completo(sb, datos)
+    return crear_paciente_completo(sb, datos, usuario_id)
 
 
 @router.get("/alertas-honorarios", response_model=list[dict])
-def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase)):
+def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """
     Devuelve la lista de pacientes cuyo honorario lleva >= UMBRAL_MESES
     sin actualizarse, con el porcentaje de inflación acumulado y honorario sugerido.
@@ -94,6 +95,7 @@ def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase)):
     tasas_hist = ipc.get("tasas", {})
 
     pacientes = sb.select("pacientes", {
+        "user_id": f"eq.{usuario_id}",
         "honorario_actual": "not.is.null",
         "fecha_ultimo_ajuste_honorario": "not.is.null",
     })
@@ -128,29 +130,29 @@ def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase)):
 
 
 @router.get("/{paciente_id}", response_model=PacienteDetalle)
-def detalle(paciente_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase)):
+def detalle(paciente_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Devuelve el detalle de un paciente con historial completo de turnos."""
-    row = obtener_paciente_con_turnos(sb, paciente_id)
+    row = obtener_paciente_con_turnos(sb, paciente_id, usuario_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     return _build_detalle(row)
 
 
 @router.patch("/{paciente_id}", response_model=PacienteRead)
-def actualizar(paciente_id: uuid.UUID, datos: PacienteUpdate, sb: SupabaseClient = Depends(get_supabase)):
+def actualizar(paciente_id: uuid.UUID, datos: PacienteUpdate, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Actualización parcial de un paciente."""
-    paciente = actualizar_paciente(sb, paciente_id, datos)
+    paciente = actualizar_paciente(sb, paciente_id, datos, usuario_id)
     if paciente is None:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     return paciente
 
 
 @router.delete("/{paciente_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar(paciente_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase)):
+def eliminar(paciente_id: uuid.UUID, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """
     Elimina un paciente. Solo funciona si no tiene turnos registrados.
     """
-    ok, motivo = eliminar_paciente(sb, paciente_id)
+    ok, motivo = eliminar_paciente(sb, paciente_id, usuario_id)
     if not ok:
         if motivo == "no_encontrado":
             raise HTTPException(status_code=404, detail="Paciente no encontrado")

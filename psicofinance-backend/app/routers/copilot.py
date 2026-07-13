@@ -11,6 +11,7 @@ from google.genai import types as genai_types
 
 from app.config import config
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion, Moneda
 from app.services.dolar_service import get_dolar_blue
 from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/copilot", tags=["Copiloto NLP"])
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
 
-def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripcion: str | None = None) -> ChatResponse:
+def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: str, transcripcion: str | None = None) -> ChatResponse:
     """Lógica central del copiloto. Usada por /chat y /audio."""
     intencion = clasificar_intencion(mensaje)
 
@@ -39,9 +40,10 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
         sig_mes = (hoy + relativedelta(months=1)).replace(day=1)
 
         turnos = sb.select("turnos", {
+            "user_id": f"eq.{user_id}",
             "select": "paciente_id,monto,estado,fecha_turno,fecha_cobro_efectivo,fecha_cobro_estimada,medio_pago,tipo_sesion,moneda,tipo_cambio",
         })
-        pacientes_raw = sb.select("pacientes", {"select": "id,nombre,apellido"})
+        pacientes_raw = sb.select("pacientes", {"user_id": f"eq.{user_id}", "select": "id,nombre,apellido"})
         pac_map = {p["id"]: f"{p.get('nombre','')} {p.get('apellido','')}".strip() for p in pacientes_raw}
 
         cobrado_mes = sum(
@@ -115,6 +117,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
         # ── Egresos: mes actual + últimos 6 meses ─────────────────────────────
         inicio_egresos = primer_dia - relativedelta(months=5)
         egresos_rows = sb.select("egresos", {
+            "user_id": f"eq.{user_id}",
             "select": "monto,tipo,categoria,fecha",
             "fecha": f"gte.{inicio_egresos.isoformat()}",
             "limit": "2000",
@@ -195,7 +198,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
         )
 
     try:
-        paciente, fue_creado = obtener_o_crear_paciente(sb, datos.paciente)
+        paciente, fue_creado = obtener_o_crear_paciente(sb, datos.paciente, user_id)
     except Exception as e:
         logger.error("Error BD al gestionar paciente: %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
@@ -244,7 +247,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
     )
 
     try:
-        turno = crear_turno(sb, datos_turno)
+        turno = crear_turno(sb, datos_turno, user_id)
     except Exception as e:
         logger.error("Error BD al crear turno: %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
@@ -292,8 +295,8 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, transcripc
 
 
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
-def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabase)):
-    return _procesar_chat(body.mensaje, body.historial, sb)
+def procesar_mensaje(body: ChatRequest, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
+    return _procesar_chat(body.mensaje, body.historial, sb, usuario_id)
 
 
 AUDIO_TIPOS_PERMITIDOS = {
@@ -306,6 +309,7 @@ AUDIO_TIPOS_PERMITIDOS = {
 async def procesar_audio(
     archivo: UploadFile = File(...),
     sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
 ):
     content_type = (archivo.content_type or "audio/webm").split(";")[0].strip()
 
@@ -335,7 +339,7 @@ async def procesar_audio(
     if not transcripcion:
         raise HTTPException(status_code=422, detail="El audio no contiene voz reconocible.")
 
-    return _procesar_chat(transcripcion, [], sb, transcripcion=transcripcion)
+    return _procesar_chat(transcripcion, [], sb, usuario_id, transcripcion=transcripcion)
 
 
 def _a_schema(datos) -> DatosExtraidos:
@@ -410,9 +414,10 @@ async def analizar_comprobante(
 def aprobar_comprobante(
     body: AprobarBorradorRequest,
     sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
 ):
     try:
-        paciente, fue_creado = obtener_o_crear_paciente(sb, body.nombre_emisor)
+        paciente, fue_creado = obtener_o_crear_paciente(sb, body.nombre_emisor, usuario_id)
     except Exception as e:
         logger.error("Error BD al gestionar paciente (comprobante): %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")
@@ -428,7 +433,7 @@ def aprobar_comprobante(
     )
 
     try:
-        turno = crear_turno(sb, datos_turno)
+        turno = crear_turno(sb, datos_turno, usuario_id)
     except Exception as e:
         logger.error("Error BD al crear turno (comprobante): %s", e)
         raise HTTPException(status_code=503, detail="Base de datos no disponible.")

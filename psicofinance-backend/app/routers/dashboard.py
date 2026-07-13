@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends
 
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 from app.services.dolar_service import get_dolar_blue
 from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada as _inflacion_acumulada_svc
 from app.config import config
@@ -42,18 +43,19 @@ MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","D
 
 
 @router.get("/metricas", response_model=dict)
-def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
+def get_metricas(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     hoy = hoy_argentina()
     primer_dia_mes = hoy.replace(day=1)
     primer_dia_mes_sig = (hoy + relativedelta(months=1)).replace(day=1)
 
     # Traer todos los turnos de una sola llamada
     turnos = sb.select("turnos", {
+        "user_id": f"eq.{usuario_id}",
         "select": "id,paciente_id,fecha_turno,monto,estado,origen_pago,prepaga,fecha_cobro_estimada,fecha_cobro_efectivo,medio_pago,tipo_sesion,moneda,tipo_cambio",
     })
 
     # Traer pacientes para join en Python
-    pacientes_raw = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pacientes_raw = sb.select("pacientes", {"user_id": f"eq.{usuario_id}", "select": "id,nombre,apellido"})
     pac_map = {p["id"]: p for p in pacientes_raw}
 
     cobrado_mes = 0.0
@@ -178,7 +180,7 @@ def get_metricas(sb: SupabaseClient = Depends(get_supabase)):
 
 
 @router.get("/turnos-cobrado-mes", response_model=list[dict])
-def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
+def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Turnos COBRADO con fecha_cobro_efectivo en el mes actual.
     Usado por el sheet de desglose del dashboard."""
     hoy = hoy_argentina()
@@ -187,12 +189,13 @@ def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
 
     # and=() permite ambos límites del rango en un solo query
     turnos = sb.select("turnos", {
+        "user_id": f"eq.{usuario_id}",
         "estado": "eq.COBRADO",
         "and":    f"(fecha_cobro_efectivo.gte.{primer_dia.isoformat()},fecha_cobro_efectivo.lt.{primer_sig.isoformat()})",
         "order":  "fecha_cobro_efectivo.desc",
     })
 
-    pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pacs = sb.select("pacientes", {"user_id": f"eq.{usuario_id}", "select": "id,nombre,apellido"})
     pac_map = {p["id"]: p for p in pacs}
 
     result = []
@@ -220,13 +223,14 @@ def get_turnos_cobrado_mes(sb: SupabaseClient = Depends(get_supabase)):
 
 
 @router.get("/turnos-diferidos", response_model=list[dict])
-def get_turnos_diferidos(sb: SupabaseClient = Depends(get_supabase)):
+def get_turnos_diferidos(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Turnos DIFERIDO con join de nombre de paciente. Usado por el sheet de desglose."""
     turnos = sb.select("turnos", {
+        "user_id": f"eq.{usuario_id}",
         "estado": "eq.DIFERIDO",
         "order":  "fecha_turno.desc",
     })
-    pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pacs = sb.select("pacientes", {"user_id": f"eq.{usuario_id}", "select": "id,nombre,apellido"})
     pac_map = {p["id"]: p for p in pacs}
     result = []
     for t in turnos:
@@ -252,14 +256,15 @@ def get_turnos_diferidos(sb: SupabaseClient = Depends(get_supabase)):
 
 
 @router.get("/export-ingresos", response_model=list[dict])
-def get_export_ingresos(sb: SupabaseClient = Depends(get_supabase)):
+def get_export_ingresos(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Todos los turnos COBRADO con nombre de paciente para exportar a CSV/Excel.
     Sin límite de fecha — devuelve el historial completo."""
     turnos = sb.select("turnos", {
+        "user_id": f"eq.{usuario_id}",
         "estado": "eq.COBRADO",
         "order":  "fecha_cobro_efectivo.desc",
     })
-    pacs = sb.select("pacientes", {"select": "id,nombre,apellido"})
+    pacs = sb.select("pacientes", {"user_id": f"eq.{usuario_id}", "select": "id,nombre,apellido"})
     pac_map = {p["id"]: p for p in pacs}
 
     result = []

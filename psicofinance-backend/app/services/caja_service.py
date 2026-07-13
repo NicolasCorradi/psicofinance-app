@@ -10,15 +10,15 @@ from app.schemas.caja import ResumenCaja
 from app.utils import hoy_argentina, monto_ars, parse_fecha
 
 
-def obtener_resumen_caja(sb: SupabaseClient) -> ResumenCaja:
+def obtener_resumen_caja(sb: SupabaseClient, user_id: str) -> ResumenCaja:
     hoy = hoy_argentina()
 
     # --- Caja Líquida ---
-    turnos_cobrados = listar_turnos(sb, estado="COBRADO", limit=0)
+    turnos_cobrados = listar_turnos(sb, user_id, estado="COBRADO", limit=0)
     caja_liquida = sum(monto_ars(t) for t in turnos_cobrados)
 
     # --- Caja Diferida ---
-    turnos_diferidos = listar_turnos_diferidos(sb)
+    turnos_diferidos = listar_turnos_diferidos(sb, user_id)
     cantidad_diferidos = len(turnos_diferidos)
 
     tasas = fetch_ipc_indec().get("tasas", {})
@@ -47,7 +47,7 @@ def obtener_resumen_caja(sb: SupabaseClient) -> ResumenCaja:
     perdida_total = round(perdida_total, 2)
     porcentaje_licuado = round(porcentaje_licuado, 2)
 
-    turnos_incobrables = listar_turnos(sb, estado="INCOBRABLE", limit=0)
+    turnos_incobrables = listar_turnos(sb, user_id, estado="INCOBRABLE", limit=0)
 
     return ResumenCaja(
         caja_liquida_total=round(caja_liquida, 2),

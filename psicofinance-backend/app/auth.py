@@ -93,3 +93,12 @@ def requerir_usuario(
         )
 
     return claims
+
+
+def usuario_id(claims: dict = Depends(requerir_usuario)) -> str:
+    """Dependencia de conveniencia: devuelve solo el ID del usuario (claim 'sub').
+
+    Es lo que separa los datos de cada psicólogo — toda query a Supabase
+    debe filtrar por este valor para que un usuario no vea los datos de otro.
+    """
+    return claims["sub"]

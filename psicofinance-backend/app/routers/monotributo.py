@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from dataclasses import asdict
 from pydantic import BaseModel
 from app.supabase_client import SupabaseClient, get_supabase
+from app.auth import usuario_id
 from app.services.monotributo_service import (
     obtener_semaforo,
     guardar_categoria_bd,
@@ -21,13 +22,13 @@ class CategoriaPayload(BaseModel):
 
 
 @router.get("/semaforo", response_model=dict)
-def semaforo_monotributo(sb: SupabaseClient = Depends(get_supabase)):
-    resultado: ResultadoSemaforo = obtener_semaforo(sb)
+def semaforo_monotributo(sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
+    resultado: ResultadoSemaforo = obtener_semaforo(sb, usuario_id)
     return asdict(resultado)
 
 
 @router.patch("/categoria", response_model=dict)
-def actualizar_categoria(body: CategoriaPayload, sb: SupabaseClient = Depends(get_supabase)):
+def actualizar_categoria(body: CategoriaPayload, sb: SupabaseClient = Depends(get_supabase), usuario_id: str = Depends(usuario_id)):
     """Cambia la categoría del Monotributo y actualiza el semáforo."""
     cat = body.categoria.strip().upper()
     if cat not in TOPES_SERVICIOS:
@@ -35,8 +36,8 @@ def actualizar_categoria(body: CategoriaPayload, sb: SupabaseClient = Depends(ge
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Categoría inválida. Válidas: {list(TOPES_SERVICIOS.keys())}",
         )
-    guardar_categoria_bd(sb, cat)
-    resultado: ResultadoSemaforo = obtener_semaforo(sb)
+    guardar_categoria_bd(sb, cat, usuario_id)
+    resultado: ResultadoSemaforo = obtener_semaforo(sb, usuario_id)
     return {
         **asdict(resultado),
         "categorias_disponibles": list(TOPES_SERVICIOS.keys()),

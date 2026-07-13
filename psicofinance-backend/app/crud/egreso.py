@@ -1,5 +1,7 @@
 # CRUD de Egresos usando Supabase REST API.
 # Mismo patrón que crud/turno.py: sin SQLAlchemy, agregaciones en Python.
+#
+# Multi-tenant: toda función recibe user_id y filtra por él.
 
 import uuid
 from datetime import date
@@ -22,19 +24,21 @@ def _serializar(valores: dict) -> dict:
     return data
 
 
-def crear_egreso(sb: SupabaseClient, datos: EgresoCreate) -> dict:
+def crear_egreso(sb: SupabaseClient, datos: EgresoCreate, user_id: str) -> dict:
     data = _serializar({k: v for k, v in datos.model_dump().items() if v is not None})
     data["id"] = str(uuid.uuid4())
+    data["user_id"] = user_id
     return sb.insert("egresos", data)
 
 
-def obtener_egreso(sb: SupabaseClient, egreso_id: uuid.UUID) -> dict | None:
-    rows = sb.select("egresos", {"id": f"eq.{egreso_id}"})
+def obtener_egreso(sb: SupabaseClient, egreso_id: uuid.UUID, user_id: str) -> dict | None:
+    rows = sb.select("egresos", {"id": f"eq.{egreso_id}", "user_id": f"eq.{user_id}"})
     return rows[0] if rows else None
 
 
 def listar_egresos(
     sb: SupabaseClient,
+    user_id: str,
     desde: date | None = None,
     hasta: date | None = None,
     tipo: str | None = None,
@@ -42,7 +46,12 @@ def listar_egresos(
     offset: int = 0,
     limit: int = 100,
 ) -> list[dict]:
-    params: dict = {"order": "fecha.desc", "offset": str(offset), "limit": str(limit)}
+    params: dict = {
+        "user_id": f"eq.{user_id}",
+        "order": "fecha.desc",
+        "offset": str(offset),
+        "limit": str(limit),
+    }
     if tipo:
         params["tipo"] = f"eq.{tipo.value if hasattr(tipo, 'value') else tipo}"
     if categoria:
@@ -58,16 +67,16 @@ def listar_egresos(
     return sb.select("egresos", params)
 
 
-def actualizar_egreso(sb: SupabaseClient, egreso_id: uuid.UUID, datos: EgresoUpdate) -> dict | None:
+def actualizar_egreso(sb: SupabaseClient, egreso_id: uuid.UUID, datos: EgresoUpdate, user_id: str) -> dict | None:
     cambios = _serializar(datos.model_dump(exclude_none=True))
     if not cambios:
-        return obtener_egreso(sb, egreso_id)
-    return sb.update("egresos", {"id": f"eq.{egreso_id}"}, cambios)
+        return obtener_egreso(sb, egreso_id, user_id)
+    return sb.update("egresos", {"id": f"eq.{egreso_id}", "user_id": f"eq.{user_id}"}, cambios)
 
 
-def eliminar_egreso(sb: SupabaseClient, egreso_id: uuid.UUID) -> bool:
-    egreso = obtener_egreso(sb, egreso_id)
+def eliminar_egreso(sb: SupabaseClient, egreso_id: uuid.UUID, user_id: str) -> bool:
+    egreso = obtener_egreso(sb, egreso_id, user_id)
     if egreso is None:
         return False
-    sb.delete("egresos", {"id": f"eq.{egreso_id}"})
+    sb.delete("egresos", {"id": f"eq.{egreso_id}", "user_id": f"eq.{user_id}"})
     return True

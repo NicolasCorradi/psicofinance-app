@@ -87,11 +87,13 @@ def _tope_categoria(categoria: str, topes: dict[str, float]) -> float:
     return config.monotributo_tope_anual
 
 
-def _leer_categoria_bd(sb: SupabaseClient) -> str | None:
-    """Lee la categoría guardada en la tabla `configuracion` de Supabase.
+def _leer_categoria_bd(sb: SupabaseClient, user_id: str) -> str | None:
+    """Lee la categoría guardada en la tabla `configuracion` de Supabase (por usuario).
     Devuelve None si la tabla no existe o no tiene el registro."""
     try:
-        rows = sb.select("configuracion", {"clave": "eq.monotributo_categoria", "select": "valor"})
+        rows = sb.select("configuracion", {
+            "clave": "eq.monotributo_categoria", "user_id": f"eq.{user_id}", "select": "valor",
+        })
         if rows:
             return rows[0]["valor"].strip().upper()
     except Exception:
@@ -99,20 +101,24 @@ def _leer_categoria_bd(sb: SupabaseClient) -> str | None:
     return None
 
 
-def guardar_categoria_bd(sb: SupabaseClient, categoria: str) -> None:
-    """Guarda o actualiza la categoría en la tabla `configuracion`."""
+def guardar_categoria_bd(sb: SupabaseClient, categoria: str, user_id: str) -> None:
+    """Guarda o actualiza la categoría en la tabla `configuracion` para este usuario."""
     cat = categoria.strip().upper()
-    sb.upsert("configuracion", {"clave": "monotributo_categoria", "valor": cat}, on_conflict="clave")
+    sb.upsert(
+        "configuracion",
+        {"clave": "monotributo_categoria", "valor": cat, "user_id": user_id},
+        on_conflict="clave,user_id",
+    )
 
 
-def obtener_semaforo(sb: SupabaseClient) -> ResultadoSemaforo:
+def obtener_semaforo(sb: SupabaseClient, user_id: str) -> ResultadoSemaforo:
     hoy = hoy_argentina()
     criterio = config.monotributo_criterio.strip().upper()
 
-    facturado = sumar_facturado_ultimos_12_meses(sb, hasta=hoy, criterio=criterio)
+    facturado = sumar_facturado_ultimos_12_meses(sb, hasta=hoy, user_id=user_id, criterio=criterio)
 
     # Prioridad: BD → .env
-    categoria = _leer_categoria_bd(sb) or config.monotributo_categoria.strip().upper()
+    categoria = _leer_categoria_bd(sb, user_id) or config.monotributo_categoria.strip().upper()
     topes, vigencia, vigencia_hasta = _topes_vigentes(sb)
     tope = _tope_categoria(categoria, topes)
     umbral_amarillo = config.monotributo_umbral_amarillo

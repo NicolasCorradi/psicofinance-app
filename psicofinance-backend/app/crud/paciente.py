@@ -1,5 +1,8 @@
 # CRUD de Pacientes usando Supabase REST API.
 # Reemplaza SQLAlchemy para evitar problemas de conectividad PostgreSQL en Render free.
+#
+# Multi-tenant: toda función recibe user_id y filtra por él, así un psicólogo
+# nunca lee ni modifica los pacientes de otro.
 
 import re
 import uuid
@@ -9,26 +12,27 @@ from app.schemas.paciente import PacienteCreate, PacienteUpdate
 from app.utils import hoy_argentina, monto_ars, parse_fecha as _parse_date
 
 
-def crear_paciente(sb: SupabaseClient, nombre: str, apellido: str, email: str | None = None) -> dict:
-    data = {"id": str(uuid.uuid4()), "nombre": nombre, "apellido": apellido}
+def crear_paciente(sb: SupabaseClient, nombre: str, apellido: str, user_id: str, email: str | None = None) -> dict:
+    data = {"id": str(uuid.uuid4()), "nombre": nombre, "apellido": apellido, "user_id": user_id}
     if email:
         data["email"] = email
     return sb.insert("pacientes", data)
 
 
-def crear_paciente_completo(sb: SupabaseClient, datos: PacienteCreate) -> dict:
+def crear_paciente_completo(sb: SupabaseClient, datos: PacienteCreate, user_id: str) -> dict:
     data = {k: (str(v) if isinstance(v, (uuid.UUID, date)) else v)
             for k, v in datos.model_dump().items() if v is not None}
     data["id"] = str(uuid.uuid4())
+    data["user_id"] = user_id
     return sb.insert("pacientes", data)
 
 
-def obtener_paciente(sb: SupabaseClient, paciente_id: uuid.UUID) -> dict | None:
-    rows = sb.select("pacientes", {"id": f"eq.{paciente_id}"})
+def obtener_paciente(sb: SupabaseClient, paciente_id: uuid.UUID, user_id: str) -> dict | None:
+    rows = sb.select("pacientes", {"id": f"eq.{paciente_id}", "user_id": f"eq.{user_id}"})
     return rows[0] if rows else None
 
 
-def actualizar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID, datos: PacienteUpdate) -> dict | None:
+def actualizar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID, datos: PacienteUpdate, user_id: str) -> dict | None:
     cambios = {}
     for k, v in datos.model_dump(exclude_unset=True).items():
         if isinstance(v, date):
@@ -38,27 +42,30 @@ def actualizar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID, datos: Pacie
         else:
             cambios[k] = v
     if not cambios:
-        return obtener_paciente(sb, paciente_id)
-    return sb.update("pacientes", {"id": f"eq.{paciente_id}"}, cambios)
+        return obtener_paciente(sb, paciente_id, user_id)
+    return sb.update("pacientes", {"id": f"eq.{paciente_id}", "user_id": f"eq.{user_id}"}, cambios)
 
 
-def eliminar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID) -> tuple[bool, str]:
-    paciente = obtener_paciente(sb, paciente_id)
+def eliminar_paciente(sb: SupabaseClient, paciente_id: uuid.UUID, user_id: str) -> tuple[bool, str]:
+    paciente = obtener_paciente(sb, paciente_id, user_id)
     if paciente is None:
         return False, "no_encontrado"
-    turnos = sb.select("turnos", {"paciente_id": f"eq.{paciente_id}", "limit": "1"})
+    turnos = sb.select("turnos", {"paciente_id": f"eq.{paciente_id}", "user_id": f"eq.{user_id}", "limit": "1"})
     if turnos:
         return False, "tiene_turnos"
-    sb.delete("pacientes", {"id": f"eq.{paciente_id}"})
+    sb.delete("pacientes", {"id": f"eq.{paciente_id}", "user_id": f"eq.{user_id}"})
     return True, ""
 
 
-def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
-    pacientes = sb.select("pacientes", {"order": "apellido.asc,nombre.asc"})
+def listar_pacientes_con_stats(sb: SupabaseClient, user_id: str) -> list[dict]:
+    pacientes = sb.select("pacientes", {"user_id": f"eq.{user_id}", "order": "apellido.asc,nombre.asc"})
     if not pacientes:
         return []
 
-    turnos = sb.select("turnos", {"select": "paciente_id,monto,estado,fecha_turno,moneda,tipo_cambio"})
+    turnos = sb.select("turnos", {
+        "user_id": f"eq.{user_id}",
+        "select": "paciente_id,monto,estado,fecha_turno,moneda,tipo_cambio",
+    })
 
     hoy = hoy_argentina()
     mes_actual = hoy.strftime("%Y-%m")
@@ -104,13 +111,14 @@ def listar_pacientes_con_stats(sb: SupabaseClient) -> list[dict]:
     return resultado
 
 
-def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID) -> dict | None:
-    paciente = obtener_paciente(sb, paciente_id)
+def obtener_paciente_con_turnos(sb: SupabaseClient, paciente_id: uuid.UUID, user_id: str) -> dict | None:
+    paciente = obtener_paciente(sb, paciente_id, user_id)
     if paciente is None:
         return None
 
     turnos = sb.select("turnos", {
         "paciente_id": f"eq.{paciente_id}",
+        "user_id": f"eq.{user_id}",
         "order": "fecha_turno.desc",
     })
 
@@ -152,16 +160,20 @@ def _escapar_postgrest(termino: str) -> str:
     return re.sub(r'[,().*%"\\]', "", termino)
 
 
-def buscar_paciente_por_nombre(sb: SupabaseClient, nombre_completo: str) -> dict | None:
+def buscar_paciente_por_nombre(sb: SupabaseClient, nombre_completo: str, user_id: str) -> dict | None:
     termino = nombre_completo.strip().lower()
     partes = [_escapar_postgrest(p) for p in termino.split()]
     partes = [p for p in partes if p]
     if not partes:
         return None
     if len(partes) == 1:
-        rows = sb.select("pacientes", {"or": f"(nombre.ilike.*{partes[0]}*,apellido.ilike.*{partes[0]}*)"})
+        rows = sb.select("pacientes", {
+            "user_id": f"eq.{user_id}",
+            "or": f"(nombre.ilike.*{partes[0]}*,apellido.ilike.*{partes[0]}*)",
+        })
     else:
         rows = sb.select("pacientes", {
+            "user_id": f"eq.{user_id}",
             "nombre": f"ilike.*{partes[0]}*",
             "apellido": f"ilike.*{partes[-1]}*",
         })
@@ -175,12 +187,12 @@ def buscar_paciente_por_nombre(sb: SupabaseClient, nombre_completo: str) -> dict
     return rows[0]
 
 
-def obtener_o_crear_paciente(sb: SupabaseClient, nombre_completo: str) -> tuple[dict, bool]:
-    existente = buscar_paciente_por_nombre(sb, nombre_completo)
+def obtener_o_crear_paciente(sb: SupabaseClient, nombre_completo: str, user_id: str) -> tuple[dict, bool]:
+    existente = buscar_paciente_por_nombre(sb, nombre_completo, user_id)
     if existente:
         return existente, False
     partes = nombre_completo.strip().split()
     nombre = partes[0] if partes else nombre_completo
     apellido = " ".join(partes[1:]) if len(partes) > 1 else ""
-    nuevo = crear_paciente(sb, nombre=nombre, apellido=apellido)
+    nuevo = crear_paciente(sb, nombre=nombre, apellido=apellido, user_id=user_id)
     return nuevo, True
