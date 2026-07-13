@@ -284,14 +284,12 @@ export default function ReportesPage() {
             <div className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-1.5">
               <span className="text-xs text-indigo-500">IPC mensual:</span>
               <span className="text-xs font-bold tabular-nums text-indigo-700">
-                {!ipc ? "…" : ipc.estimado ? "N/D" : `${ipc.valor.toFixed(1)}%`}
+                {ipc ? `${ipc.valor.toFixed(1)}%` : "…"}
               </span>
             </div>
             {ipc && (
               <span className="text-[10px] text-neutral-400">
-                {ipc.estimado
-                  ? "INDEC no disponible · usando valor de config"
-                  : `INDEC · ${fmtPeriodo(ipc.periodo)}${ipc.proyeccion_periodo ? " (último publicado)" : ""}`}
+                INDEC · {fmtPeriodo(ipc.periodo)}
               </span>
             )}
           </div>

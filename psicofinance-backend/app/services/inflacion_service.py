@@ -21,6 +21,11 @@ _FALLBACK_TTL  = 300    # 5 minutos cuando falla — reintenta pronto
 # IPC Nacional Nivel General base dic 2016 (serie oficial INDEC)
 _IPC_SERIES_ID = "148.3_INIVELNAL_DICI_M_26"
 
+# Último dato REAL confirmado a mano (fallback de emergencia si datos.gob.ar
+# no responde y todavía no hay nada en caché). Actualizar cuando se confirme
+# un mes más reciente — no es una proyección, es el último IPC publicado.
+_ULTIMO_IPC_REAL_CONOCIDO = {"periodo": "2026-05", "valor_pct": 2.15}
+
 
 def fetch_ipc_indec() -> dict:
     """Trae los últimos 13 meses de IPC Nacional (INDEC) desde datos.gob.ar.
@@ -116,20 +121,25 @@ def fetch_ipc_indec() -> dict:
     except Exception as exc:
         logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
         if not _ipc_cache.get("tasas"):
+            # La API externa no respondió y no hay nada en caché todavía:
+            # mostrar el último dato real conocido (no una proyección) para
+            # no dejar la UI en blanco. Las tasas internas (licuación) sí
+            # usan la proyección de config para los meses sin dato real.
             tasa_fb = config.inflacion_mensual
             tasas_fb: dict[str, float] = {}
             hoy = hoy_argentina()
             for i in range(13):
                 mes = (hoy - relativedelta(months=i)).strftime("%Y-%m")
                 tasas_fb[mes] = tasa_fb
+            tasas_fb[_ULTIMO_IPC_REAL_CONOCIDO["periodo"]] = _ULTIMO_IPC_REAL_CONOCIDO["valor_pct"] / 100
             # TTL corto: reintenta en 5 min en vez de bloquear 6 horas
             _ipc_cache.update({
                 "tasas":               tasas_fb,
-                "ultimo_periodo":      "config",
-                "ultimo_valor_pct":    round(tasa_fb * 100, 2),
-                "estimado":            True,
-                "ultimo_real_periodo": None,
-                "proyeccion_periodo":  None,
+                "ultimo_periodo":      _ULTIMO_IPC_REAL_CONOCIDO["periodo"],
+                "ultimo_valor_pct":    _ULTIMO_IPC_REAL_CONOCIDO["valor_pct"],
+                "estimado":            False,
+                "ultimo_real_periodo": _ULTIMO_IPC_REAL_CONOCIDO["periodo"],
+                "proyeccion_periodo":  hoy.strftime("%Y-%m"),
                 "ts":                  ahora - _IPC_CACHE_TTL + _FALLBACK_TTL,
             })
 
