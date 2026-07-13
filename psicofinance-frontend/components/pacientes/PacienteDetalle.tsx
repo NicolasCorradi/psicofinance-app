@@ -6,7 +6,7 @@ import { getPacienteDetalle, actualizarPaciente, eliminarPaciente } from "@/lib/
 import type { PacienteDetalle as Detalle, TurnoEnDetalle, EstadoTurno, MedioPago, TipoSesion, PacienteUpdatePayload } from "@/lib/types";
 import { avatarCls } from "@/lib/avatar";
 import { fmtPesosCompacto as fmtPesos, isoHoy, fechaRel, MEDIO_LABEL_CORTO as MEDIO_LABELS } from "@/lib/format";
-import { linkWhatsApp, mensajeRecordatorioDeuda } from "@/lib/whatsapp";
+import { linkWhatsApp, mensajeRecordatorioDeudaDetallado } from "@/lib/whatsapp";
 import { useToast } from "@/lib/toast";
 
 function fmtFecha(iso: string): string {
@@ -177,6 +177,9 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   const inasistencias  = detalle?.turnos.filter(t =>
     t.tipo_sesion === "INASISTENCIA_INJUSTIFICADA" || t.tipo_sesion === "INASISTENCIA_JUSTIFICADA"
   ).length ?? 0;
+  const turnosPendientes = detalle?.turnos
+    .filter(t => t.estado === "DIFERIDO")
+    .map(t => ({ fecha: t.fecha_turno, monto: t.monto })) ?? [];
   const totalConSesion = sesionesReales + inasistencias;
   const tasaAsistencia = totalConSesion > 0 ? Math.round((sesionesReales / totalConSesion) * 100) : null;
 
@@ -272,7 +275,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
             {detalle.pendiente > 0 && (
               <div className="border-b border-neutral-100 bg-white px-4 py-2.5">
                 <a
-                  href={linkWhatsApp(detalle.telefono, mensajeRecordatorioDeuda(detalle.nombre, detalle.pendiente))}
+                  href={linkWhatsApp(detalle.telefono, mensajeRecordatorioDeudaDetallado(detalle.nombre, turnosPendientes))}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200 transition-colors hover:bg-emerald-100"

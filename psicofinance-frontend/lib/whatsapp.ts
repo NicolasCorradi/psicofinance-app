@@ -31,10 +31,44 @@ export function linkWhatsApp(telefono: string | null | undefined, mensaje: strin
   return `https://wa.me/?text=${texto}`;
 }
 
-/** Mensaje de recordatorio de deuda, cordial y listo para enviar. */
-export function mensajeRecordatorioDeuda(nombre: string, monto: number): string {
-  const montoFmt = new Intl.NumberFormat("es-AR", {
+function fmtMoneda(monto: number): string {
+  return new Intl.NumberFormat("es-AR", {
     style: "currency", currency: "ARS", maximumFractionDigits: 0,
   }).format(monto);
-  return `Hola ${nombre}! ¿Cómo estás? Te escribo para recordarte que quedó pendiente el pago de ${montoFmt} de sesiones. Cualquier cosa avisame. ¡Gracias!`;
+}
+
+/** Mensaje de recordatorio de deuda, cordial y listo para enviar. */
+export function mensajeRecordatorioDeuda(nombre: string, monto: number): string {
+  return `Hola ${nombre}! ¿Cómo estás? Te escribo para recordarte que quedó pendiente el pago de ${fmtMoneda(monto)} de sesiones. Cualquier cosa avisame. ¡Gracias!`;
+}
+
+/**
+ * Mensaje de recordatorio detallando las sesiones pendientes (fecha + monto).
+ * Con turnos > 6 resume el listado para no hacer el mensaje interminable.
+ */
+export function mensajeRecordatorioDeudaDetallado(
+  nombre: string,
+  turnosPendientes: { fecha: string; monto: number }[],
+): string {
+  const total = turnosPendientes.reduce((s, t) => s + t.monto, 0);
+  if (turnosPendientes.length === 0) {
+    return mensajeRecordatorioDeuda(nombre, total);
+  }
+
+  const MAX_LISTADOS = 6;
+  const ordenados = [...turnosPendientes].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const visibles = ordenados.slice(0, MAX_LISTADOS);
+  const restantes = ordenados.length - visibles.length;
+
+  const lineas = visibles.map(t => {
+    const [y, m, d] = t.fecha.split("-");
+    return `• ${d}/${m} - ${fmtMoneda(t.monto)}`;
+  });
+  if (restantes > 0) lineas.push(`• y ${restantes} sesión${restantes > 1 ? "es" : ""} más`);
+
+  return (
+    `Hola ${nombre}! ¿Cómo estás? Te escribo para recordarte que quedaron pendientes estas sesiones:\n` +
+    lineas.join("\n") +
+    `\nTotal: ${fmtMoneda(total)}. Cualquier cosa avisame. ¡Gracias!`
+  );
 }
