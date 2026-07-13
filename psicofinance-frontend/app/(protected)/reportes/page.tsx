@@ -21,6 +21,13 @@ function fmtPesosEje(value: number): string {
   return `$${value}`;
 }
 
+/** "2026-05" → "mayo 2026". Devuelve el texto crudo si no matchea. */
+function fmtPeriodo(periodo: string | null): string {
+  if (!periodo || !/^\d{4}-\d{2}$/.test(periodo)) return periodo ?? "";
+  const [y, m] = periodo.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+}
+
 function CustomTooltip({ active, payload, label }: {
   active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string;
 }) {
@@ -45,7 +52,7 @@ export default function ReportesPage() {
   const [pacientes,  setPacientes]  = useState<PacienteConStats[]>([]);
   const [semaforo,   setSemaforo]   = useState<ResultadoSemaforo | null>(null);
   const [cargando,   setCargando]   = useState(true);
-  const [ipc, setIpc] = useState<{ valor: number; periodo: string; estimado: boolean; ultimo_real_periodo: string | null; fuente: string } | null>(null);
+  const [ipc, setIpc] = useState<{ valor: number; periodo: string; estimado: boolean; ultimo_real_periodo: string | null; proyeccion_periodo: string | null; fuente: string } | null>(null);
   const [egresos, setEgresos] = useState<ResumenEgresos | null>(null);
   const [exportando,   setExportando]   = useState(false);
   const [errorExport,  setErrorExport]  = useState<string | null>(null);
@@ -283,10 +290,8 @@ export default function ReportesPage() {
             {ipc && (
               <span className="text-[10px] text-neutral-400">
                 {ipc.estimado
-                  ? ipc.ultimo_real_periodo
-                    ? `INDEC aún no publicó este mes · último: ${ipc.ultimo_real_periodo}`
-                    : "INDEC aún no publicó datos"
-                  : `INDEC · ${ipc.periodo}`}
+                  ? "INDEC no disponible · usando valor de config"
+                  : `INDEC · ${fmtPeriodo(ipc.periodo)}${ipc.proyeccion_periodo ? " (último publicado)" : ""}`}
               </span>
             )}
           </div>

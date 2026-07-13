@@ -35,8 +35,21 @@ def fetch_ipc_indec() -> dict:
             "https://apis.datos.gob.ar/series/api/series/"
             f"?ids={_IPC_SERIES_ID}&limit=14&sort=desc&format=json"
         )
-        r = httpx.get(url, timeout=8)
-        r.raise_for_status()
+        # Un reintento con timeout tolerante: en el cold start de Render (tier
+        # gratis) la primera salida a internet suele ser lenta y un timeout
+        # corto mandaba todo al fallback ("N/D") sin necesidad.
+        ultimo_error = None
+        r = None
+        for intento in range(2):
+            try:
+                r = httpx.get(url, timeout=15)
+                r.raise_for_status()
+                break
+            except Exception as e:
+                ultimo_error = e
+                logger.warning("IPC intento %d falló: %s", intento + 1, e)
+        if r is None:
+            raise ultimo_error or RuntimeError("IPC: sin respuesta de datos.gob.ar")
         data = r.json().get("data", [])
 
         # Con menos de 2 puntos no se puede calcular variación: caer al fallback
@@ -71,32 +84,34 @@ def fetch_ipc_indec() -> dict:
         if not tasas:
             raise ValueError("Sin tasas válidas tras filtrar períodos futuros")
 
-        # Período más reciente realmente publicado por INDEC (antes de rellenar
-        # con el fallback de config, para poder mostrarlo aunque el mes actual
-        # todavía sea estimado)
+        # El dato que se MUESTRA es siempre el último realmente publicado por
+        # INDEC. Mostrar "N/D" mientras no salga el dato del mes en curso no le
+        # sirve a nadie: el número del mes anterior ya está y es el útil para
+        # comparar contra la facturación.
         ultimo_real_periodo = sorted(tasas.keys())[-1]
         ultimo_periodo = ultimo_real_periodo
         ultimo_valor   = tasas[ultimo_periodo] * 100
-        estimado       = False
 
-        # Si el mes anterior aún no está en la API, completar con config
+        # Para la licuación (caja diferida) sí hace falta una tasa del mes en
+        # curso; si INDEC no la publicó, la completamos con la proyección de
+        # config — pero SOLO en `tasas` (uso interno), sin tocar el valor visible.
+        proyeccion_periodo = None
         if mes_anterior not in tasas:
             tasas[mes_anterior] = config.inflacion_mensual
-            ultimo_periodo = mes_anterior
-            ultimo_valor   = config.inflacion_mensual * 100
-            estimado       = True
-            logger.info("IPC %s no publicado en API aún — usando config: %.2f%%",
-                        mes_anterior, ultimo_valor)
+            proyeccion_periodo = mes_anterior
+            logger.info("IPC %s no publicado aún — proyectado con config %.2f%% (solo para licuación)",
+                        mes_anterior, config.inflacion_mensual * 100)
 
         _ipc_cache.update({
             "tasas":               tasas,
             "ultimo_periodo":      ultimo_periodo,
             "ultimo_valor_pct":    round(ultimo_valor, 2),
-            "estimado":            estimado,
+            "estimado":            False,  # el valor visible es un dato real de INDEC
             "ultimo_real_periodo": ultimo_real_periodo,
+            "proyeccion_periodo":  proyeccion_periodo,
             "ts":                  ahora,
         })
-        logger.info("IPC INDEC: %d meses. Último: %s → %.2f%%",
+        logger.info("IPC INDEC: %d meses. Último real: %s → %.2f%%",
                     len(tasas), ultimo_periodo, ultimo_valor)
     except Exception as exc:
         logger.warning("No se pudo obtener IPC de INDEC: %s", exc)
@@ -114,6 +129,7 @@ def fetch_ipc_indec() -> dict:
                 "ultimo_valor_pct":    round(tasa_fb * 100, 2),
                 "estimado":            True,
                 "ultimo_real_periodo": None,
+                "proyeccion_periodo":  None,
                 "ts":                  ahora - _IPC_CACHE_TTL + _FALLBACK_TTL,
             })
 

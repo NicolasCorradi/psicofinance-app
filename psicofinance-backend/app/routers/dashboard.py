@@ -294,15 +294,18 @@ def get_dolar():
 
 @router.get("/inflacion", response_model=dict)
 def get_inflacion():
-    """Último dato de inflación mensual IPC General — fuente INDEC via datos.gob.ar.
-    Cachea 6 horas. Devuelve { valor: float (%), periodo: str 'YYYY-MM', fuente: str }."""
+    """Último dato REAL de inflación mensual IPC General — fuente INDEC via datos.gob.ar.
+    Muestra siempre el último mes publicado (no una estimación). `proyeccion_periodo`
+    indica el mes en curso que INDEC todavía no publicó, si corresponde.
+    Cachea 6 horas."""
     ipc = _fetch_ipc_indec()
     periodo = ipc.get("ultimo_periodo", "—")
     estimado = bool(ipc.get("estimado", False)) or periodo == "config"
     return {
-        "valor":              round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
-        "periodo":            periodo,
-        "estimado":           estimado,
+        "valor":               round(ipc.get("ultimo_valor_pct", config.inflacion_mensual * 100), 2),
+        "periodo":             periodo,
+        "estimado":            estimado,
         "ultimo_real_periodo": ipc.get("ultimo_real_periodo"),
-        "fuente":             "Valor de configuración (INDEC aún no publicó)" if estimado else "INDEC — IPC Nacional Nivel General",
+        "proyeccion_periodo":  ipc.get("proyeccion_periodo"),
+        "fuente":              "Valor de configuración (INDEC no disponible)" if estimado else "INDEC — IPC Nacional Nivel General",
     }
