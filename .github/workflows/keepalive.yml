@@ -1,15 +1,30 @@
-# Keepalive: evita que el stack gratuito se apague por inactividad.
+# Keepalive: mantiene el backend despierto en el horario de uso para evitar
+# el arranque en frío de Render (~30-50s la primera visita tras 15 min ocioso).
+#
+# - Render Free duerme el servicio tras 15 min sin tráfico.
 # - Supabase Free pausa el proyecto tras ~7 días sin actividad (y NO se
 #   despierta solo: hay que restaurarlo a mano desde el dashboard).
-# - El endpoint /keepalive del backend hace un query liviano a Supabase,
-#   así que un solo ping mantiene vivos a los dos (Render + Supabase).
-# Corre 2 veces por día. GitHub desactiva crons en repos sin actividad
-# por 60 días — un push cualquiera lo reactiva.
+# El endpoint /keepalive hace un query liviano a Supabase, así un solo ping
+# mantiene vivos a los dos (Render + Supabase).
+#
+# Corre cada 5 min entre las 08:00 y las 24:00 hora Argentina (UTC-3), o sea
+# UTC 11:00–02:59. Empieza a las 08:00 para llegar caliente a las 9. Fuera de
+# ese rango se deja dormir para no gastar de gusto las horas gratis de Render
+# (igual los pings diarios alcanzan de sobra para que Supabase no se pause).
+# El repo es público, así que los minutos de GitHub Actions son gratis.
+#
+# OJO: los cron de GitHub Actions son "best effort" — a veces se atrasan unos
+# minutos en horas pico. La mayor parte del tiempo evita el cold start, pero
+# algún arranque en frío suelto puede colarse. Si llega a molestar, un cron
+# dedicado (cron-job.org) es más puntual.
+#
+# GitHub desactiva crons en repos sin actividad por 60 días — un push lo reactiva.
 name: Keepalive
 
 on:
   schedule:
-    - cron: "0 3,15 * * *" # 03:00 y 15:00 UTC (00:00 y 12:00 en Argentina)
+    - cron: "*/5 11-23 * * *" # UTC 11:00–23:59 = Argentina 08:00–20:59
+    - cron: "*/5 0-2 * * *"   # UTC 00:00–02:59 = Argentina 21:00–23:59
   workflow_dispatch: {} # permite dispararlo a mano desde la pestaña Actions
 
 jobs:
@@ -18,14 +33,16 @@ jobs:
     steps:
       - name: Ping backend + Supabase
         run: |
-          # Render Free tarda ~50s en despertar de un arranque en frío:
-          # reintentar con paciencia antes de declarar fallo.
+          # Best-effort: si un ping falla NO marcamos el job como fallido, para
+          # no recibir un mail de error cada 5 minutos. El próximo ping reintenta
+          # solo. Los reintentos internos son por si justo agarra un arranque
+          # en frío (Render Free tarda ~50s en despertar).
           for i in 1 2 3; do
             code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" --max-time 90 \
               "https://psicofinance-backend.onrender.com/api/v1/keepalive") && true
             echo "Intento $i: HTTP $code — $(cat /tmp/resp.txt)"
             [ "$code" = "200" ] && exit 0
-            sleep 30
+            sleep 20
           done
-          echo "::error::El keepalive no respondió 200 tras 3 intentos"
-          exit 1
+          echo "::warning::El keepalive no respondió 200 tras 3 intentos (se reintenta en 5 min)"
+          exit 0
