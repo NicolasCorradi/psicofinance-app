@@ -56,7 +56,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 px-4">
+    <div className="auth-dark flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 px-4">
 
       {/* Fondo decorativo */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">

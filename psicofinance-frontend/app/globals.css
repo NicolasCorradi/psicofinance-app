@@ -200,4 +200,19 @@
     outline: 2px solid oklch(0.511 0.262 276.966 / 0.6);
     outline-offset: 2px;
   }
+
+  /* Autofill del navegador en pantallas oscuras (login / reset de contraseña).
+     Chrome/Edge pintan un fondo claro propio al autocompletar y el texto
+     blanco del input quedaba invisible/lavado. Scopeado a .auth-dark para no
+     tocar los inputs de fondo claro del resto de la app: forzamos el texto
+     blanco y evitamos que aparezca el fondo claro con el truco de la
+     transición larga (el input conserva su fondo transparente). */
+  .auth-dark input:-webkit-autofill,
+  .auth-dark input:-webkit-autofill:hover,
+  .auth-dark input:-webkit-autofill:focus,
+  .auth-dark input:-webkit-autofill:active {
+    -webkit-text-fill-color: #fff;
+    caret-color: #fff;
+    transition: background-color 600000s 0s, color 600000s 0s;
+  }
 }
