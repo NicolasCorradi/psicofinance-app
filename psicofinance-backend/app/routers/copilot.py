@@ -205,6 +205,9 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
         honorario = paciente.get("honorario_actual")
         if honorario and float(honorario) > 0:
             datos.monto = float(honorario)
+            # El honorario habitual está en la moneda de la ficha del paciente,
+            # no necesariamente en la que el mensaje mencionó (o no mencionó nada)
+            datos.moneda = paciente.get("moneda") or "ARS"
             monto_asumido = True
 
     if datos.monto <= 0:

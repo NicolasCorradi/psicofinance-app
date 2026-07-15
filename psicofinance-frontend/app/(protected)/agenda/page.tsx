@@ -9,11 +9,11 @@ import {
 import {
   getTurnosAgenda, getSemanaModelo, guardarSemanaModelo,
   getPacientes, crearTurno, actualizarTurno,
-  getExcepcionesSemana, guardarExcepcionesSemana,
+  getExcepcionesSemana, guardarExcepcionesSemana, getDolarBlue,
 } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import type {
-  TurnoAgenda, EstadoTurno, TipoSesion, MedioPago,
+  TurnoAgenda, EstadoTurno, TipoSesion, MedioPago, Moneda,
   SlotModelo, PacienteConStats, ExcepcionSemanal,
 } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
@@ -53,13 +53,16 @@ interface ModalRegistrarProps {
   slot: SlotModelo;
   fecha: string;
   honorario: number | null;
+  monedaDefault: Moneda;
   onClose: () => void;
   onGuardado: () => void;
 }
 
-function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRegistrarProps) {
+function ModalRegistrar({ slot, fecha, honorario, monedaDefault, onClose, onGuardado }: ModalRegistrarProps) {
   const [tipoSesion, setTipoSesion] = useState<TipoSesion>("SESION");
   const [monto, setMonto]           = useState(honorario ? honorario.toString() : "");
+  const [moneda, setMoneda]         = useState<Moneda>(monedaDefault);
+  const [tipoCambio, setTipoCambio] = useState<number | null>(null);
   const [estado, setEstado]         = useState<EstadoTurno>("DIFERIDO");
   const [medioPago, setMedioPago]   = useState<MedioPago | "">("");
   const [guardando, setGuardando]   = useState(false);
@@ -68,11 +71,21 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
 
   const esInasistencia = tipoSesion !== "SESION";
 
+  useEffect(() => {
+    if (moneda === "USD" && tipoCambio == null) {
+      getDolarBlue().then(d => setTipoCambio(d.valor)).catch(() => {});
+    }
+  }, [moneda, tipoCambio]);
+
   async function confirmar() {
     setError("");
     const montoNum = Number(monto) || 0;
     if (!esInasistencia && montoNum <= 0) {
-      setError("Ingresá un monto mayor a $0 para registrar la sesión.");
+      setError(`Ingresá un monto mayor a ${moneda === "USD" ? "US$0" : "$0"} para registrar la sesión.`);
+      return;
+    }
+    if (!esInasistencia && moneda === "USD" && (!tipoCambio || tipoCambio <= 0)) {
+      setError("Ingresá un tipo de cambio válido.");
       return;
     }
     setGuardando(true);
@@ -85,7 +98,8 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
         estado:               esInasistencia ? "COBRADO" : estado,
         tipo_sesion:          tipoSesion,
         origen_pago:          "DIRECTO",
-        moneda:               "ARS",
+        moneda:               esInasistencia ? "ARS" : moneda,
+        tipo_cambio:          (!esInasistencia && moneda === "USD") ? tipoCambio : null,
         medio_pago:           medioPago || null,
         fecha_cobro_efectivo: (!esInasistencia && estado === "COBRADO") ? hoy : null,
       });
@@ -136,11 +150,28 @@ function ModalRegistrar({ slot, fecha, honorario, onClose, onGuardado }: ModalRe
         {!esInasistencia && (<>
           <div className="mb-3">
             <p className="mb-1.5 text-xs font-semibold text-neutral-500 dark:text-slate-400">Monto</p>
-            <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
-              <span className="text-sm text-neutral-400 dark:text-slate-500">$</span>
-              <input type="number" min={0} value={monto} onChange={e => setMonto(e.target.value)}
-                placeholder="0" className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+            <div className="flex gap-1.5">
+              <div className="flex flex-1 items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
+                <span className="text-sm text-neutral-400 dark:text-slate-500">{moneda === "USD" ? "US$" : "$"}</span>
+                <input type="number" min={0} value={monto} onChange={e => setMonto(e.target.value)}
+                  placeholder="0" className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+              </div>
+              <div className="flex overflow-hidden rounded-xl border border-neutral-200 dark:border-slate-700">
+                {(["ARS", "USD"] as const).map(m => (
+                  <button key={m} onClick={() => setMoneda(m)}
+                    className={`px-2.5 py-2.5 text-xs font-medium transition-colors ${moneda === m ? "bg-indigo-600 text-white" : "bg-white dark:bg-slate-900 text-neutral-500 dark:text-slate-400 hover:bg-neutral-50 dark:hover:bg-slate-800/60"}`}>
+                    {m}
+                  </button>
+                ))}
+              </div>
             </div>
+            {moneda === "USD" && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+                <span className="text-[10px] text-neutral-400 dark:text-slate-500 whitespace-nowrap">Tipo de cambio</span>
+                <input type="number" min={0} value={tipoCambio ?? ""} onChange={e => setTipoCambio(e.target.value ? Number(e.target.value) : null)}
+                  placeholder="Ej: 1350" className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+              </div>
+            )}
           </div>
           <div className="mb-3">
             <p className="mb-1.5 text-xs font-semibold text-neutral-500 dark:text-slate-400">Estado</p>
@@ -191,6 +222,8 @@ interface ModalEditarProps {
 function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
   const [tipoSesion, setTipoSesion] = useState<TipoSesion>(turno.tipo_sesion);
   const [monto, setMonto]           = useState(turno.monto.toString());
+  const [moneda, setMoneda]         = useState<Moneda>(turno.moneda ?? "ARS");
+  const [tipoCambio, setTipoCambio] = useState<number | null>(turno.tipo_cambio ?? null);
   const [estado, setEstado]         = useState<EstadoTurno>(turno.estado);
   const [medioPago, setMedioPago]   = useState<MedioPago | "">(turno.medio_pago ?? "");
   const [guardando, setGuardando]   = useState(false);
@@ -199,11 +232,21 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
 
   const esInasistencia = tipoSesion !== "SESION";
 
+  useEffect(() => {
+    if (moneda === "USD" && tipoCambio == null) {
+      getDolarBlue().then(d => setTipoCambio(d.valor)).catch(() => {});
+    }
+  }, [moneda, tipoCambio]);
+
   async function guardar() {
     setError("");
     const montoNum = Number(monto) || 0;
     if (!esInasistencia && montoNum <= 0) {
-      setError("Ingresá un monto mayor a $0 para registrar la sesión.");
+      setError(`Ingresá un monto mayor a ${moneda === "USD" ? "US$0" : "$0"} para registrar la sesión.`);
+      return;
+    }
+    if (!esInasistencia && moneda === "USD" && (!tipoCambio || tipoCambio <= 0)) {
+      setError("Ingresá un tipo de cambio válido.");
       return;
     }
     setGuardando(true);
@@ -219,6 +262,8 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
       await actualizarTurno(turno.id, {
         tipo_sesion:          tipoSesion,
         monto:                esInasistencia ? 0 : montoNum,
+        moneda:               esInasistencia ? "ARS" : moneda,
+        tipo_cambio:          (!esInasistencia && moneda === "USD") ? tipoCambio : null,
         estado:               estadoFinal,
         medio_pago:           medioPago || null,
         ...(fechaCobro !== undefined ? { fecha_cobro_efectivo: fechaCobro } : {}),
@@ -279,11 +324,28 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
         {!esInasistencia && (<>
           <div className="mb-3">
             <p className="mb-1.5 text-xs font-semibold text-neutral-500 dark:text-slate-400">Monto</p>
-            <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
-              <span className="text-sm text-neutral-400 dark:text-slate-500">$</span>
-              <input type="number" min={0} value={monto} onChange={e => setMonto(e.target.value)}
-                className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+            <div className="flex gap-1.5">
+              <div className="flex flex-1 items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
+                <span className="text-sm text-neutral-400 dark:text-slate-500">{moneda === "USD" ? "US$" : "$"}</span>
+                <input type="number" min={0} value={monto} onChange={e => setMonto(e.target.value)}
+                  className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+              </div>
+              <div className="flex overflow-hidden rounded-xl border border-neutral-200 dark:border-slate-700">
+                {(["ARS", "USD"] as const).map(m => (
+                  <button key={m} onClick={() => setMoneda(m)}
+                    className={`px-2.5 py-2.5 text-xs font-medium transition-colors ${moneda === m ? "bg-indigo-600 text-white" : "bg-white dark:bg-slate-900 text-neutral-500 dark:text-slate-400 hover:bg-neutral-50 dark:hover:bg-slate-800/60"}`}>
+                    {m}
+                  </button>
+                ))}
+              </div>
             </div>
+            {moneda === "USD" && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+                <span className="text-[10px] text-neutral-400 dark:text-slate-500 whitespace-nowrap">Tipo de cambio</span>
+                <input type="number" min={0} value={tipoCambio ?? ""} onChange={e => setTipoCambio(e.target.value ? Number(e.target.value) : null)}
+                  placeholder="Ej: 1350" className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+              </div>
+            )}
           </div>
           <div className="mb-3">
             <p className="mb-1.5 text-xs font-semibold text-neutral-500 dark:text-slate-400">Estado</p>
@@ -616,6 +678,10 @@ function VistaSemana() {
     return pacientes.find(p => p.id === slot.paciente_id)?.honorario_actual ?? null;
   }
 
+  function monedaDeSlot(slot: SlotModelo): Moneda {
+    return pacientes.find(p => p.id === slot.paciente_id)?.moneda === "USD" ? "USD" : "ARS";
+  }
+
   return (<>
     {/* Controles */}
     <div className="mb-4 flex flex-wrap items-center gap-2 justify-between">
@@ -706,6 +772,7 @@ function VistaSemana() {
         slot={modalReg.slot}
         fecha={modalReg.fecha}
         honorario={honorarioDeSlot(modalReg.slot)}
+        monedaDefault={monedaDeSlot(modalReg.slot)}
         onClose={() => setModalReg(null)}
         onGuardado={() => { setModalReg(null); cargar(lunes); }}
       />

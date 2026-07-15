@@ -130,6 +130,7 @@ export interface PacienteRead {
   email:                         string | null;
   telefono:                      string | null;
   honorario_actual:              number | null;
+  moneda:                        Moneda;
   fecha_ultimo_ajuste_honorario: string | null;
   created_at:                    string;
 }
@@ -169,6 +170,7 @@ export interface PacienteCreatePayload {
   email?:                        string | null;
   telefono?:                     string | null;
   honorario_actual?:             number | null;
+  moneda?:                       Moneda;
   fecha_ultimo_ajuste_honorario?: string | null;
 }
 
@@ -178,6 +180,7 @@ export interface PacienteUpdatePayload {
   email?:                        string | null;
   telefono?:                     string | null;
   honorario_actual?:             number | null;
+  moneda?:                       Moneda;
   fecha_ultimo_ajuste_honorario?: string | null;
 }
 

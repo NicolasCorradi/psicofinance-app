@@ -38,6 +38,7 @@ def _build_con_stats(row: dict) -> PacienteConStats:
         email=p.get("email"),
         telefono=p.get("telefono"),
         honorario_actual=p.get("honorario_actual"),
+        moneda=p.get("moneda") or "ARS",
         fecha_ultimo_ajuste_honorario=p.get("fecha_ultimo_ajuste_honorario"),
         created_at=p.get("created_at"),
         total_sesiones=row["total_sesiones"],
@@ -56,6 +57,7 @@ def _build_detalle(row: dict) -> PacienteDetalle:
         email=p.get("email"),
         telefono=p.get("telefono"),
         honorario_actual=p.get("honorario_actual"),
+        moneda=p.get("moneda") or "ARS",
         fecha_ultimo_ajuste_honorario=p.get("fecha_ultimo_ajuste_honorario"),
         created_at=p.get("created_at"),
         total_sesiones=row["total_sesiones"],
@@ -102,6 +104,10 @@ def get_alertas_honorarios(sb: SupabaseClient = Depends(get_supabase), usuario_i
 
     alertas = []
     for p in pacientes:
+        # Un honorario en USD no se licúa con la inflación argentina —
+        # ajustarlo por IPC no tiene sentido, así que se excluye de la alerta.
+        if (p.get("moneda") or "ARS") == "USD":
+            continue
         fecha_ajuste_str = p.get("fecha_ultimo_ajuste_honorario")
         if not fecha_ajuste_str:
             continue

@@ -81,6 +81,7 @@ interface EditForm {
   email:     string;
   telefono:  string;
   honorario: string;
+  moneda:    "ARS" | "USD";
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
@@ -94,7 +95,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [errorCarga, setErrorCarga] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState(false);
-  const [form, setForm] = useState<EditForm>({ nombre: "", apellido: "", email: "", telefono: "", honorario: "" });
+  const [form, setForm] = useState<EditForm>({ nombre: "", apellido: "", email: "", telefono: "", honorario: "", moneda: "ARS" });
   const toast = useToast();
 
   useEffect(() => {
@@ -117,6 +118,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       email:     detalle.email ?? "",
       telefono:  detalle.telefono ?? "",
       honorario: detalle.honorario_actual ? String(detalle.honorario_actual) : "",
+      moneda:    detalle.moneda === "USD" ? "USD" : "ARS",
     });
     setEditando(true);
   }
@@ -135,6 +137,7 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
       const hon = parseFloat(form.honorario.replace(",", "."));
       if (!isNaN(hon) && hon > 0) {
         payload.honorario_actual = hon;
+        payload.moneda = form.moneda;
         payload.fecha_ultimo_ajuste_honorario = isoHoy();
       }
       await actualizarPaciente(detalle.id, payload);
@@ -370,15 +373,33 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                       <p className="text-[10px] text-neutral-400 dark:text-slate-500">Para recordatorios de pago por WhatsApp.</p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] uppercase text-neutral-400 dark:text-slate-500">Honorario actual $</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.honorario}
-                        onChange={(e) => setForm((f) => ({ ...f, honorario: e.target.value }))}
-                        placeholder="Ej: 25000"
-                        className="rounded-lg border border-neutral-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-neutral-900 dark:text-slate-100 px-2.5 py-1.5 text-sm tabular-nums focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                      />
+                      <label className="text-[10px] uppercase text-neutral-400 dark:text-slate-500">Honorario actual</label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="number"
+                          min={1}
+                          value={form.honorario}
+                          onChange={(e) => setForm((f) => ({ ...f, honorario: e.target.value }))}
+                          placeholder="Ej: 25000"
+                          className="flex-1 rounded-lg border border-neutral-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-neutral-900 dark:text-slate-100 px-2.5 py-1.5 text-sm tabular-nums focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        />
+                        <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-slate-800">
+                          {(["ARS", "USD"] as const).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setForm((f) => ({ ...f, moneda: m }))}
+                              className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                form.moneda === m
+                                  ? "bg-indigo-600 text-white"
+                                  : "bg-white dark:bg-slate-900 text-neutral-500 dark:text-slate-400 hover:bg-neutral-50 dark:hover:bg-slate-800/60"
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <p className="text-[10px] text-neutral-400 dark:text-slate-500">Al guardar, se actualiza la fecha de ajuste a hoy.</p>
                     </div>
                     {errorGuardar && (
@@ -433,7 +454,11 @@ export default function PacienteDetalle({ pacienteId, onClose, onRefresh }: Prop
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-slate-500">Honorario actual</p>
                         <p className="mt-0.5 font-medium tabular-nums text-neutral-800 dark:text-slate-100">
-                          {detalle.honorario_actual ? fmtPesos(detalle.honorario_actual) : "Sin datos"}
+                          {detalle.honorario_actual
+                            ? detalle.moneda === "USD"
+                              ? `USD ${detalle.honorario_actual.toLocaleString("es-AR")}`
+                              : fmtPesos(detalle.honorario_actual)
+                            : "Sin datos"}
                         </p>
                       </div>
                       <div>

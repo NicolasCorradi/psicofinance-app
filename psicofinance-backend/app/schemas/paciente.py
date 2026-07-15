@@ -5,7 +5,7 @@
 import uuid
 from datetime import date, datetime
 from pydantic import BaseModel, Field
-from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion
+from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion, Moneda
 
 
 # ── Sub-schema de turno (para el historial dentro del detalle de paciente) ───
@@ -36,6 +36,7 @@ class PacienteBase(BaseModel):
     email:    str | None = None
     telefono: str | None = Field(default=None, max_length=30)
     honorario_actual:              float | None = Field(default=None, gt=0)
+    moneda:                        Moneda = Moneda.ARS
     fecha_ultimo_ajuste_honorario: date  | None = None
 
 
@@ -50,6 +51,7 @@ class PacienteUpdate(BaseModel):
     email:    str | None = None
     telefono: str | None = Field(default=None, max_length=30)
     honorario_actual:              float | None = Field(default=None, gt=0)
+    moneda:                        Moneda | None = None
     fecha_ultimo_ajuste_honorario: date  | None = None
 
 

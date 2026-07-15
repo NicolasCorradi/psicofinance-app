@@ -14,7 +14,7 @@ interface Props {
 
 export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
   const [form, setForm] = useState<PacienteCreatePayload>({
-    nombre: "", apellido: "", email: null, telefono: null, honorario_actual: null,
+    nombre: "", apellido: "", email: null, telefono: null, honorario_actual: null, moneda: "ARS",
   });
   const [guardando, setGuardando] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
@@ -39,6 +39,7 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
         honorario_actual: form.honorario_actual
           ? parseFloat(String(form.honorario_actual).replace(",", ".")) || null
           : null,
+        moneda: form.moneda ?? "ARS",
         fecha_ultimo_ajuste_honorario:
           form.honorario_actual
             ? isoHoy()
@@ -135,15 +136,33 @@ export default function NuevoPaciente({ onCreado, onCancelar }: Props) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">Honorario inicial $ (opcional)</label>
-              <input
-                type="number"
-                min={1}
-                value={form.honorario_actual ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, honorario_actual: e.target.value ? Number(e.target.value) : null }))}
-                className="rounded-lg border border-neutral-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-neutral-900 dark:text-slate-100 px-2.5 py-2 text-sm tabular-nums focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                placeholder="Ej: 25000"
-              />
+              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">Honorario inicial (opcional)</label>
+              <div className="flex gap-1.5">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.honorario_actual ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, honorario_actual: e.target.value ? Number(e.target.value) : null }))}
+                  className="flex-1 rounded-lg border border-neutral-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-neutral-900 dark:text-slate-100 px-2.5 py-2 text-sm tabular-nums focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  placeholder="Ej: 25000"
+                />
+                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-slate-800">
+                  {(["ARS", "USD"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, moneda: m }))}
+                      className={`px-2.5 py-2 text-xs font-medium transition-colors ${
+                        (form.moneda ?? "ARS") === m
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white dark:bg-slate-900 text-neutral-500 dark:text-slate-400 hover:bg-neutral-50 dark:hover:bg-slate-800/60"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

@@ -18,7 +18,11 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
       .finally(() => setCargando(false));
   }, [refreshKey]);
 
-  const conHonorario = pacientes.filter(p => p.honorario_actual && p.honorario_actual > 0);
+  // Pacientes en USD quedan afuera: el % simulado es un ajuste por inflación
+  // en pesos (ej. IPC del mes), que no tiene sentido aplicarle a un honorario
+  // ya dolarizado.
+  const enUsd = pacientes.filter(p => p.honorario_actual && p.honorario_actual > 0 && p.moneda === "USD").length;
+  const conHonorario = pacientes.filter(p => p.honorario_actual && p.honorario_actual > 0 && p.moneda !== "USD");
   // Solo pacientes con sesiones este mes: contar inactivos como 1 sesión
   // inflaba el ingreso "Actual" y el adicional proyectado
   const activos = conHonorario.filter(p => p.sesiones_mes > 0);
@@ -137,6 +141,7 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
           <p className="mb-3 text-[10px] text-neutral-400 dark:text-slate-500">
             Proyección basada en sesiones del mes actual × honorario ajustado.
             {inactivos > 0 && ` Excluye ${inactivos} paciente${inactivos > 1 ? "s" : ""} sin sesiones este mes.`}
+            {enUsd > 0 && ` Excluye ${enUsd} en USD (no aplica ajuste por inflación).`}
           </p>
 
           {/* Tabla de pacientes */}

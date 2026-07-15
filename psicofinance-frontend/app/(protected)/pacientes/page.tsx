@@ -54,6 +54,7 @@ function EditarHonorario({
   onCerrar,
 }: { paciente: PacienteConStats; onGuardado: () => void; onCerrar: () => void }) {
   const [valor,    setValor]    = useState(String(paciente.honorario_actual ?? ""));
+  const [moneda,   setMoneda]   = useState<"ARS" | "USD">(paciente.moneda === "USD" ? "USD" : "ARS");
   const [guardando, setGuardando] = useState(false);
   const [error,    setError]    = useState("");
   const toast = useToast();
@@ -66,6 +67,7 @@ function EditarHonorario({
     try {
       await actualizarPaciente(paciente.id, {
         honorario_actual: num,
+        moneda,
         fecha_ultimo_ajuste_honorario: isoHoy(),
       });
       toast.success(`Honorario de ${paciente.nombre} actualizado`);
@@ -101,18 +103,36 @@ function EditarHonorario({
 
         <div className="mb-1">
           <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-slate-300">Honorario base mensual</label>
-          <div className="flex items-center rounded-xl border border-neutral-200 dark:border-slate-800 bg-neutral-50 dark:bg-slate-950 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
-            <span className="mr-2 text-sm text-neutral-400 dark:text-slate-500">$</span>
-            <input
-              autoFocus
-              type="text"
-              inputMode="numeric"
-              value={valor}
-              onChange={e => { setValor(e.target.value); setError(""); }}
-              onKeyDown={e => { if (e.key === "Enter") guardar(); }}
-              className="flex-1 bg-transparent text-sm text-neutral-900 dark:text-slate-100 placeholder:text-neutral-400 dark:placeholder:text-slate-500 focus:outline-none"
-              placeholder="Ej: 25000"
-            />
+          <div className="flex gap-1.5">
+            <div className="flex flex-1 items-center rounded-xl border border-neutral-200 dark:border-slate-800 bg-neutral-50 dark:bg-slate-950 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+              <span className="mr-2 text-sm text-neutral-400 dark:text-slate-500">{moneda === "USD" ? "US$" : "$"}</span>
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                value={valor}
+                onChange={e => { setValor(e.target.value); setError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") guardar(); }}
+                className="flex-1 bg-transparent text-sm text-neutral-900 dark:text-slate-100 placeholder:text-neutral-400 dark:placeholder:text-slate-500 focus:outline-none"
+                placeholder="Ej: 25000"
+              />
+            </div>
+            <div className="flex overflow-hidden rounded-xl border border-neutral-200 dark:border-slate-800">
+              {(["ARS", "USD"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMoneda(m)}
+                  className={`px-3 py-2.5 text-xs font-medium transition-colors ${
+                    moneda === m
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white dark:bg-slate-900 text-neutral-500 dark:text-slate-400 hover:bg-neutral-50 dark:hover:bg-slate-800/60"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {error && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{error}</p>}
@@ -444,7 +464,11 @@ export default function PacientesPage() {
                   </span>
 
                   <span className="text-xs text-neutral-500 dark:text-slate-400 tabular-nums whitespace-nowrap">
-                    {p.honorario_actual ? fmtPesosExacto(p.honorario_actual) : "—"}
+                    {p.honorario_actual
+                      ? p.moneda === "USD"
+                        ? `USD ${p.honorario_actual.toLocaleString("es-AR")}`
+                        : fmtPesosExacto(p.honorario_actual)
+                      : "—"}
                   </span>
 
                   <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
