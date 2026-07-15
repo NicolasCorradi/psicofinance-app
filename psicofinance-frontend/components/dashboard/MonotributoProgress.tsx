@@ -47,12 +47,13 @@ export default function MonotributoProgress({ refreshKey = 0 }: { refreshKey?: n
             )}
           </defs>
           {/* Track */}
-          <circle cx={CX} cy={CY} r={R} fill="none" stroke="#EEF2FF" strokeWidth={GROSOR} />
+          <circle cx={CX} cy={CY} r={R} fill="none" strokeWidth={GROSOR} className="stroke-indigo-50 dark:stroke-slate-800" />
           {/* Arco de progreso */}
           <circle
             cx={CX} cy={CY} r={R}
             fill="none"
-            stroke={s ? `url(#${gId})` : "#E0E7FF"}
+            stroke={s ? `url(#${gId})` : undefined}
+            className={!s ? "stroke-indigo-100 dark:stroke-slate-700" : undefined}
             strokeWidth={GROSOR}
             strokeDasharray={CIRC}
             strokeDashoffset={offset}
@@ -61,11 +62,11 @@ export default function MonotributoProgress({ refreshKey = 0 }: { refreshKey?: n
             style={{ transition: "stroke-dashoffset 0.8s ease, stroke 0.4s" }}
           />
           {/* Porcentaje */}
-          <text x={CX} y={CY - 7} textAnchor="middle" fontSize="24" fontWeight="700" fontFamily="inherit" fill="#111827">
+          <text x={CX} y={CY - 7} textAnchor="middle" fontSize="24" fontWeight="700" fontFamily="inherit" className="fill-neutral-900 dark:fill-slate-100">
             {s ? `${pctReal.toFixed(0)}%` : "–"}
           </text>
           {/* Categoría */}
-          <text x={CX} y={CY + 13} textAnchor="middle" fontSize="11" fontFamily="inherit" fill="#9CA3AF">
+          <text x={CX} y={CY + 13} textAnchor="middle" fontSize="11" fontFamily="inherit" className="fill-neutral-400 dark:fill-slate-500">
             {s ? `Categoría ${s.categoria_actual}` : "Cargando…"}
           </text>
         </svg>
