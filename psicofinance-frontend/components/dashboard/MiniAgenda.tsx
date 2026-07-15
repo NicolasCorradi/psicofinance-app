@@ -97,24 +97,24 @@ export default function MiniAgenda({ refreshKey = 0 }: { refreshKey?: number }) 
   const sinRegistrar  = sesiones.filter(s => s.estado === "sin_registrar").length;
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+    <div className="overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10">
             <CalendarDays className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Agenda de hoy</p>
-            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300 capitalize">{hoyLabel()}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-slate-500">Agenda de hoy</p>
+            <p className="text-xs font-medium text-neutral-600 dark:text-slate-300 capitalize">{hoyLabel()}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">según semana modelo</p>
           </div>
         </div>
         {total > 0 && (
           <div className="text-right">
-            <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100">{registradas}/{total}</p>
-            <p className="text-[10px] text-neutral-400 dark:text-neutral-500">registradas</p>
+            <p className="text-sm font-bold text-neutral-800 dark:text-slate-100">{registradas}/{total}</p>
+            <p className="text-[10px] text-neutral-400 dark:text-slate-500">registradas</p>
           </div>
         )}
       </div>
@@ -123,7 +123,7 @@ export default function MiniAgenda({ refreshKey = 0 }: { refreshKey?: number }) 
       <div className="px-5 py-3">
 
         {cargando && (
-          <div className="flex items-center justify-center gap-2 py-8 text-sm text-neutral-400 dark:text-neutral-500">
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-neutral-400 dark:text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin" />Cargando…
           </div>
         )}
@@ -131,29 +131,29 @@ export default function MiniAgenda({ refreshKey = 0 }: { refreshKey?: number }) 
         {!cargando && total === 0 && (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <span className="text-2xl">🌿</span>
-            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Sin sesiones hoy</p>
-            <p className="text-xs text-neutral-300 dark:text-neutral-600">Configurá la semana modelo para ver tu agenda aquí</p>
+            <p className="text-sm font-medium text-neutral-500 dark:text-slate-400">Sin sesiones hoy</p>
+            <p className="text-xs text-neutral-300 dark:text-slate-600">Configurá la semana modelo para ver tu agenda aquí</p>
           </div>
         )}
 
         {!cargando && total > 0 && (
           <div className="max-h-72 overflow-y-auto space-y-2 pr-1
             [&::-webkit-scrollbar]:w-1.5
-            [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-neutral-100 dark:[&::-webkit-scrollbar-track]:bg-neutral-800
-            [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-300 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-700">
+            [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-neutral-100 dark:[&::-webkit-scrollbar-track]:bg-slate-800
+            [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
             {sesiones.map(s => (
               <div key={s.key}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
                   s.estado === "cobrado"       ? "bg-emerald-50/60 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/20" :
                   s.estado === "pendiente"     ? "bg-amber-50/60 ring-1 ring-amber-100 dark:bg-amber-500/10 dark:ring-amber-500/20" :
-                                                 "bg-neutral-50 ring-1 ring-neutral-100 opacity-70 dark:bg-neutral-800/60 dark:ring-neutral-800"
+                                                 "bg-neutral-50 ring-1 ring-neutral-100 opacity-70 dark:bg-slate-800/60 dark:ring-slate-800"
                 }`}>
 
                 {/* Hora */}
                 <div className="flex w-10 shrink-0 flex-col items-center">
                   {s.hora
-                    ? <span className="text-[11px] font-bold tabular-nums text-neutral-500 dark:text-neutral-400">{s.hora}</span>
-                    : <Clock className="h-3 w-3 text-neutral-300 dark:text-neutral-600" />
+                    ? <span className="text-[11px] font-bold tabular-nums text-neutral-500 dark:text-slate-400">{s.hora}</span>
+                    : <Clock className="h-3 w-3 text-neutral-300 dark:text-slate-600" />
                   }
                 </div>
 
@@ -163,13 +163,13 @@ export default function MiniAgenda({ refreshKey = 0 }: { refreshKey?: number }) 
                 </div>
 
                 {/* Nombre */}
-                <p className="flex-1 truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">{s.nombre}</p>
+                <p className="flex-1 truncate text-sm font-medium text-neutral-800 dark:text-slate-100">{s.nombre}</p>
 
                 {/* Estado */}
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                   s.estado === "cobrado"   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :
                   s.estado === "pendiente" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400" :
-                                             "bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500"
+                                             "bg-neutral-100 text-neutral-400 dark:bg-slate-800 dark:text-slate-500"
                 }`}>
                   {s.estado === "cobrado"   ? "✓ Cobrado" :
                    s.estado === "pendiente" ? "Pendiente" :

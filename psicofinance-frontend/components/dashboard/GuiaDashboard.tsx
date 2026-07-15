@@ -53,7 +53,7 @@ const SECCIONES = [
   },
   {
     icon: List,
-    color: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+    color: "bg-neutral-100 text-neutral-600 dark:bg-slate-800 dark:text-slate-300",
     titulo: "Últimos turnos",
     desc: "Historial de sesiones registradas. Podés editar el monto, estado o fecha directamente desde la tabla.",
   },
@@ -102,23 +102,23 @@ export default function GuiaDashboard() {
       </button>
 
       <Sheet open={open} onClose={cerrar} title="Guía del dashboard">
-        <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-500">
+        <p className="mb-4 text-xs text-neutral-400 dark:text-slate-500">
           Un resumen de cada sección para que aproveches PsicoFinance al máximo.
         </p>
         <div className="flex flex-col gap-3">
           {SECCIONES.map(({ icon: Icon, color, titulo, desc }) => (
-            <div key={titulo} className="flex gap-3 rounded-xl bg-neutral-50 p-3.5 dark:bg-neutral-950/40">
+            <div key={titulo} className="flex gap-3 rounded-xl bg-neutral-50 p-3.5 dark:bg-slate-950/40">
               <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${color}`}>
                 <Icon className="h-4 w-4" strokeWidth={2} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{titulo}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">{desc}</p>
+                <p className="text-sm font-semibold text-neutral-800 dark:text-slate-100">{titulo}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 dark:text-slate-400">{desc}</p>
               </div>
             </div>
           ))}
         </div>
-        <p className="mt-4 text-center text-[10px] text-neutral-300 dark:text-neutral-600">
+        <p className="mt-4 text-center text-[10px] text-neutral-300 dark:text-slate-600">
           Podés volver a abrir esta guía desde el botón del dashboard.
         </p>
       </Sheet>

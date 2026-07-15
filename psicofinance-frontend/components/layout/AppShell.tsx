@@ -160,7 +160,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Header móvil ── */}
-      <header className="lg:hidden print:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl dark:border-neutral-800/60 dark:bg-neutral-950/95">
+      <header className="lg:hidden print:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/95">
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0 mr-1">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-500/15">
@@ -174,7 +174,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             return (
               <Link key={href} href={href}
                 className={`flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 transition-colors ${
-                  active ? "text-indigo-600 dark:text-indigo-400" : "text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                  active ? "text-indigo-600 dark:text-indigo-400" : "text-neutral-400 hover:text-neutral-600 dark:text-slate-500 dark:hover:text-slate-300"
                 }`}
               >
                 <Icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />
@@ -183,7 +183,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
           <button onClick={() => setMenuCuenta(true)}
-            className="flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-neutral-400 hover:text-neutral-600 transition-colors dark:text-neutral-500 dark:hover:text-neutral-300">
+            className="flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-neutral-400 hover:text-neutral-600 transition-colors dark:text-slate-500 dark:hover:text-slate-300">
             <UserCircle className="h-4 w-4" strokeWidth={1.8} />
             <span className="text-[9px] font-semibold tracking-wide">Cuenta</span>
           </button>
@@ -198,7 +198,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             onClick={() => { setMenuCuenta(false); setCambiarPassword(true); }}
-            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <KeyRound className="h-4 w-4 text-neutral-400" />
             Cambiar contraseña

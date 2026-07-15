@@ -39,7 +39,7 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
   };
 
   return (
-    <div className="group grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/60 sm:grid-cols-[auto_1fr_auto_auto_auto_auto]">
+    <div className="group grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-slate-800/60 sm:grid-cols-[auto_1fr_auto_auto_auto_auto]">
 
       {/* Icono categoría */}
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 ring-1 ring-red-100 dark:bg-red-500/10 dark:ring-red-500/20" title={label}>
@@ -48,13 +48,13 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
 
       {/* Descripción + meta */}
       <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
+        <p className="flex items-center gap-1.5 truncate text-sm font-medium text-neutral-800 dark:text-slate-100">
           {egreso.descripcion}
           {egreso.recurrente && (
-            <Repeat className="h-3 w-3 shrink-0 text-neutral-300 dark:text-neutral-600" aria-label="Recurrente" />
+            <Repeat className="h-3 w-3 shrink-0 text-neutral-300 dark:text-slate-600" aria-label="Recurrente" />
           )}
         </p>
-        <p className="truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+        <p className="truncate text-[11px] text-neutral-400 dark:text-slate-500">
           {label}
           {egreso.medio_pago ? ` · ${MEDIOS_PAGO[egreso.medio_pago]}` : ""}
           {/* Fecha y tipo van en el subtítulo solo en mobile (sus columnas se ocultan) */}
@@ -72,7 +72,7 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
       </span>
 
       {/* Fecha */}
-      <span className="hidden text-xs text-neutral-400 dark:text-neutral-500 sm:inline">{fmtFecha(egreso.fecha)}</span>
+      <span className="hidden text-xs text-neutral-400 dark:text-slate-500 sm:inline">{fmtFecha(egreso.fecha)}</span>
 
       {/* Monto */}
       <span className="text-right font-mono text-sm font-semibold text-red-500 dark:text-red-400">
@@ -83,7 +83,7 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
       <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
         <button
           onClick={() => onEdit(egreso)}
-          className="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-indigo-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-indigo-400"
+          className="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-indigo-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
           aria-label="Editar"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -94,7 +94,7 @@ export default function EgresoRow({ egreso, onEdit, onDelete }: Props) {
           className={`flex h-9 sm:h-7 items-center justify-center rounded-lg transition-colors ${
             confirmando
               ? "w-auto bg-red-50 px-2 text-[10px] font-semibold text-red-600 dark:bg-red-500/10 dark:text-red-400"
-              : "w-9 sm:w-7 text-neutral-400 hover:bg-red-50 hover:text-red-500 dark:text-neutral-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+              : "w-9 sm:w-7 text-neutral-400 hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           }`}
           aria-label="Eliminar"
         >

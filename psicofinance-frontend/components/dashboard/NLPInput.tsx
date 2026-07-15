@@ -357,7 +357,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
       </div>
 
       {/* Cuerpo */}
-      <div className="bg-white dark:bg-neutral-900">
+      <div className="bg-white dark:bg-slate-900">
 
         {/* Historial */}
         {hayConversacion && (
@@ -369,8 +369,8 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
                     <p className="text-sm text-white">{m.texto}</p>
                   </div>
                 ) : (
-                  <div className={`max-w-[90%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 ring-1 ${m.deshecho ? "bg-neutral-50 ring-neutral-100 dark:bg-neutral-800/60 dark:ring-neutral-800" : "bg-indigo-50 ring-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/20"}`}>
-                    <p className={`text-sm leading-relaxed ${m.deshecho ? "text-neutral-400 line-through dark:text-neutral-500" : "text-neutral-800 dark:text-neutral-100"}`}>{m.texto}</p>
+                  <div className={`max-w-[90%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 ring-1 ${m.deshecho ? "bg-neutral-50 ring-neutral-100 dark:bg-slate-800/60 dark:ring-slate-800" : "bg-indigo-50 ring-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/20"}`}>
+                    <p className={`text-sm leading-relaxed ${m.deshecho ? "text-neutral-400 line-through dark:text-slate-500" : "text-neutral-800 dark:text-slate-100"}`}>{m.texto}</p>
                     {m.accion === "turno_registrado" && m.datos && m.datos.paciente !== "Sin identificar" && !m.deshecho && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <Tag>{m.datos.paciente}</Tag>
@@ -394,15 +394,15 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
                     )}
                     {m.turnoId && !m.deshecho && (
                       <button onClick={() => deshacerTurno(m.turnoId!)} disabled={deshaciendo === m.turnoId}
-                        className="mt-2 flex items-center gap-1 text-[11px] font-medium text-neutral-400 hover:text-red-600 dark:text-neutral-500 dark:hover:text-red-400 transition-colors disabled:opacity-50">
+                        className="mt-2 flex items-center gap-1 text-[11px] font-medium text-neutral-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 transition-colors disabled:opacity-50">
                         {deshaciendo === m.turnoId
-                          ? <><span className="h-2.5 w-2.5 animate-spin rounded-full border border-neutral-300 border-t-neutral-500 dark:border-neutral-700 dark:border-t-neutral-400" /> Deshaciendo…</>
+                          ? <><span className="h-2.5 w-2.5 animate-spin rounded-full border border-neutral-300 border-t-neutral-500 dark:border-slate-700 dark:border-t-neutral-400" /> Deshaciendo…</>
                           : <><Undo2 className="h-3 w-3" /> Deshacer</>
                         }
                       </button>
                     )}
                     {m.deshecho && (
-                      <p className="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500">Turno eliminado.</p>
+                      <p className="mt-1 text-[11px] text-neutral-400 dark:text-slate-500">Turno eliminado.</p>
                     )}
                   </div>
                 )}
@@ -459,10 +459,10 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
         )}
 
         {/* Input */}
-        <div className={`flex items-end gap-2 px-3 py-2.5 border-t border-neutral-100 dark:border-neutral-800`}>
+        <div className={`flex items-end gap-2 px-3 py-2.5 border-t border-neutral-100 dark:border-slate-800`}>
           <button onClick={() => setAdjunto(v => !v)} disabled={grabando || cargando}
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
-              adjunto ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400" : "text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-300"
+              adjunto ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400" : "text-neutral-300 hover:text-neutral-500 dark:text-slate-600 dark:hover:text-slate-300"
             } disabled:opacity-30`} title="Subir comprobante">
             {adjunto ? <X className="h-3.5 w-3.5" /> : <Paperclip className="h-3.5 w-3.5" />}
           </button>
@@ -474,11 +474,11 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
             onBlur={() => setFocused(false)}
             placeholder={grabando ? "Grabando… tocá el micrófono para enviar" : hayConversacion ? "Continuá la consulta…" : "Ej: ¿Cuánto cobré en marzo?"}
             rows={1} disabled={cargando || grabando}
-            className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 dark:text-neutral-100 dark:placeholder:text-neutral-500 focus:outline-none disabled:opacity-40"
+            className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 dark:text-slate-100 dark:placeholder:text-slate-500 focus:outline-none disabled:opacity-40"
             style={{ maxHeight: "112px" }} />
 
           {texto.trim() && !cargando && !grabando && (
-            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500">↵</span>
+            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">↵</span>
           )}
           {cargando && (
             <span className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center">
@@ -524,7 +524,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
 
 function Tag({ children, color = "default" }: { children: React.ReactNode; color?: "default" | "emerald" | "blue" }) {
   const s = {
-    default: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+    default: "bg-neutral-100 text-neutral-600 dark:bg-slate-800 dark:text-slate-300",
     emerald: "bg-emerald-100 text-emerald-700 font-medium dark:bg-emerald-500/15 dark:text-emerald-400",
     blue:    "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400",
   };

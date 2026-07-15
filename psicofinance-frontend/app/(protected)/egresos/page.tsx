@@ -41,10 +41,10 @@ function ChipsResumen({ resumen }: { resumen: ResumenEgresos | null }) {
   return (
     <div className="grid grid-cols-3 gap-3 sm:gap-4">
       {chips.map(({ label, valor, cls, gradient, sub }) => (
-        <div key={label} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
+        <div key={label} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 dark:bg-slate-900 dark:ring-white/10">
           <div className={`h-1 bg-gradient-to-r ${gradient}`} />
           <div className="px-4 py-3">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">{label}</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">{label}</p>
             <p className={`mt-1.5 font-mono text-lg sm:text-xl font-bold leading-none tabular-nums ${cls}`}>
               {valor != null
                 ? <>
@@ -52,9 +52,9 @@ function ChipsResumen({ resumen }: { resumen: ResumenEgresos | null }) {
                     <span className="sm:hidden">{fmtPesosCompacto(valor)}</span>
                     <span className="hidden sm:inline">{fmtPesos(valor)}</span>
                   </>
-                : <span className="animate-pulse text-neutral-200 dark:text-neutral-700">——</span>}
+                : <span className="animate-pulse text-neutral-200 dark:text-slate-700">——</span>}
             </p>
-            <p className="mt-1.5 hidden text-[11px] text-neutral-400 dark:text-neutral-500 sm:block">{sub}</p>
+            <p className="mt-1.5 hidden text-[11px] text-neutral-400 dark:text-slate-500 sm:block">{sub}</p>
           </div>
         </div>
       ))}
@@ -125,8 +125,8 @@ export default function EgresosPage() {
       {/* ── Header ── */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 dark:from-neutral-100 dark:via-indigo-300 dark:to-neutral-100 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">Egresos</h1>
-          <p className="mt-0.5 text-xs text-neutral-400 dark:text-neutral-500">Gastos fijos y variables del consultorio</p>
+          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 dark:from-slate-100 dark:via-indigo-300 dark:to-slate-100 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">Egresos</h1>
+          <p className="mt-0.5 text-xs text-neutral-400 dark:text-slate-500">Gastos fijos y variables del consultorio</p>
         </div>
         <button
           onClick={abrirAlta}
@@ -141,18 +141,18 @@ export default function EgresosPage() {
       <div className="mb-4 flex items-center gap-2">
         <button
           onClick={() => setMes(m => moverMes(m, -1))}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition-colors hover:bg-neutral-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60"
           aria-label="Mes anterior"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="min-w-[140px] text-center text-sm font-semibold capitalize text-neutral-700 dark:text-neutral-300">
+        <span className="min-w-[140px] text-center text-sm font-semibold capitalize text-neutral-700 dark:text-slate-300">
           {labelMes(mes)}
         </span>
         <button
           onClick={() => setMes(m => moverMes(m, 1))}
           disabled={mes >= mesActual()}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60"
           aria-label="Mes siguiente"
         >
           <ChevronRight className="h-4 w-4" />
@@ -166,8 +166,8 @@ export default function EgresosPage() {
             <WifiOff className="h-6 w-6 text-red-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No se pudieron cargar los egresos</p>
-            <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">Revisá tu conexión o intentá de nuevo</p>
+            <p className="text-sm font-semibold text-neutral-700 dark:text-slate-300">No se pudieron cargar los egresos</p>
+            <p className="mt-1 text-xs text-neutral-400 dark:text-slate-500">Revisá tu conexión o intentá de nuevo</p>
           </div>
           <button
             onClick={cargar}
@@ -195,13 +195,13 @@ export default function EgresosPage() {
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   filtroTipo === t
                     ? "bg-indigo-600 text-white"
-                    : "bg-white text-neutral-500 ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-800 dark:hover:bg-neutral-800/60"
+                    : "bg-white text-neutral-500 ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800 dark:hover:bg-slate-800/60"
                 }`}
               >
                 {t === "FIJO" ? "Fijos" : "Variables"}
               </button>
             ))}
-            {categoriasPresentes.length > 0 && <span className="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />}
+            {categoriasPresentes.length > 0 && <span className="h-4 w-px bg-neutral-200 dark:bg-slate-700" />}
             {/* Categorías presentes en el mes */}
             {categoriasPresentes.map(cat => {
               const { label, Icon } = CATEGORIAS[cat] ?? CATEGORIAS.OTRO;
@@ -212,7 +212,7 @@ export default function EgresosPage() {
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     filtroCat === cat
                       ? "bg-indigo-600 text-white"
-                      : "bg-white text-neutral-500 ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-800 dark:hover:bg-neutral-800/60"
+                      : "bg-white text-neutral-500 ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800 dark:hover:bg-slate-800/60"
                   }`}
                 >
                   <Icon className="h-3 w-3" strokeWidth={1.8} />
@@ -223,23 +223,23 @@ export default function EgresosPage() {
           </div>
 
           {/* ── Lista ── */}
-          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-black/5 dark:bg-slate-900 dark:ring-white/10">
             {cargando ? (
               <div className="flex flex-col gap-2 p-4">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-100 dark:bg-slate-800" />
                 ))}
               </div>
             ) : filtrados.length === 0 ? (
               <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-50 ring-1 ring-neutral-100 dark:bg-neutral-950 dark:ring-neutral-800">
-                  <Receipt className="h-5 w-5 text-neutral-300 dark:text-neutral-600" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-50 ring-1 ring-neutral-100 dark:bg-slate-950 dark:ring-slate-800">
+                  <Receipt className="h-5 w-5 text-neutral-300 dark:text-slate-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+                  <p className="text-sm font-semibold text-neutral-600 dark:text-slate-400">
                     {egresos.length === 0 ? "Sin egresos este mes" : "Nada con esos filtros"}
                   </p>
-                  <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+                  <p className="mt-1 text-xs text-neutral-400 dark:text-slate-500">
                     {egresos.length === 0
                       ? "Registrá tu primer gasto con el botón + Egreso"
                       : "Probá quitando algún filtro"}
@@ -247,7 +247,7 @@ export default function EgresosPage() {
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              <div className="divide-y divide-neutral-100 dark:divide-slate-800">
                 {filtrados.map(e => (
                   <EgresoRow key={e.id} egreso={e} onEdit={abrirEdicion} onDelete={handleDelete} />
                 ))}
@@ -257,7 +257,7 @@ export default function EgresosPage() {
 
           {/* ── Footer conteo ── */}
           {!cargando && filtrados.length > 0 && (
-            <p className="px-1 text-right text-[11px] text-neutral-400 dark:text-neutral-500">
+            <p className="px-1 text-right text-[11px] text-neutral-400 dark:text-slate-500">
               {filtrados.length} {filtrados.length === 1 ? "egreso" : "egresos"}
               {filtrados.length !== egresos.length ? ` (de ${egresos.length} del mes)` : ""}
             </p>

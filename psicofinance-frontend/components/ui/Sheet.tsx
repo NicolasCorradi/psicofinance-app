@@ -55,18 +55,18 @@ export default function Sheet({ open, onClose, title, children }: SheetProps) {
           sm:rounded-none sm:h-full sm:max-h-full sm:max-w-md
           animate-in slide-in-from-bottom duration-250
           sm:animate-in sm:slide-in-from-right-10 sm:slide-in-from-bottom-0 sm:duration-200
-          dark:bg-neutral-900"
+          dark:bg-slate-900"
       >
         {/* Handle bar — solo mobile */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="h-1 w-10 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+          <div className="h-1 w-10 rounded-full bg-neutral-200 dark:bg-slate-700" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{title}</h2>
+        <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-slate-800">
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">{title}</h2>
           <button onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200">
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
             <X className="h-4 w-4" />
           </button>
         </div>

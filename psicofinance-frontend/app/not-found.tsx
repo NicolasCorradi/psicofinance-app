@@ -9,9 +9,9 @@ export default function NotFound() {
           <Search className="h-7 w-7 text-indigo-600 dark:text-indigo-400" strokeWidth={1.8} />
         </div>
 
-        <h1 className="text-6xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">404</h1>
-        <p className="mt-2 text-lg font-semibold text-neutral-700 dark:text-neutral-300">Página no encontrada</p>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+        <h1 className="text-6xl font-bold tracking-tight text-neutral-900 dark:text-slate-100">404</h1>
+        <p className="mt-2 text-lg font-semibold text-neutral-700 dark:text-slate-300">Página no encontrada</p>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-slate-400">
           La sección que estás buscando no existe o fue movida.
         </p>
 
@@ -25,7 +25,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/pacientes"
-            className="rounded-xl border border-neutral-200 bg-white px-5 py-2.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
+            className="rounded-xl border border-neutral-200 bg-white px-5 py-2.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60"
           >
             Ver pacientes
           </Link>

@@ -26,19 +26,19 @@ export default function VentasMensuales({ data }: Props) {
   };
 
   return (
-    <div className="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
+    <div className="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-slate-900 dark:ring-white/10">
       {/* Encabezado */}
       <div className="flex items-start justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">
           Ventas mensuales
         </p>
       </div>
 
       {/* Valor del mes actual */}
-      <p className="mt-1 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums text-neutral-900 dark:text-neutral-100">
+      <p className="mt-1 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums text-neutral-900 dark:text-slate-100">
         {data.length > 0
           ? fmtPesos(mesActual?.cobrado ?? 0)
-          : <span className="animate-pulse text-neutral-200 dark:text-neutral-700">——</span>
+          : <span className="animate-pulse text-neutral-200 dark:text-slate-700">——</span>
         }
       </p>
 
@@ -47,9 +47,9 @@ export default function VentasMensuales({ data }: Props) {
         <div className="mt-5 flex gap-3">
           {/* Eje Y */}
           <div className="flex flex-col justify-between pb-6 text-right" style={{ minWidth: 32 }}>
-            <span className="text-[10px] tabular-nums leading-none text-neutral-400 dark:text-neutral-500">{fmtK(maxValor)}</span>
-            <span className="text-[10px] tabular-nums leading-none text-neutral-300 dark:text-neutral-600">{fmtK(maxValor / 2)}</span>
-            <span className="text-[10px] tabular-nums leading-none text-neutral-300 dark:text-neutral-600">0</span>
+            <span className="text-[10px] tabular-nums leading-none text-neutral-400 dark:text-slate-500">{fmtK(maxValor)}</span>
+            <span className="text-[10px] tabular-nums leading-none text-neutral-300 dark:text-slate-600">{fmtK(maxValor / 2)}</span>
+            <span className="text-[10px] tabular-nums leading-none text-neutral-300 dark:text-slate-600">0</span>
           </div>
 
           {/* Barras */}
@@ -93,7 +93,7 @@ export default function VentasMensuales({ data }: Props) {
                   />
 
                   {/* Etiqueta mes */}
-                  <span className={`text-[10px] ${esActual ? "font-semibold text-indigo-600 dark:text-indigo-400" : "text-neutral-400 dark:text-neutral-500"}`}>
+                  <span className={`text-[10px] ${esActual ? "font-semibold text-indigo-600 dark:text-indigo-400" : "text-neutral-400 dark:text-slate-500"}`}>
                     {d.mes}
                   </span>
                 </div>
@@ -108,7 +108,7 @@ export default function VentasMensuales({ data }: Props) {
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
                 <div className="w-full animate-pulse rounded-t-md bg-indigo-50 dark:bg-indigo-500/10" style={{ height: 20 + i * 10 }} />
-                <span className="h-2.5 w-4 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
+                <span className="h-2.5 w-4 animate-pulse rounded bg-neutral-100 dark:bg-slate-800" />
               </div>
             ))}
           </div>

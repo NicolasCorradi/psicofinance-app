@@ -83,38 +83,38 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
       </div>
 
       {/* Body */}
-      <div className="bg-white dark:bg-neutral-900 p-5">
+      <div className="bg-white dark:bg-slate-900 p-5">
         {editando ? (
           /* Modo edición */
           <div className="space-y-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Paciente / Emisor</label>
+              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">Paciente / Emisor</label>
               <input
                 value={emisor}
                 onChange={e => setEmisor(e.target.value)}
-                className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-sm text-neutral-800 dark:text-neutral-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="rounded-xl border border-neutral-200 dark:border-slate-700 px-3 py-2 text-sm text-neutral-800 dark:text-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 placeholder="Nombre del paciente"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Monto $</label>
+                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">Monto $</label>
                 <input
                   type="number"
                   min={1}
                   value={monto}
                   onChange={e => setMonto(e.target.value)}
-                  className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-sm tabular-nums text-neutral-800 dark:text-neutral-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="rounded-xl border border-neutral-200 dark:border-slate-700 px-3 py-2 text-sm tabular-nums text-neutral-800 dark:text-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                   placeholder="0"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Fecha</label>
+                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">Fecha</label>
                 <input
                   type="date"
                   value={fecha}
                   onChange={e => setFecha(e.target.value)}
-                  className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-sm text-neutral-800 dark:text-neutral-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="rounded-xl border border-neutral-200 dark:border-slate-700 px-3 py-2 text-sm text-neutral-800 dark:text-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>
@@ -129,8 +129,8 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
               { l: "Fecha",     v: fecha ? new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "—" },
             ].map(({ l, v, highlight, ancho }) => (
               <div key={l} className={`rounded-xl p-3 ring-1 ${ancho ? "col-span-2 sm:col-span-1" : ""} ${highlight ? "bg-indigo-50 ring-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/20" : "bg-slate-50 ring-slate-100 dark:bg-slate-500/10 dark:ring-slate-500/20"}`}>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">{l}</p>
-                <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700 dark:text-indigo-400" : "text-neutral-800 dark:text-neutral-100"}`}>{v}</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">{l}</p>
+                <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700 dark:text-indigo-400" : "text-neutral-800 dark:text-slate-100"}`}>{v}</p>
               </div>
             ))}
           </div>
@@ -162,7 +162,7 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
           </button>
           <button
             onClick={onDescartar} disabled={aprobando}
-            className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-2.5 text-sm text-neutral-500 dark:text-neutral-400 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/60 disabled:opacity-40"
+            className="rounded-xl border border-neutral-200 dark:border-slate-700 px-4 py-2.5 text-sm text-neutral-500 dark:text-slate-400 transition-colors hover:bg-neutral-50 dark:hover:bg-slate-800/60 disabled:opacity-40"
           >
             Descartar
           </button>

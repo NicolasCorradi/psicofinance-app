@@ -33,28 +33,28 @@ export default function CambiarPassword({ onCerrar }: Props) {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm sm:p-4" onClick={onCerrar}>
       <div
-        className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0 dark:bg-neutral-900 dark:ring-white/10"
+        className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0 dark:bg-slate-900 dark:ring-white/10"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200 dark:bg-neutral-700" /></div>
+        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200 dark:bg-slate-700" /></div>
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10">
                 <KeyRound className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
               </div>
-              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Cambiar contraseña</h3>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">Cambiar contraseña</h3>
             </div>
-            <button onClick={onCerrar} className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:bg-neutral-800">
+            <button onClick={onCerrar} className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 dark:text-slate-500 dark:hover:bg-slate-800">
               <X className="h-4 w-4" />
             </button>
           </div>
 
           <div className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-neutral-500 dark:text-neutral-400">Nueva contraseña</label>
-              <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-neutral-800 dark:bg-neutral-950/40">
-                <Lock className="h-4 w-4 shrink-0 text-neutral-400 dark:text-neutral-500" />
+              <label className="mb-1.5 block text-xs font-medium text-neutral-500 dark:text-slate-400">Nueva contraseña</label>
+              <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950/40">
+                <Lock className="h-4 w-4 shrink-0 text-neutral-400 dark:text-slate-500" />
                 <input
                   autoFocus
                   type="password"
@@ -63,14 +63,14 @@ export default function CambiarPassword({ onCerrar }: Props) {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="new-password"
-                  className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                  className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-neutral-500 dark:text-neutral-400">Confirmar contraseña</label>
-              <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-neutral-800 dark:bg-neutral-950/40">
-                <Lock className="h-4 w-4 shrink-0 text-neutral-400 dark:text-neutral-500" />
+              <label className="mb-1.5 block text-xs font-medium text-neutral-500 dark:text-slate-400">Confirmar contraseña</label>
+              <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950/40">
+                <Lock className="h-4 w-4 shrink-0 text-neutral-400 dark:text-slate-500" />
                 <input
                   type="password"
                   value={confirmar}
@@ -78,7 +78,7 @@ export default function CambiarPassword({ onCerrar }: Props) {
                   onKeyDown={e => e.key === "Enter" && guardar()}
                   placeholder="••••••••"
                   autoComplete="new-password"
-                  className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                  className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -89,7 +89,7 @@ export default function CambiarPassword({ onCerrar }: Props) {
           <div className="mt-5 flex gap-2">
             <button
               onClick={onCerrar}
-              className="flex-1 rounded-xl border border-neutral-200 py-2.5 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
+              className="flex-1 rounded-xl border border-neutral-200 py-2.5 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60"
             >
               Cancelar
             </button>

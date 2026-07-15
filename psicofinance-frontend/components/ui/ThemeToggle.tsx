@@ -11,22 +11,22 @@ const OPCIONES = [
 ] as const;
 
 const ESTILOS = {
-  sidebar: { // sobre fondo oscuro (sidebar desktop)
-    pista:    "bg-white/5",
-    activo:   "bg-white/10 text-white",
-    inactivo: "text-white/40 hover:text-white/70",
+  sidebar: { // sobre fondo oscuro (sidebar desktop) — angosto, solo iconos
+    pista:    "bg-white/5 ring-1 ring-white/5",
+    activo:   "bg-white/15 text-white shadow-sm",
+    inactivo: "text-white/35 hover:text-white/70 hover:bg-white/5",
   },
-  sheet: { // sobre fondo claro (sheet mobile)
-    pista:    "bg-neutral-100",
-    activo:   "bg-white text-indigo-600 shadow-sm",
-    inactivo: "text-neutral-400 hover:text-neutral-600",
+  sheet: { // sobre fondo claro (sheet mobile) — hay lugar para el texto
+    pista:    "bg-neutral-100 dark:bg-slate-800",
+    activo:   "bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-indigo-400",
+    inactivo: "text-neutral-400 hover:text-neutral-600 dark:text-slate-500 dark:hover:text-slate-300",
   },
 } as const;
 
-/** Selector Claro/Oscuro/Auto de 3 posiciones. */
-export default function ThemeToggle({ variant = "sidebar", compact = false }: {
+/** Selector Claro/Oscuro/Auto de 3 posiciones. En el sidebar (angosto) va solo con
+ * iconos; en el sheet mobile (con más lugar) muestra también la etiqueta. */
+export default function ThemeToggle({ variant = "sidebar" }: {
   variant?: keyof typeof ESTILOS;
-  compact?: boolean;
 }) {
   const { theme, setTheme } = useTheme();
   const [montado, setMontado] = useState(false);
@@ -34,13 +34,14 @@ export default function ThemeToggle({ variant = "sidebar", compact = false }: {
   useEffect(() => setMontado(true), []);
 
   const s = ESTILOS[variant];
+  const conEtiqueta = variant === "sheet";
 
   if (!montado) {
-    return <div className={`h-9 w-full rounded-xl ${s.pista}`} />;
+    return <div className={`h-10 w-full rounded-xl ${s.pista}`} />;
   }
 
   return (
-    <div className={`flex w-full items-center gap-0.5 rounded-xl p-0.5 ${s.pista}`}>
+    <div className={`flex w-full items-center gap-1 rounded-xl p-1 ${s.pista}`}>
       {OPCIONES.map(({ valor, label, Icon }) => {
         const activo = theme === valor;
         return (
@@ -48,12 +49,13 @@ export default function ThemeToggle({ variant = "sidebar", compact = false }: {
             key={valor}
             onClick={() => setTheme(valor)}
             title={label}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors ${
+            aria-label={label}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-colors ${
               activo ? s.activo : s.inactivo
             }`}
           >
-            <Icon className="h-3.5 w-3.5" strokeWidth={1.8} />
-            {!compact && <span>{label}</span>}
+            <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+            {conEtiqueta && <span>{label}</span>}
           </button>
         );
       })}

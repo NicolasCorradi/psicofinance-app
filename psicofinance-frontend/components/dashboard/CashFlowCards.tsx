@@ -141,28 +141,28 @@ export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
               <div className={`h-1 bg-gradient-to-r ${gradient}`} />
               <div className="p-5">
                 <div className="flex items-start justify-between">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">
                     {titulo}
                   </p>
                   <div className="flex items-center gap-1">
                     <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${iconBg}`}>
                       <Icon className={`h-4 w-4 ${iconColor}`} strokeWidth={2} />
                     </div>
-                    <ChevronRight className="h-3.5 w-3.5 text-neutral-300 dark:text-neutral-600" />
+                    <ChevronRight className="h-3.5 w-3.5 text-neutral-300 dark:text-slate-600" />
                   </div>
                 </div>
                 <p className={`mt-3 text-[1.75rem] font-bold leading-none tracking-tight tabular-nums ${valorColor}`}>
                   {valor !== null
                     ? fmtPesos(valor)
-                    : <span className="animate-pulse text-neutral-200 dark:text-neutral-700">——</span>
+                    : <span className="animate-pulse text-neutral-200 dark:text-slate-700">——</span>
                   }
                 </p>
-                <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">{sub}</p>
+                <p className="mt-2 text-xs text-neutral-400 dark:text-slate-500">{sub}</p>
               </div>
             </>
           );
 
-          const cls = "relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition-all duration-150 text-left cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-neutral-900 dark:ring-white/10";
+          const cls = "relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition-all duration-150 text-left cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-slate-900 dark:ring-white/10";
 
           return href ? (
             <Link key={titulo} href={href} className={cls}>{inner}</Link>
@@ -183,19 +183,19 @@ export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
         {cargandoSheet ? (
           <div className="flex flex-col gap-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-slate-800" />
             ))}
           </div>
         ) : errorSheet ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-3 text-3xl">⚠️</div>
-            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">No se pudo cargar el detalle</p>
-            <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">Intentá de nuevo en unos segundos</p>
+            <p className="text-sm font-medium text-neutral-500 dark:text-slate-400">No se pudo cargar el detalle</p>
+            <p className="mt-1 text-xs text-neutral-400 dark:text-slate-500">Intentá de nuevo en unos segundos</p>
           </div>
         ) : turnosActivos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-3 text-3xl">🎉</div>
-            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+            <p className="text-sm font-medium text-neutral-600 dark:text-slate-300">
               {sheetTipo === "cobrado_mes" ? "Sin cobros registrados este mes"
                : sheetTipo === "en_camino" ? "No hay sesiones pendientes de cobro"
                : "No hay pagos vencidos"}
@@ -203,7 +203,7 @@ export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="mb-2 text-xs text-neutral-400 dark:text-neutral-500">
+            <p className="mb-2 text-xs text-neutral-400 dark:text-slate-500">
               {turnosActivos.length} turno{turnosActivos.length !== 1 ? "s" : ""}
             </p>
             {turnosActivos.map(t => (
@@ -225,10 +225,10 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoResumen; tipo: Exclude<TipoS
   const vencido = tipo === "sin_cobrar";
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-neutral-100 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/40">
+    <div className="flex items-center justify-between rounded-xl border border-neutral-100 bg-neutral-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40">
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">
+          <span className="text-sm font-medium text-neutral-800 dark:text-slate-100">
             {t.paciente_nombre || "Sin nombre"}
           </span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -238,7 +238,7 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoResumen; tipo: Exclude<TipoS
             {tipo === "cobrado_mes" ? "Cobrado" : vencido ? "Vencido" : "Pendiente"}
           </span>
         </div>
-        <span className="text-xs text-neutral-400 dark:text-neutral-500">
+        <span className="text-xs text-neutral-400 dark:text-slate-500">
           {fmtFecha(t.fecha_turno)} · {fechaLabel}
           {t.prepaga && <span className="ml-1">· {t.prepaga}</span>}
         </span>
@@ -259,7 +259,7 @@ function TurnoRow({ turno: t, tipo }: { turno: TurnoResumen; tipo: Exclude<TipoS
           }
         </span>
         {t.moneda === "USD" && t.tipo_cambio && (
-          <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
+          <span className="text-[10px] text-neutral-400 dark:text-slate-500">
             ≈ {new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(t.monto * t.tipo_cambio)}
           </span>
         )}

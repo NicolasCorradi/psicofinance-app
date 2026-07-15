@@ -44,14 +44,14 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
     .slice(0, 6);
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-slate-900 dark:ring-white/10">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-slate-500">
             Simulador de ajuste
           </p>
-          <p className="mt-0.5 text-sm font-semibold text-neutral-800 dark:text-neutral-100">¿Cuánto ganarías con el ajuste?</p>
+          <p className="mt-0.5 text-sm font-semibold text-neutral-800 dark:text-slate-100">¿Cuánto ganarías con el ajuste?</p>
         </div>
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/15">
           <Calculator className="h-4 w-4 text-violet-600 dark:text-violet-400" />
@@ -60,11 +60,11 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
 
       {/* Input de porcentaje */}
       <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+        <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-slate-300">
           % de aumento (ej: IPC del mes)
         </label>
         <div className="flex items-center gap-2">
-          <div className="flex flex-1 items-center rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100 dark:border-neutral-700 dark:bg-neutral-800 dark:focus-within:border-violet-500 dark:focus-within:ring-violet-500/20">
+          <div className="flex flex-1 items-center rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:border-violet-500 dark:focus-within:ring-violet-500/20">
             <input
               type="number"
               min={0}
@@ -72,10 +72,10 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
               step={0.5}
               value={pct}
               onChange={e => setPct(e.target.value)}
-              className="flex-1 bg-transparent text-sm font-semibold text-neutral-900 focus:outline-none tabular-nums dark:text-neutral-100"
+              className="flex-1 bg-transparent text-sm font-semibold text-neutral-900 focus:outline-none tabular-nums dark:text-slate-100"
               placeholder="0"
             />
-            <span className="ml-1 text-sm font-medium text-neutral-400 dark:text-neutral-500">%</span>
+            <span className="ml-1 text-sm font-medium text-neutral-400 dark:text-slate-500">%</span>
           </div>
           {/* Sugerencias rápidas */}
           <div className="flex gap-1">
@@ -86,7 +86,7 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
                 className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   pct === v
                     ? "border-violet-300 bg-violet-100 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-400"
-                    : "border-neutral-200 text-neutral-500 hover:border-violet-200 hover:bg-violet-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-violet-500/20 dark:hover:bg-violet-500/10"
+                    : "border-neutral-200 text-neutral-500 hover:border-violet-200 hover:bg-violet-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-violet-500/20 dark:hover:bg-violet-500/10"
                 }`}
               >
                 {v}%
@@ -99,23 +99,23 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
       {/* Resultado comparativo */}
       {cargando ? (
         <div className="space-y-2">
-          {[1, 2].map(i => <div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />)}
+          {[1, 2].map(i => <div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-100 dark:bg-slate-800" />)}
         </div>
       ) : conHonorario.length === 0 ? (
-        <div className="rounded-xl bg-neutral-50 p-4 text-center text-xs text-neutral-400 dark:bg-neutral-800/40 dark:text-neutral-500">
+        <div className="rounded-xl bg-neutral-50 p-4 text-center text-xs text-neutral-400 dark:bg-slate-800/40 dark:text-slate-500">
           Configurá el honorario base en los pacientes para usar el simulador.
         </div>
       ) : activos.length === 0 ? (
-        <div className="rounded-xl bg-neutral-50 p-4 text-center text-xs text-neutral-400 dark:bg-neutral-800/40 dark:text-neutral-500">
+        <div className="rounded-xl bg-neutral-50 p-4 text-center text-xs text-neutral-400 dark:bg-slate-800/40 dark:text-slate-500">
           Sin sesiones registradas este mes: registrá sesiones para proyectar el ajuste.
         </div>
       ) : (
         <>
           {/* Cards de comparación */}
           <div className="mb-4 grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-neutral-50 p-3 text-center dark:bg-neutral-800/40">
-              <p className="text-[10px] text-neutral-400 uppercase tracking-wide dark:text-neutral-500">Actual</p>
-              <p className="mt-1 text-base font-bold tabular-nums text-neutral-700 dark:text-neutral-300">{fmtPesos(ingresoActual)}</p>
+            <div className="rounded-xl bg-neutral-50 p-3 text-center dark:bg-slate-800/40">
+              <p className="text-[10px] text-neutral-400 uppercase tracking-wide dark:text-slate-500">Actual</p>
+              <p className="mt-1 text-base font-bold tabular-nums text-neutral-700 dark:text-slate-300">{fmtPesos(ingresoActual)}</p>
             </div>
             <div className="flex flex-col items-center justify-center">
               <TrendingUp className="h-4 w-4 text-violet-500 dark:text-violet-400" />
@@ -134,25 +134,25 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
               +{fmtPesos(diferencia)}
             </span>
           </div>
-          <p className="mb-3 text-[10px] text-neutral-400 dark:text-neutral-500">
+          <p className="mb-3 text-[10px] text-neutral-400 dark:text-slate-500">
             Proyección basada en sesiones del mes actual × honorario ajustado.
             {inactivos > 0 && ` Excluye ${inactivos} paciente${inactivos > 1 ? "s" : ""} sin sesiones este mes.`}
           </p>
 
           {/* Tabla de pacientes */}
-          <div className="overflow-hidden rounded-xl border border-neutral-100 dark:border-neutral-800">
-            <div className="grid grid-cols-3 border-b border-neutral-100 bg-neutral-50 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-500">
+          <div className="overflow-hidden rounded-xl border border-neutral-100 dark:border-slate-800">
+            <div className="grid grid-cols-3 border-b border-neutral-100 bg-neutral-50 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-500">
               <span>Paciente</span>
               <span className="text-right">Honorario actual</span>
               <span className="text-right text-violet-600 dark:text-violet-400">Ajustado</span>
             </div>
             {topPacientes.map(p => (
-              <div key={p.id} className="grid grid-cols-3 border-b border-neutral-50 px-3 py-2 text-xs last:border-0 dark:border-neutral-800">
+              <div key={p.id} className="grid grid-cols-3 border-b border-neutral-50 px-3 py-2 text-xs last:border-0 dark:border-slate-800">
                 <div className="truncate">
-                  <span className="font-medium text-neutral-700 dark:text-neutral-300">{p.nombre} {p.apellido[0]}.</span>
-                  <span className="ml-1 text-[10px] text-neutral-400 dark:text-neutral-500">×{p.sesiones_mes}</span>
+                  <span className="font-medium text-neutral-700 dark:text-slate-300">{p.nombre} {p.apellido[0]}.</span>
+                  <span className="ml-1 text-[10px] text-neutral-400 dark:text-slate-500">×{p.sesiones_mes}</span>
                 </div>
-                <span className="text-right tabular-nums text-neutral-500 dark:text-neutral-400">
+                <span className="text-right tabular-nums text-neutral-500 dark:text-slate-400">
                   {fmtPesos(calcIngreso(p, p.honorario_actual ?? 0))}
                 </span>
                 <span className="text-right tabular-nums font-semibold text-violet-700 dark:text-violet-400">
@@ -161,7 +161,7 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
               </div>
             ))}
             {activos.length > 6 && (
-              <div className="px-3 py-2 text-center text-[10px] text-neutral-400 dark:text-neutral-500">
+              <div className="px-3 py-2 text-center text-[10px] text-neutral-400 dark:text-slate-500">
                 +{activos.length - 6} pacientes más
               </div>
             )}
