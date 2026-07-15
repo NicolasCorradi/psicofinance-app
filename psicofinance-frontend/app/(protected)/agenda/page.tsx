@@ -4,16 +4,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronLeft, ChevronRight, CalendarDays, Loader2,
   LayoutGrid, Plus, X, GripVertical, Check, Trash2,
-  RefreshCw, WifiOff,
+  RefreshCw, WifiOff, CalendarClock, Ban, RotateCcw,
 } from "lucide-react";
 import {
   getTurnosAgenda, getSemanaModelo, guardarSemanaModelo,
   getPacientes, crearTurno, actualizarTurno,
+  getExcepcionesSemana, guardarExcepcionesSemana,
 } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import type {
   TurnoAgenda, EstadoTurno, TipoSesion, MedioPago,
-  SlotModelo, PacienteConStats,
+  SlotModelo, PacienteConStats, ExcepcionSemanal,
 } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 import { isoDate, MESES_ES, MEDIO_LABEL } from "@/lib/format";
@@ -324,15 +325,130 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
 
 // ── Card placeholder (slot modelo sin turno real) ─────────────────────────────
 
-function SlotPlaceholder({ nombre, onClick }: { nombre: string; onClick: () => void }) {
+function SlotPlaceholder({ slot, estadoSemana, horaEfectiva, onRegistrar, onEditarSemana }: {
+  slot: SlotModelo;
+  estadoSemana: "normal" | "movido";
+  horaEfectiva: string;
+  onRegistrar: () => void;
+  onEditarSemana: () => void;
+}) {
+  const nombre = slot.paciente_nombre;
+  const movido = estadoSemana === "movido";
   return (
-    <button onClick={onClick} className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-2.5 py-2 text-xs opacity-60 text-left hover:opacity-100 hover:border-indigo-300 hover:bg-indigo-50/40 transition-all group">
-      <div className="flex items-center gap-1.5">
-        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(nombre)}`}>{iniciales(nombre)}</div>
-        <p className="truncate font-medium text-neutral-400 group-hover:text-indigo-600">{nombre}</p>
+    <div className={`group relative w-full rounded-xl border border-dashed px-2.5 py-2 text-xs transition-all ${
+      movido ? "border-indigo-300 bg-indigo-50/60" : "border-neutral-200 bg-neutral-50 opacity-60 hover:opacity-100 hover:border-indigo-300 hover:bg-indigo-50/40"}`}>
+      <button onClick={onRegistrar} className="block w-full text-left">
+        <div className="flex items-center gap-1.5 pr-5">
+          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(nombre)}`}>{iniciales(nombre)}</div>
+          <p className={`truncate font-medium ${movido ? "text-indigo-700" : "text-neutral-400 group-hover:text-indigo-600"}`}>{nombre}</p>
+        </div>
+        <div className="mt-1 flex items-center gap-1">
+          <span className={`text-[9px] ${movido ? "text-indigo-500" : "text-neutral-300 group-hover:text-indigo-400"}`}>{horaEfectiva} · registrar</span>
+          {movido && <span className="rounded-full bg-indigo-100 px-1 py-0.5 text-[8px] font-semibold text-indigo-600">movido</span>}
+        </div>
+      </button>
+      <button onClick={onEditarSemana} title="Mover o cancelar solo esta semana"
+        className="absolute right-1 top-1 rounded p-1 text-neutral-300 hover:bg-indigo-100 hover:text-indigo-600">
+        <CalendarClock className="h-3 w-3"/>
+      </button>
+    </div>
+  );
+}
+
+// ── Card de slot cancelado solo por esta semana ───────────────────────────────
+
+function CanceladoCard({ slot, onEditarSemana }: { slot: SlotModelo; onEditarSemana: () => void }) {
+  return (
+    <div className="relative w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/70 px-2.5 py-2 text-xs">
+      <div className="flex items-center gap-1.5 pr-5">
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-400"><Ban className="h-2.5 w-2.5"/></div>
+        <p className="truncate font-medium text-neutral-400 line-through">{slot.paciente_nombre}</p>
       </div>
-      <p className="mt-1 text-[9px] text-neutral-300 group-hover:text-indigo-400">Tap para registrar</p>
-    </button>
+      <p className="mt-1 text-[9px] text-neutral-400">No viene esta semana</p>
+      <button onClick={onEditarSemana} title="Deshacer o cambiar"
+        className="absolute right-1 top-1 rounded p-1 text-neutral-300 hover:bg-indigo-100 hover:text-indigo-600">
+        <RotateCcw className="h-3 w-3"/>
+      </button>
+    </div>
+  );
+}
+
+// ── Modal: mover / cancelar un slot SOLO por esta semana ──────────────────────
+
+function ModalMoverCancelar({ slot, excepcion, semanaLabel, onAplicar, onClose }: {
+  slot: SlotModelo;
+  excepcion: ExcepcionSemanal | null;
+  semanaLabel: string;
+  onAplicar: (exc: ExcepcionSemanal | null) => void;
+  onClose: () => void;
+}) {
+  const [dia, setDia]   = useState<number>(excepcion?.dia_nuevo ?? slot.dia);
+  const [hora, setHora] = useState<string>(excepcion?.hora_nueva ?? slot.hora);
+
+  function guardarMover() {
+    // Si vuelve al día/hora original, es lo mismo que "volver a lo normal"
+    if (dia === slot.dia && hora === slot.hora) { onAplicar(null); return; }
+    onAplicar({
+      paciente_id: slot.paciente_id,
+      dia_orig: slot.dia, hora_orig: slot.hora,
+      accion: "mover", dia_nuevo: dia, hora_nueva: hora,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm sm:p-4" onClick={onClose}>
+      <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200"/></div>
+        <div className="p-6">
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <p className="text-xs text-neutral-400">Solo esta semana · {semanaLabel}</p>
+              <h3 className="text-base font-bold text-neutral-900">{slot.paciente_nombre}</h3>
+              <p className="mt-0.5 text-xs text-neutral-400">
+                Normalmente: {DIAS_CORTO[slot.dia - 1]} {slot.hora}
+              </p>
+            </div>
+            <button onClick={onClose} className="rounded-lg p-2 text-neutral-300 hover:text-neutral-500"><X className="h-4 w-4"/></button>
+          </div>
+
+          <p className="mb-2 text-xs font-semibold text-neutral-500">Mover a</p>
+          <div className="mb-3 grid grid-cols-7 gap-1">
+            {DIAS_CORTO.map((d, i) => (
+              <button key={d} onClick={() => setDia(i + 1)}
+                className={`rounded-lg border py-1.5 text-[11px] font-medium transition-colors ${dia === i + 1 ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50"}`}>
+                {d}
+              </button>
+            ))}
+          </div>
+          <div className="mb-4">
+            <input type="time" value={hora} onChange={e => setHora(e.target.value)}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none"/>
+          </div>
+
+          <button onClick={guardarMover}
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500">
+            Guardar cambio
+          </button>
+
+          <div className="my-3 flex items-center gap-2 text-[10px] text-neutral-300">
+            <div className="h-px flex-1 bg-neutral-100"/>o<div className="h-px flex-1 bg-neutral-100"/>
+          </div>
+
+          <button
+            onClick={() => onAplicar({ paciente_id: slot.paciente_id, dia_orig: slot.dia, hora_orig: slot.hora, accion: "cancelar" })}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50">
+            <Ban className="h-3.5 w-3.5"/> No viene esta semana
+          </button>
+
+          {excepcion && (
+            <button onClick={() => onAplicar(null)}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-medium text-neutral-400 hover:text-indigo-600">
+              <RotateCcw className="h-3.5 w-3.5"/> Volver a lo normal
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -395,35 +511,84 @@ function VistaSemana() {
   const [turnos, setTurnos]         = useState<TurnoAgenda[]>([]);
   const [modelo, setModelo]         = useState<SlotModelo[]>([]);
   const [pacientes, setPacientes]   = useState<PacienteConStats[]>([]);
+  const [excepciones, setExcepciones] = useState<ExcepcionSemanal[]>([]);
   const [cargando, setCargando]     = useState(false);
   const [error, setError]           = useState(false);
   const [modalReg, setModalReg]     = useState<{ slot: SlotModelo; fecha: string } | null>(null);
   const [modalEdit, setModalEdit]   = useState<TurnoAgenda | null>(null);
+  const [modalMover, setModalMover] = useState<SlotModelo | null>(null);
   const hoyIso = isoDate(new Date());
+  const toast = useToast();
 
   const cargar = useCallback(async (ini: Date) => {
     setCargando(true);
     setError(false);
     try {
-      const [t, m, p] = await Promise.all([
+      const [t, m, p, ex] = await Promise.all([
         getTurnosAgenda(isoDate(ini), isoDate(addDays(ini, 6))),
         getSemanaModelo(),
         getPacientes(),
+        getExcepcionesSemana(isoDate(ini)),
       ]);
-      setTurnos(t); setModelo(m.slots); setPacientes(p);
+      setTurnos(t); setModelo(m.slots); setPacientes(p); setExcepciones(ex.excepciones);
     } catch { setError(true); } finally { setCargando(false); }
   }, []);
   useEffect(() => { cargar(lunes); }, [lunes, cargar]);
 
   function diaModelo(d: Date): number { return d.getDay() === 0 ? 7 : d.getDay(); }
 
+  // Excepción que aplica a un slot de la plantilla (match por coords originales)
+  function excepcionDe(s: SlotModelo): ExcepcionSemanal | null {
+    return excepciones.find(e =>
+      e.paciente_id === s.paciente_id && e.dia_orig === s.dia && e.hora_orig === s.hora) ?? null;
+  }
+
+  // Slots de la plantilla con la excepción de esta semana aplicada
+  type SlotEfectivo = SlotModelo & {
+    diaEfectivo: number; horaEfectiva: string; estadoSemana: "normal" | "movido" | "cancelado";
+  };
+  const slotsEfectivos: SlotEfectivo[] = modelo.map(s => {
+    const exc = excepcionDe(s);
+    if (exc?.accion === "cancelar")
+      return { ...s, diaEfectivo: s.dia, horaEfectiva: s.hora, estadoSemana: "cancelado" };
+    if (exc?.accion === "mover" && exc.dia_nuevo != null && exc.hora_nueva != null)
+      return { ...s, diaEfectivo: exc.dia_nuevo, horaEfectiva: exc.hora_nueva, estadoSemana: "movido" };
+    return { ...s, diaEfectivo: s.dia, horaEfectiva: s.hora, estadoSemana: "normal" };
+  });
+
   const dias = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(lunes, i), iso = isoDate(d);
     const td = turnos.filter(t => t.fecha_turno === iso);
     const dm = diaModelo(d);
-    const placeholders = modelo.filter(s => s.dia === dm && !td.some(t => t.paciente_id === s.paciente_id));
-    return { d, iso, label: DIAS_CORTO[i], td, placeholders };
+    // Activos (normal/movido) que caen en este día y aún no se registraron
+    const placeholders = slotsEfectivos
+      .filter(s => s.estadoSemana !== "cancelado" && s.diaEfectivo === dm && !td.some(t => t.paciente_id === s.paciente_id))
+      .sort((a, b) => a.horaEfectiva.localeCompare(b.horaEfectiva));
+    // Cancelados: se muestran en su día ORIGINAL como recordatorio
+    const cancelados = slotsEfectivos.filter(s => s.estadoSemana === "cancelado" && s.dia === dm);
+    return { d, iso, label: DIAS_CORTO[i], td, placeholders, cancelados };
   });
+
+  // Aplica (o revierte con exc=null) una excepción para el slot dado
+  async function aplicarExcepcion(slot: SlotModelo, exc: ExcepcionSemanal | null) {
+    const otras = excepciones.filter(e =>
+      !(e.paciente_id === slot.paciente_id && e.dia_orig === slot.dia && e.hora_orig === slot.hora));
+    const nuevas = exc ? [...otras, exc] : otras;
+    const previas = excepciones;
+    setExcepciones(nuevas);
+    setModalMover(null);
+    try {
+      await guardarExcepcionesSemana(isoDate(lunes), nuevas);
+      toast.success(
+        exc?.accion === "cancelar" ? "Listo, no viene esta semana"
+        : exc ? "Movido solo esta semana"
+        : "Volvió a lo normal"
+      );
+    } catch {
+      setExcepciones(previas);
+      toast.error("No se pudo guardar el cambio");
+    }
+  }
 
   const totalSes = turnos.filter(t => t.estado !== "INCOBRABLE").length;
   const cobrado  = turnos.filter(t => t.estado === "COBRADO").reduce((a, t) => a + (t.moneda === "USD" && t.tipo_cambio ? t.monto * t.tipo_cambio : t.monto), 0);
@@ -462,9 +627,9 @@ function VistaSemana() {
       : <>
           {/* Desktop */}
           <div className="hidden md:grid grid-cols-7 gap-2">
-            {dias.map(({ d, iso, label, td, placeholders }) => {
+            {dias.map(({ d, iso, label, td, placeholders, cancelados }) => {
               const esHoy = iso === hoyIso, esFin = d.getDay() === 0 || d.getDay() === 6;
-              const total = td.length + placeholders.length;
+              const total = td.length + placeholders.length + cancelados.length;
               return (
                 <div key={iso} className={`min-h-[200px] rounded-2xl p-2.5 ${esHoy ? "bg-indigo-50 ring-2 ring-indigo-300/60" : esFin ? "bg-white/60 ring-1 ring-black/5" : "bg-white ring-1 ring-black/5"}`}>
                   <div className="mb-2 flex items-center gap-1">
@@ -475,7 +640,8 @@ function VistaSemana() {
                   <div className="space-y-1.5">
                     {total === 0 && <p className="pt-4 text-center text-[10px] text-neutral-300">—</p>}
                     {td.map(t => <TurnoCard key={t.id} t={t} onClick={() => setModalEdit(t)}/>)}
-                    {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} nombre={s.paciente_nombre} onClick={() => setModalReg({ slot: s, fecha: iso })}/>)}
+                    {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
+                    {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
                   </div>
                 </div>
               );
@@ -484,9 +650,9 @@ function VistaSemana() {
 
           {/* Mobile */}
           <div className="md:hidden space-y-2">
-            {dias.map(({ d, iso, label, td, placeholders }) => {
+            {dias.map(({ d, iso, label, td, placeholders, cancelados }) => {
               const esHoy = iso === hoyIso, esFin = d.getDay() === 0 || d.getDay() === 6;
-              const total = td.length + placeholders.length;
+              const total = td.length + placeholders.length + cancelados.length;
               return (
                 <div key={iso} className={`overflow-hidden rounded-2xl ${esHoy ? "ring-2 ring-indigo-300/60" : "ring-1 ring-black/5"}`}>
                   <div className={`flex items-center gap-2 px-4 py-2.5 ${esHoy ? "bg-indigo-600" : esFin ? "bg-neutral-100" : "bg-white"}`}>
@@ -497,7 +663,8 @@ function VistaSemana() {
                   <div className={`px-3 py-2 space-y-1.5 ${esHoy ? "bg-indigo-50/40" : "bg-white"}`}>
                     {total === 0 && <p className="py-2 text-center text-xs text-neutral-300">Sin turnos</p>}
                     {td.map(t => <TurnoCard key={t.id} t={t} onClick={() => setModalEdit(t)}/>)}
-                    {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} nombre={s.paciente_nombre} onClick={() => setModalReg({ slot: s, fecha: iso })}/>)}
+                    {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
+                    {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
                   </div>
                 </div>
               );
@@ -531,6 +698,17 @@ function VistaSemana() {
         turno={modalEdit}
         onClose={() => setModalEdit(null)}
         onGuardado={() => { setModalEdit(null); cargar(lunes); }}
+      />
+    )}
+
+    {/* Modal mover / cancelar (solo esta semana) */}
+    {modalMover && (
+      <ModalMoverCancelar
+        slot={modalMover}
+        excepcion={excepcionDe(modalMover)}
+        semanaLabel={fmtRangoSemana(lunes)}
+        onAplicar={(exc) => aplicarExcepcion(modalMover, exc)}
+        onClose={() => setModalMover(null)}
       />
     )}
   </>);

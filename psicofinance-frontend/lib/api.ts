@@ -12,6 +12,7 @@ import type {
   TurnoResumen,
   TurnoAgenda,
   SlotModelo,
+  ExcepcionSemanal,
   TurnoCreatePayload,
   TurnoUpdatePayload,
   PacienteConStats,
@@ -237,6 +238,16 @@ export function getSemanaModelo(): Promise<{ slots: SlotModelo[] }> {
 /** Guarda la semana modelo completa. */
 export function guardarSemanaModelo(slots: SlotModelo[]): Promise<{ slots: SlotModelo[] }> {
   return patch('/agenda/semana-modelo', { slots });
+}
+
+/** Excepciones (movidos/cancelados) de una semana puntual. `semana` = lunes ISO. */
+export function getExcepcionesSemana(semana: string): Promise<{ semana: string; excepciones: ExcepcionSemanal[] }> {
+  return get(`/agenda/excepciones?semana=${semana}`);
+}
+
+/** Reemplaza las excepciones de UNA semana (lista vacía = borra esa semana). */
+export function guardarExcepcionesSemana(semana: string, excepciones: ExcepcionSemanal[]): Promise<{ semana: string; excepciones: ExcepcionSemanal[] }> {
+  return patch('/agenda/excepciones', { semana, excepciones });
 }
 
 /** Lista turnos DIFERIDO con nombre de paciente. */

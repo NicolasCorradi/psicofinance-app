@@ -218,6 +218,18 @@ export interface SlotModelo {
   paciente_nombre: string;
 }
 
+// ── Excepciones semanales ────────────────────────────────────────────────────
+// Cambio puntual sobre la semana modelo, válido SOLO para una semana concreta.
+// No toca la plantilla ni los turnos: solo altera cómo se dibuja esa semana.
+export interface ExcepcionSemanal {
+  paciente_id: string;
+  dia_orig:    number;              // día del slot en la plantilla (1=Lun … 7=Dom)
+  hora_orig:   string;              // hora del slot en la plantilla
+  accion:      "mover" | "cancelar";
+  dia_nuevo?:  number | null;       // solo si accion === "mover"
+  hora_nueva?: string | null;       // solo si accion === "mover"
+}
+
 // ── Agenda ───────────────────────────────────────────────────────────────────
 export interface TurnoAgenda {
   id:               string;
