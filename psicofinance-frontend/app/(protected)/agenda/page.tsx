@@ -336,19 +336,20 @@ function SlotPlaceholder({ slot, estadoSemana, horaEfectiva, onRegistrar, onEdit
   const movido = estadoSemana === "movido";
   return (
     <div className={`group relative w-full rounded-xl border border-dashed px-2.5 py-2 text-xs transition-all ${
-      movido ? "border-indigo-300 bg-indigo-50/60" : "border-neutral-200 bg-neutral-50 opacity-60 hover:opacity-100 hover:border-indigo-300 hover:bg-indigo-50/40"}`}>
+      movido ? "border-indigo-300 bg-indigo-50/70" : "border-neutral-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40"}`}>
       <button onClick={onRegistrar} className="block w-full text-left">
-        <div className="flex items-center gap-1.5 pr-5">
-          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(nombre)}`}>{iniciales(nombre)}</div>
-          <p className={`truncate font-medium ${movido ? "text-indigo-700" : "text-neutral-400 group-hover:text-indigo-600"}`}>{nombre}</p>
-        </div>
-        <div className="mt-1 flex items-center gap-1">
-          <span className={`text-[9px] ${movido ? "text-indigo-500" : "text-neutral-300 group-hover:text-indigo-400"}`}>{horaEfectiva} · registrar</span>
+        <div className="mb-1 flex items-center gap-1.5 pr-5">
+          <span className={`text-[11px] font-bold tabular-nums ${movido ? "text-indigo-700" : "text-neutral-700"}`}>{horaEfectiva}</span>
           {movido && <span className="rounded-full bg-indigo-100 px-1 py-0.5 text-[8px] font-semibold text-indigo-600">movido</span>}
         </div>
+        <div className="flex items-center gap-1.5">
+          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(nombre)}`}>{iniciales(nombre)}</div>
+          <p className="truncate font-medium text-neutral-700">{nombre}</p>
+        </div>
+        <p className="mt-0.5 text-[9px] text-neutral-400">Tap para registrar</p>
       </button>
       <button onClick={onEditarSemana} title="Mover o cancelar solo esta semana"
-        className="absolute right-1 top-1 rounded p-1 text-neutral-300 hover:bg-indigo-100 hover:text-indigo-600">
+        className="absolute right-1 top-1 rounded p-1 text-neutral-400 hover:bg-indigo-100 hover:text-indigo-600">
         <CalendarClock className="h-3 w-3"/>
       </button>
     </div>
@@ -359,14 +360,17 @@ function SlotPlaceholder({ slot, estadoSemana, horaEfectiva, onRegistrar, onEdit
 
 function CanceladoCard({ slot, onEditarSemana }: { slot: SlotModelo; onEditarSemana: () => void }) {
   return (
-    <div className="relative w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/70 px-2.5 py-2 text-xs">
-      <div className="flex items-center gap-1.5 pr-5">
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-400"><Ban className="h-2.5 w-2.5"/></div>
-        <p className="truncate font-medium text-neutral-400 line-through">{slot.paciente_nombre}</p>
+    <div className="relative w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-2.5 py-2 text-xs">
+      <div className="mb-1 flex items-center gap-1.5 pr-5">
+        <span className="text-[11px] font-bold tabular-nums text-neutral-400 line-through">{slot.hora}</span>
+        <span className="rounded-full bg-neutral-100 px-1 py-0.5 text-[8px] font-semibold text-neutral-500">no viene</span>
       </div>
-      <p className="mt-1 text-[9px] text-neutral-400">No viene esta semana</p>
+      <div className="flex items-center gap-1.5">
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"><Ban className="h-2.5 w-2.5"/></div>
+        <p className="truncate font-medium text-neutral-500 line-through">{slot.paciente_nombre}</p>
+      </div>
       <button onClick={onEditarSemana} title="Deshacer o cambiar"
-        className="absolute right-1 top-1 rounded p-1 text-neutral-300 hover:bg-indigo-100 hover:text-indigo-600">
+        className="absolute right-1 top-1 rounded p-1 text-neutral-400 hover:bg-indigo-100 hover:text-indigo-600">
         <RotateCcw className="h-3 w-3"/>
       </button>
     </div>
@@ -454,7 +458,7 @@ function ModalMoverCancelar({ slot, excepcion, semanaLabel, onAplicar, onClose }
 
 // ── Card turno real ───────────────────────────────────────────────────────────
 
-function TurnoCard({ t, onClick }: { t: TurnoAgenda; onClick: () => void }) {
+function TurnoCard({ t, hora, onClick }: { t: TurnoAgenda; hora: string | null; onClick: () => void }) {
   const esInasistencia = t.tipo_sesion !== "SESION";
   const tipoBadge = TIPO_LABEL[t.tipo_sesion];
   const monto = t.monto > 0
@@ -464,18 +468,19 @@ function TurnoCard({ t, onClick }: { t: TurnoAgenda; onClick: () => void }) {
     : null;
   return (
     <button onClick={onClick} className={`w-full rounded-xl border px-2.5 py-2 text-xs text-left hover:ring-2 hover:ring-indigo-200 transition-all ${
-      esInasistencia ? "border-neutral-100 bg-neutral-50 opacity-65"
-      : t.estado === "COBRADO" ? "border-emerald-100 bg-emerald-50/60"
-      : t.estado === "DIFERIDO" ? "border-amber-100 bg-amber-50/60"
-      : "border-neutral-100 bg-neutral-50"}`}>
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(t.paciente_nombre)}`}>{iniciales(t.paciente_nombre)}</div>
-        <p className="truncate font-semibold text-neutral-800">{t.paciente_nombre}</p>
+      esInasistencia ? "border-neutral-200 bg-neutral-50"
+      : t.estado === "COBRADO" ? "border-emerald-200 bg-emerald-50/70"
+      : t.estado === "DIFERIDO" ? "border-amber-200 bg-amber-50/70"
+      : "border-neutral-200 bg-neutral-50"}`}>
+      <div className="mb-1 flex items-center gap-1.5">
+        {hora && <span className="text-[11px] font-bold tabular-nums text-neutral-700">{hora}</span>}
+        {tipoBadge && <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-medium text-red-600">{tipoBadge}</span>}
+        {monto && <span className="ml-auto text-[9px] tabular-nums text-neutral-500">{monto}</span>}
       </div>
-      <div className="flex items-center gap-1 flex-wrap">
-        {tipoBadge ? <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-medium text-red-600">{tipoBadge}</span>
-          : <span className={`h-1.5 w-1.5 rounded-full ${ESTADO_DOT[t.estado]}`}/>}
-        {monto && <span className="ml-auto text-[9px] tabular-nums text-neutral-400">{monto}</span>}
+      <div className="flex items-center gap-1.5">
+        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${avatarCls(t.paciente_nombre)}`}>{iniciales(t.paciente_nombre)}</div>
+        <p className={`truncate font-semibold ${esInasistencia ? "text-neutral-500 line-through" : "text-neutral-800"}`}>{t.paciente_nombre}</p>
+        {!tipoBadge && <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${ESTADO_DOT[t.estado]}`}/>}
       </div>
     </button>
   );
@@ -556,17 +561,28 @@ function VistaSemana() {
     return { ...s, diaEfectivo: s.dia, horaEfectiva: s.hora, estadoSemana: "normal" };
   });
 
+  // Hora de un turno ya registrado: el turno no la guarda, la sacamos de la
+  // plantilla (slot del mismo paciente que cae ese día, ya con excepción aplicada).
+  function horaDeTurno(t: TurnoAgenda, dm: number): string | null {
+    const s = slotsEfectivos.find(x =>
+      x.paciente_id === t.paciente_id && x.diaEfectivo === dm && x.estadoSemana !== "cancelado");
+    return s ? s.horaEfectiva : null;
+  }
+
   const dias = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(lunes, i), iso = isoDate(d);
-    const td = turnos.filter(t => t.fecha_turno === iso);
     const dm = diaModelo(d);
+    // Turnos del día, ordenados por su hora de plantilla
+    const td = turnos
+      .filter(t => t.fecha_turno === iso)
+      .sort((a, b) => (horaDeTurno(a, dm) ?? "99").localeCompare(horaDeTurno(b, dm) ?? "99"));
     // Activos (normal/movido) que caen en este día y aún no se registraron
     const placeholders = slotsEfectivos
       .filter(s => s.estadoSemana !== "cancelado" && s.diaEfectivo === dm && !td.some(t => t.paciente_id === s.paciente_id))
       .sort((a, b) => a.horaEfectiva.localeCompare(b.horaEfectiva));
     // Cancelados: se muestran en su día ORIGINAL como recordatorio
     const cancelados = slotsEfectivos.filter(s => s.estadoSemana === "cancelado" && s.dia === dm);
-    return { d, iso, label: DIAS_CORTO[i], td, placeholders, cancelados };
+    return { d, iso, dm, label: DIAS_CORTO[i], td, placeholders, cancelados };
   });
 
   // Aplica (o revierte con exc=null) una excepción para el slot dado
@@ -627,7 +643,7 @@ function VistaSemana() {
       : <>
           {/* Desktop */}
           <div className="hidden md:grid grid-cols-7 gap-2">
-            {dias.map(({ d, iso, label, td, placeholders, cancelados }) => {
+            {dias.map(({ d, iso, dm, label, td, placeholders, cancelados }) => {
               const esHoy = iso === hoyIso, esFin = d.getDay() === 0 || d.getDay() === 6;
               const total = td.length + placeholders.length + cancelados.length;
               return (
@@ -639,7 +655,7 @@ function VistaSemana() {
                   </div>
                   <div className="space-y-1.5">
                     {total === 0 && <p className="pt-4 text-center text-[10px] text-neutral-300">—</p>}
-                    {td.map(t => <TurnoCard key={t.id} t={t} onClick={() => setModalEdit(t)}/>)}
+                    {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDeTurno(t, dm)} onClick={() => setModalEdit(t)}/>)}
                     {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
                     {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
                   </div>
@@ -650,7 +666,7 @@ function VistaSemana() {
 
           {/* Mobile */}
           <div className="md:hidden space-y-2">
-            {dias.map(({ d, iso, label, td, placeholders, cancelados }) => {
+            {dias.map(({ d, iso, dm, label, td, placeholders, cancelados }) => {
               const esHoy = iso === hoyIso, esFin = d.getDay() === 0 || d.getDay() === 6;
               const total = td.length + placeholders.length + cancelados.length;
               return (
@@ -662,7 +678,7 @@ function VistaSemana() {
                   </div>
                   <div className={`px-3 py-2 space-y-1.5 ${esHoy ? "bg-indigo-50/40" : "bg-white"}`}>
                     {total === 0 && <p className="py-2 text-center text-xs text-neutral-300">Sin turnos</p>}
-                    {td.map(t => <TurnoCard key={t.id} t={t} onClick={() => setModalEdit(t)}/>)}
+                    {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDeTurno(t, dm)} onClick={() => setModalEdit(t)}/>)}
                     {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
                     {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
                   </div>
