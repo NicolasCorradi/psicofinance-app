@@ -189,6 +189,24 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             transcripcion=transcripcion,
         )
 
+    try:
+        paciente, fue_creado = obtener_o_crear_paciente(sb, datos.paciente, user_id)
+    except Exception as e:
+        logger.error("Error BD al gestionar paciente: %s", e)
+        raise HTTPException(status_code=503, detail="Base de datos no disponible.")
+
+    # Si el mensaje no trae el monto, usar el honorario habitual del paciente
+    # (ya cargado en su ficha) en vez de pedirlo — salvo que sea un paciente
+    # recién creado (sin honorario de referencia todavía) o una inasistencia
+    # justificada/cancelación del profesional, que siempre van sin cobro.
+    sin_cobro = datos.tipo_sesion in ("INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL")
+    monto_asumido = False
+    if datos.monto <= 0 and not fue_creado and not sin_cobro:
+        honorario = paciente.get("honorario_actual")
+        if honorario and float(honorario) > 0:
+            datos.monto = float(honorario)
+            monto_asumido = True
+
     if datos.monto <= 0:
         return ChatResponse(
             confirmacion=f"Entendí que atendiste a {datos.paciente}, pero no pude identificar el monto. Podés agregarlo?",
@@ -196,12 +214,6 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             datos_extraidos=_a_schema(datos),
             transcripcion=transcripcion,
         )
-
-    try:
-        paciente, fue_creado = obtener_o_crear_paciente(sb, datos.paciente, user_id)
-    except Exception as e:
-        logger.error("Error BD al gestionar paciente: %s", e)
-        raise HTTPException(status_code=503, detail="Base de datos no disponible.")
 
     # Inasistencias y cancelaciones se registran como INCOBRABLE si monto=0
     es_inasistencia = datos.tipo_sesion in ("INASISTENCIA_INJUSTIFICADA", "INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL")
@@ -264,6 +276,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
     prepaga_txt = f" ({datos.obra_social})" if datos.obra_social else ""
     medio_txt = f" · {datos.medio_pago.replace('_', ' ').title()}" if datos.medio_pago else ""
     nuevo_txt = " (paciente nuevo creado)" if fue_creado else ""
+    asumido_txt = " (tomé su honorario habitual, avisame si cambió)" if monto_asumido else ""
 
     TIPO_LABELS = {
         "SESION": "registrada como cobrada",
@@ -280,7 +293,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
 
     confirmacion = (
         f"Listo! Registré la sesión de {datos.paciente}{nuevo_txt}: "
-        f"{monto_fmt}{prepaga_txt}{medio_txt} el {fecha_fmt}. "
+        f"{monto_fmt}{asumido_txt}{prepaga_txt}{medio_txt} el {fecha_fmt}. "
         f"Estado: {estado_txt}."
     )
 
