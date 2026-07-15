@@ -121,10 +121,10 @@ export default function ReportesPage() {
   return (
     <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
       {!cargando && errorCarga && (
-        <div className="mb-4 flex items-center justify-between rounded-2xl bg-red-50 px-4 py-3 ring-1 ring-red-100">
-          <p className="text-sm text-red-600">No se pudieron cargar los datos del reporte.</p>
+        <div className="mb-4 flex items-center justify-between rounded-2xl bg-red-50 px-4 py-3 ring-1 ring-red-100 dark:bg-red-500/10 dark:ring-red-500/20">
+          <p className="text-sm text-red-600 dark:text-red-400">No se pudieron cargar los datos del reporte.</p>
           <button onClick={cargarTodo}
-            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500/20 dark:bg-neutral-900 dark:text-red-400 dark:hover:bg-red-500/10">
             Reintentar
           </button>
         </div>
@@ -133,14 +133,14 @@ export default function ReportesPage() {
           dos inputs month + botón no entran en 375px */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">Reportes</h1>
-          <p className="text-xs text-neutral-500">Análisis financiero del consultorio · año {anioActual}</p>
+          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent dark:from-neutral-100 dark:via-indigo-300 dark:to-neutral-100">Reportes</h1>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">Análisis financiero del consultorio · año {anioActual}</p>
         </div>
         <div className="flex flex-col gap-1.5 sm:items-end print:hidden">
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm transition hover:bg-neutral-50"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
               title="Imprimir el reporte o guardarlo como PDF"
             >
               <Printer className="h-3.5 w-3.5" />
@@ -148,24 +148,24 @@ export default function ReportesPage() {
             </button>
           </div>
           {/* Rango solo para la exportación CSV — no filtra los gráficos de esta página */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/60 px-2 py-1.5">
-            <span className="text-[11px] font-medium text-neutral-500">Exportar CSV:</span>
-            <span className="text-[11px] text-neutral-400">desde</span>
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/60 px-2 py-1.5 dark:border-neutral-800 dark:bg-neutral-950/40">
+            <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400">Exportar CSV:</span>
+            <span className="text-[11px] text-neutral-400 dark:text-neutral-500">desde</span>
             <input
               type="month"
               value={exportDesde}
               max={exportHasta}
               onChange={e => setExportDesde(e.target.value)}
-              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
             />
-            <span className="text-[11px] text-neutral-400">hasta</span>
+            <span className="text-[11px] text-neutral-400 dark:text-neutral-500">hasta</span>
             <input
               type="month"
               value={exportHasta}
               min={exportDesde}
               max={hoyISO}
               onChange={e => setExportHasta(e.target.value)}
-              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
             />
             <button
               onClick={async () => {
@@ -208,7 +208,7 @@ export default function ReportesPage() {
             </button>
           </div>
           {errorExport && (
-            <span className="text-[11px] text-red-500">{errorExport}</span>
+            <span className="text-[11px] text-red-500 dark:text-red-400">{errorExport}</span>
           )}
         </div>
       </div>
@@ -216,22 +216,22 @@ export default function ReportesPage() {
       {/* KPIs */}
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { icon: DollarSign, label: "Facturado (6 meses)", value: kpis ? fmtPesos(kpis.cobradoAno)   : "—", gradient: "from-emerald-400 to-teal-500",  color: "text-emerald-600", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-          { icon: Calendar,   label: "Promedio mensual", value: kpis ? fmtPesos(kpis.promedioMes)  : "—", gradient: "from-indigo-400 to-violet-500",  color: "text-indigo-600",  iconBg: "bg-indigo-100",  iconColor: "text-indigo-600"  },
-          { icon: TrendingUp, label: "Ticket promedio",  value: kpis ? fmtPesos(kpis.ticket)       : "—", gradient: "from-amber-400 to-orange-400",   color: "text-amber-600",   iconBg: "bg-amber-100",   iconColor: "text-amber-600"   },
-          { icon: Users,      label: "Activos este mes", value: kpis ? `${kpis.activos} / ${pacientes.length}` : "—", gradient: "from-cyan-400 to-blue-500", color: "text-cyan-600", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" },
+          { icon: DollarSign, label: "Facturado (6 meses)", value: kpis ? fmtPesos(kpis.cobradoAno)   : "—", gradient: "from-emerald-400 to-teal-500",  color: "text-emerald-600 dark:text-emerald-400", iconBg: "bg-emerald-100 dark:bg-emerald-500/10", iconColor: "text-emerald-600 dark:text-emerald-400" },
+          { icon: Calendar,   label: "Promedio mensual", value: kpis ? fmtPesos(kpis.promedioMes)  : "—", gradient: "from-indigo-400 to-violet-500",  color: "text-indigo-600 dark:text-indigo-400",  iconBg: "bg-indigo-100 dark:bg-indigo-500/10",  iconColor: "text-indigo-600 dark:text-indigo-400"  },
+          { icon: TrendingUp, label: "Ticket promedio",  value: kpis ? fmtPesos(kpis.ticket)       : "—", gradient: "from-amber-400 to-orange-400",   color: "text-amber-600 dark:text-amber-400",   iconBg: "bg-amber-100 dark:bg-amber-500/10",   iconColor: "text-amber-600 dark:text-amber-400"   },
+          { icon: Users,      label: "Activos este mes", value: kpis ? `${kpis.activos} / ${pacientes.length}` : "—", gradient: "from-cyan-400 to-blue-500", color: "text-cyan-600 dark:text-cyan-400", iconBg: "bg-cyan-100 dark:bg-cyan-500/10", iconColor: "text-cyan-600 dark:text-cyan-400" },
         ].map(({ icon: Icon, label, value, gradient, color, iconBg, iconColor }) => (
-          <div key={label} className="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+          <div key={label} className="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
             <div className={`h-1 bg-gradient-to-r ${gradient}`} />
             <div className="p-4">
               <div className="flex items-start justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">{label}</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">{label}</p>
                 <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${iconBg}`}>
                   <Icon className={`h-4 w-4 ${iconColor}`} strokeWidth={2} />
                 </div>
               </div>
               {cargando
-                ? <div className="mt-3 h-7 w-24 animate-pulse rounded bg-neutral-100" />
+                ? <div className="mt-3 h-7 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
                 : <p className={`mt-3 text-xl font-bold leading-none tracking-tight tabular-nums ${color}`}>{value}</p>
               }
             </div>
@@ -240,18 +240,18 @@ export default function ReportesPage() {
       </div>
 
       {/* Gráfico 1: Ingresos mensuales */}
-      <div className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+      <div className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
         <div className="mb-4 flex items-baseline justify-between">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Ingresos mensuales</p>
-            <p className="mt-1 text-lg font-bold tabular-nums text-neutral-900">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Ingresos mensuales</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-neutral-900 dark:text-neutral-100">
               {metricas ? fmtPesos(metricas.ventas_mensuales.reduce((s, v) => s + v.cobrado, 0)) : "—"}
             </p>
           </div>
-          <span className="text-xs text-neutral-400">Últimos 6 meses</span>
+          <span className="text-xs text-neutral-400 dark:text-neutral-500">Últimos 6 meses</span>
         </div>
         {cargando ? (
-          <div className="h-48 animate-pulse rounded-xl bg-neutral-100" />
+          <div className="h-48 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={metricas?.ventas_mensuales ?? []} barSize={32} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -272,30 +272,30 @@ export default function ReportesPage() {
       </div>
 
       {/* Gráfico 2: Real vs inflación */}
-      <div className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+      <div className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
               Facturación real vs inflación teórica
             </p>
-            <p className="mt-1 text-sm text-neutral-600">¿Estás ganándole a la inflación?</p>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">¿Estás ganándole a la inflación?</p>
           </div>
           <div className="flex flex-col items-end gap-0.5">
-            <div className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-1.5">
-              <span className="text-xs text-indigo-500">IPC mensual:</span>
-              <span className="text-xs font-bold tabular-nums text-indigo-700">
+            <div className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-1.5 dark:border-indigo-500/20 dark:bg-indigo-500/10">
+              <span className="text-xs text-indigo-500 dark:text-indigo-400">IPC mensual:</span>
+              <span className="text-xs font-bold tabular-nums text-indigo-700 dark:text-indigo-400">
                 {ipc ? `${ipc.valor.toFixed(1)}%` : "…"}
               </span>
             </div>
             {ipc && (
-              <span className="text-[10px] text-neutral-400">
+              <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
                 INDEC · {fmtPeriodo(ipc.periodo)}
               </span>
             )}
           </div>
         </div>
         {cargando ? (
-          <div className="h-48 animate-pulse rounded-xl bg-neutral-100" />
+          <div className="h-48 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={dataLineas} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
@@ -303,13 +303,13 @@ export default function ReportesPage() {
               <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={fmtPesosEje} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={52} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span className="text-[10px] sm:text-xs text-neutral-600">{value}</span>} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span className="text-[10px] sm:text-xs text-neutral-600 dark:text-neutral-400">{value}</span>} />
               <Line type="monotone" dataKey="real" name="Facturación real" stroke="#4F46E5" strokeWidth={2.5} dot={{ r: 3, fill: "#4F46E5" }} activeDot={{ r: 5 }} />
               <Line type="monotone" dataKey="teorico" name="Línea de inflación" stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 4" dot={false} />
             </LineChart>
           </ResponsiveContainer>
         )}
-        <p className="mt-2 text-[10px] text-neutral-400">
+        <p className="mt-2 text-[10px] text-neutral-400 dark:text-neutral-500">
           La línea de inflación parte del primer mes con datos y se proyecta con la tasa mensual indicada.
         </p>
       </div>
@@ -347,42 +347,42 @@ function EstadoResultados({ cobradoMes, egresos, cargando }: {
     : null;
 
   const lineas = [
-    { label: "Ingresos cobrados",   valor: cobradoMes,              cls: "text-emerald-600", signo: "" },
-    { label: "Egresos fijos",       valor: egresos.total_fijos,     cls: "text-red-500",     signo: "−" },
-    { label: "Egresos variables",   valor: egresos.total_variables, cls: "text-red-500",     signo: "−" },
+    { label: "Ingresos cobrados",   valor: cobradoMes,              cls: "text-emerald-600 dark:text-emerald-400", signo: "" },
+    { label: "Egresos fijos",       valor: egresos.total_fijos,     cls: "text-red-500 dark:text-red-400",     signo: "−" },
+    { label: "Egresos variables",   valor: egresos.total_variables, cls: "text-red-500 dark:text-red-400",     signo: "−" },
   ];
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
           Estado de resultados — mes actual
         </p>
-        <span className="text-[10px] text-neutral-400">Criterio percibido</span>
+        <span className="text-[10px] text-neutral-400 dark:text-neutral-500">Criterio percibido</span>
       </div>
       {cargando ? (
-        <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-9 animate-pulse rounded-xl bg-neutral-100" />)}</div>
+        <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-9 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />)}</div>
       ) : (
         <div className="space-y-1">
           {lineas.map(({ label, valor, cls, signo }) => (
-            <div key={label} className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-slate-50 transition-colors">
-              <p className="text-sm text-neutral-600">{label}</p>
+            <div key={label} className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-neutral-800/60 transition-colors">
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{label}</p>
               <p className={`font-mono text-sm font-semibold tabular-nums ${cls}`}>
                 {valor !== null ? `${signo}${fmtPesos(valor)}` : "—"}
               </p>
             </div>
           ))}
-          <div className="mx-3 my-1 h-px bg-neutral-200" />
-          <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
-            <p className="text-sm font-semibold text-neutral-800">Utilidad neta</p>
+          <div className="mx-3 my-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+          <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-neutral-800/60 px-3 py-2.5">
+            <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Utilidad neta</p>
             <div className="text-right">
               <p className={`font-mono text-base font-bold tabular-nums ${
-                utilidad !== null && utilidad < 0 ? "text-red-600" : "text-indigo-600"
+                utilidad !== null && utilidad < 0 ? "text-red-600 dark:text-red-400" : "text-indigo-600 dark:text-indigo-400"
               }`}>
                 {utilidad !== null ? fmtPesos(utilidad) : "—"}
               </p>
               {margen !== null && (
-                <p className="text-[10px] tabular-nums text-neutral-400">margen {margen.toFixed(0)}%</p>
+                <p className="text-[10px] tabular-nums text-neutral-400 dark:text-neutral-500">margen {margen.toFixed(0)}%</p>
               )}
             </div>
           </div>
@@ -426,13 +426,13 @@ function EgresosPorCategoria({ egresos }: { egresos: ResumenEgresos }) {
   const hayDatos = categoriasUsadas.length > 0;
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
       <div className="mb-4 flex items-baseline justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Egresos por categoría</p>
-        <span className="text-xs text-neutral-400">Últimos 6 meses</span>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Egresos por categoría</p>
+        <span className="text-xs text-neutral-400 dark:text-neutral-500">Últimos 6 meses</span>
       </div>
       {!hayDatos ? (
-        <p className="py-10 text-center text-sm text-neutral-400">Todavía no hay egresos registrados.</p>
+        <p className="py-10 text-center text-sm text-neutral-400 dark:text-neutral-500">Todavía no hay egresos registrados.</p>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data} barSize={28} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -440,7 +440,7 @@ function EgresosPorCategoria({ egresos }: { egresos: ResumenEgresos }) {
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={fmtPesosEje} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={52} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
-            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span className="text-[10px] sm:text-xs text-neutral-600">{value}</span>} />
+            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span className="text-[10px] sm:text-xs text-neutral-600 dark:text-neutral-400">{value}</span>} />
             {categoriasUsadas.map((cat, i) => (
               <Bar
                 key={cat}
@@ -460,15 +460,15 @@ function EgresosPorCategoria({ egresos }: { egresos: ResumenEgresos }) {
 
 function RankingPacientes({ top, total, cargando }: { top: PacienteConStats[]; total: number; cargando: boolean }) {
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Top 5 pacientes</p>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Top 5 pacientes</p>
         <Award className="h-4 w-4 text-amber-400" />
       </div>
       {cargando ? (
-        <div className="space-y-2">{[1,2,3,4,5].map(i=><div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-100"/>)}</div>
+        <div className="space-y-2">{[1,2,3,4,5].map(i=><div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800"/>)}</div>
       ) : top.length === 0 ? (
-        <p className="py-6 text-center text-sm text-neutral-400">Sin datos suficientes.</p>
+        <p className="py-6 text-center text-sm text-neutral-400 dark:text-neutral-500">Sin datos suficientes.</p>
       ) : (
         <div className="space-y-2">
           {top.map((p, i) => {
@@ -479,21 +479,21 @@ function RankingPacientes({ top, total, cargando }: { top: PacienteConStats[]; t
                   i === 0 ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-800 ring-amber-300 shadow-sm shadow-amber-200/50"
                   : i === 1 ? "bg-gradient-to-br from-slate-100 to-slate-300 text-slate-700 ring-slate-300"
                   : i === 2 ? "bg-gradient-to-br from-orange-200 to-orange-400 text-orange-800 ring-orange-300"
-                  : "bg-neutral-100 text-neutral-500 ring-neutral-200"
+                  : "bg-neutral-100 text-neutral-500 ring-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:ring-neutral-700"
                 }`}>{i+1}</span>
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(`${p.nombre} ${p.apellido}`)}`}>
                   {iniciales(p.nombre, p.apellido)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-sm font-medium text-neutral-800">{p.nombre} {p.apellido}</p>
-                    <p className="shrink-0 text-sm font-bold tabular-nums text-emerald-600">{fmtPesos(p.cobrado_total)}</p>
+                    <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">{p.nombre} {p.apellido}</p>
+                    <p className="shrink-0 text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{fmtPesos(p.cobrado_total)}</p>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
-                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-emerald-50">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-emerald-50 dark:bg-emerald-500/10">
                       <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="shrink-0 text-[10px] tabular-nums text-neutral-400">{pct.toFixed(0)}%</span>
+                    <span className="shrink-0 text-[10px] tabular-nums text-neutral-400 dark:text-neutral-500">{pct.toFixed(0)}%</span>
                   </div>
                 </div>
               </div>
@@ -508,43 +508,43 @@ function RankingPacientes({ top, total, cargando }: { top: PacienteConStats[]; t
 function DistribucionActividad({ d, cargando }: { d: { activos: number; moderados: number; inactivos: number; total: number }; cargando: boolean }) {
   const total = d.total || 1;
   const segs = [
-    { label: "Activos este mes",     n: d.activos,   color: "bg-emerald-500", text: "text-emerald-600", desc: "Tuvieron sesión este mes" },
-    { label: "Sin sesión (<90d)",    n: d.moderados, color: "bg-amber-400",   text: "text-amber-600",   desc: "Sin sesión este mes, pero recientes" },
-    { label: "Inactivos (>90 días)", n: d.inactivos, color: "bg-red-400",     text: "text-red-500",     desc: "Sin sesión hace más de 3 meses" },
+    { label: "Activos este mes",     n: d.activos,   color: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", desc: "Tuvieron sesión este mes" },
+    { label: "Sin sesión (<90d)",    n: d.moderados, color: "bg-amber-400",   text: "text-amber-600 dark:text-amber-400",   desc: "Sin sesión este mes, pero recientes" },
+    { label: "Inactivos (>90 días)", n: d.inactivos, color: "bg-red-400",     text: "text-red-500 dark:text-red-400",     desc: "Sin sesión hace más de 3 meses" },
   ];
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Distribución de pacientes</p>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Distribución de pacientes</p>
         <Target className="h-4 w-4 text-indigo-400" />
       </div>
       {cargando ? (
         <div className="space-y-3">
-          <div className="h-3 w-full animate-pulse rounded-full bg-neutral-100" />
-          <div className="space-y-2 mt-4">{[1,2,3].map(i=><div key={i} className="h-10 animate-pulse rounded-xl bg-neutral-100"/>)}</div>
+          <div className="h-3 w-full animate-pulse rounded-full bg-neutral-100 dark:bg-neutral-800" />
+          <div className="space-y-2 mt-4">{[1,2,3].map(i=><div key={i} className="h-10 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800"/>)}</div>
         </div>
       ) : d.total === 0 ? (
-        <p className="py-6 text-center text-sm text-neutral-400">Sin pacientes registrados.</p>
+        <p className="py-6 text-center text-sm text-neutral-400 dark:text-neutral-500">Sin pacientes registrados.</p>
       ) : (
         <>
-          <div className="mb-4 flex h-3 overflow-hidden rounded-full bg-neutral-100">
+          <div className="mb-4 flex h-3 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
             {segs.map(s => (
               <div key={s.label} className={`${s.color} transition-all`} style={{ width: `${(s.n / total) * 100}%` }} />
             ))}
           </div>
           <div className="space-y-2.5">
             {segs.map(s => (
-              <div key={s.label} className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-slate-50 transition-colors">
+              <div key={s.label} className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-neutral-800/60 transition-colors">
                 <div className="flex items-center gap-2.5">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${s.color}`} />
                   <div>
-                    <p className="text-sm font-medium text-neutral-800">{s.label}</p>
-                    <p className="text-[10px] text-neutral-400">{s.desc}</p>
+                    <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{s.label}</p>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{s.desc}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className={`text-base font-bold tabular-nums ${s.text}`}>{s.n}</p>
-                  <p className="text-[10px] tabular-nums text-neutral-400">{((s.n/total)*100).toFixed(0)}%</p>
+                  <p className="text-[10px] tabular-nums text-neutral-400 dark:text-neutral-500">{((s.n/total)*100).toFixed(0)}%</p>
                 </div>
               </div>
             ))}
@@ -584,13 +584,13 @@ function EstadoFiscal({ semaforo: initialSemaforo, cargando }: { semaforo: Resul
   }
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
       <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Estado fiscal — Monotributo</p>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Estado fiscal — Monotributo</p>
         {/* Selector de categoría */}
         {semaforo && (
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-neutral-400">Categoría:</span>
+            <span className="text-[11px] text-neutral-400 dark:text-neutral-500">Categoría:</span>
             <div className="flex gap-1 flex-wrap">
               {CATEGORIAS.map(cat => (
                 <button
@@ -600,32 +600,32 @@ function EstadoFiscal({ semaforo: initialSemaforo, cargando }: { semaforo: Resul
                   className={`h-8 w-8 sm:h-6 sm:w-6 rounded-md text-[11px] font-bold transition-all disabled:opacity-50 ${
                     cat === semaforo.categoria_actual
                       ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-neutral-100 text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600"
+                      : "bg-neutral-100 text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400"
                   }`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
-            {guardando && <span className="h-3 w-3 animate-spin rounded-full border border-indigo-200 border-t-indigo-500" />}
+            {guardando && <span className="h-3 w-3 animate-spin rounded-full border border-indigo-200 border-t-indigo-500 dark:border-indigo-500/30 dark:border-t-indigo-400" />}
           </div>
         )}
       </div>
       {cargando ? (
-        <div className="h-20 animate-pulse rounded-xl bg-neutral-100" />
+        <div className="h-20 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
       ) : semaforo ? (
         <div className="flex flex-wrap items-center gap-6">
           <div>
-            <span className="text-3xl font-bold text-neutral-900">Cat. {semaforo.categoria_actual}</span>
+            <span className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">Cat. {semaforo.categoria_actual}</span>
             <span style={{ color: colorEstado }} className="ml-2 text-sm font-semibold">{pct.toFixed(0)}%</span>
           </div>
           <div className="flex-1 min-w-48">
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-indigo-50">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-indigo-50 dark:bg-indigo-500/10">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: colorEstado }} />
             </div>
-            <div className="mt-2 flex justify-between text-xs text-neutral-500">
-              <span>Facturado 12m: <strong className="text-neutral-800">{fmtPesos(semaforo.facturado_12m)}</strong></span>
-              <span>Tope: <strong className="text-neutral-800">{fmtPesos(semaforo.tope_anual)}</strong></span>
+            <div className="mt-2 flex justify-between text-xs text-neutral-500 dark:text-neutral-400">
+              <span>Facturado 12m: <strong className="text-neutral-800 dark:text-neutral-100">{fmtPesos(semaforo.facturado_12m)}</strong></span>
+              <span>Tope: <strong className="text-neutral-800 dark:text-neutral-100">{fmtPesos(semaforo.tope_anual)}</strong></span>
             </div>
           </div>
           <div className="rounded-xl px-4 py-2 text-xs font-medium" style={{ backgroundColor: `${colorEstado}15`, color: colorEstado }}>

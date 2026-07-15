@@ -22,7 +22,7 @@ export default function IngresoNetoHero({ cobradoMes, resumenEgresos, errorEgres
   const cargando = cobradoMes === null || (egresos === null && !errorEgresos);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 shadow-sm ring-1 ring-black/5">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">

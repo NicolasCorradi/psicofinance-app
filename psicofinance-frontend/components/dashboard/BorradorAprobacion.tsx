@@ -51,7 +51,7 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
   const conf = CONFIANZA_CFG[borrador.confianza] ?? CONFIANZA_CFG.media;
 
   return (
-    <section className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5">
+    <section className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10">
 
       {/* Header con gradiente */}
       <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 px-5 pt-4 pb-4">
@@ -83,38 +83,38 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
       </div>
 
       {/* Body */}
-      <div className="bg-white p-5">
+      <div className="bg-white dark:bg-neutral-900 p-5">
         {editando ? (
           /* Modo edición */
           <div className="space-y-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Paciente / Emisor</label>
+              <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Paciente / Emisor</label>
               <input
                 value={emisor}
                 onChange={e => setEmisor(e.target.value)}
-                className="rounded-xl border border-neutral-200 px-3 py-2 text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-sm text-neutral-800 dark:text-neutral-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 placeholder="Nombre del paciente"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Monto $</label>
+                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Monto $</label>
                 <input
                   type="number"
                   min={1}
                   value={monto}
                   onChange={e => setMonto(e.target.value)}
-                  className="rounded-xl border border-neutral-200 px-3 py-2 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-sm tabular-nums text-neutral-800 dark:text-neutral-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                   placeholder="0"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">Fecha</label>
+                <label className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Fecha</label>
                 <input
                   type="date"
                   value={fecha}
                   onChange={e => setFecha(e.target.value)}
-                  className="rounded-xl border border-neutral-200 px-3 py-2 text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-sm text-neutral-800 dark:text-neutral-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>
@@ -128,24 +128,24 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
               { l: "Monto",     v: `$ ${parseFloat(monto || "0").toLocaleString("es-AR")}`, highlight: true },
               { l: "Fecha",     v: fecha ? new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : "—" },
             ].map(({ l, v, highlight, ancho }) => (
-              <div key={l} className={`rounded-xl p-3 ring-1 ${ancho ? "col-span-2 sm:col-span-1" : ""} ${highlight ? "bg-indigo-50 ring-indigo-100" : "bg-slate-50 ring-slate-100"}`}>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">{l}</p>
-                <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700" : "text-neutral-800"}`}>{v}</p>
+              <div key={l} className={`rounded-xl p-3 ring-1 ${ancho ? "col-span-2 sm:col-span-1" : ""} ${highlight ? "bg-indigo-50 ring-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/20" : "bg-slate-50 ring-slate-100 dark:bg-slate-500/10 dark:ring-slate-500/20"}`}>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">{l}</p>
+                <p className={`mt-1 text-sm font-bold ${highlight ? "text-indigo-700 dark:text-indigo-400" : "text-neutral-800 dark:text-neutral-100"}`}>{v}</p>
               </div>
             ))}
           </div>
         )}
 
         {borrador.advertencia_monto && (
-          <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 ring-1 ring-amber-100">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
-            <p className="text-xs text-amber-700">{borrador.advertencia_monto}</p>
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 ring-1 ring-amber-100 dark:bg-amber-500/10 dark:ring-amber-500/20">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500 dark:text-amber-400" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">{borrador.advertencia_monto}</p>
           </div>
         )}
 
         {error && (
-          <div className="mt-3 rounded-xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100">
-            <p className="text-xs text-red-500">{error}</p>
+          <div className="mt-3 rounded-xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100 dark:bg-red-500/10 dark:ring-red-500/20">
+            <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
           </div>
         )}
 
@@ -162,7 +162,7 @@ export default function BorradorAprobacion({ borrador, onAprobar, onDescartar }:
           </button>
           <button
             onClick={onDescartar} disabled={aprobando}
-            className="rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-500 transition-colors hover:bg-neutral-50 disabled:opacity-40"
+            className="rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-2.5 text-sm text-neutral-500 dark:text-neutral-400 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/60 disabled:opacity-40"
           >
             Descartar
           </button>

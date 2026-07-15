@@ -10,9 +10,9 @@ import { fmtPesosCompacto as fmtPesos, fechaRel, isoHoy, MEDIO_LABEL as MEDIO_PA
 
 function Chip({ estado }: { estado: EstadoTurno }) {
   const cfg: Record<EstadoTurno, { dot: string; label: string; cls: string }> = {
-    COBRADO:    { dot: "bg-emerald-500", label: "Cobrado",    cls: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
-    DIFERIDO:   { dot: "bg-amber-400",   label: "Pendiente",  cls: "bg-amber-50  text-amber-700  ring-1 ring-amber-200" },
-    INCOBRABLE: { dot: "bg-red-400",     label: "Incobrable", cls: "bg-red-50    text-red-600    ring-1 ring-red-200" },
+    COBRADO:    { dot: "bg-emerald-500", label: "Cobrado",    cls: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20" },
+    DIFERIDO:   { dot: "bg-amber-400",   label: "Pendiente",  cls: "bg-amber-50  text-amber-700  ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20" },
+    INCOBRABLE: { dot: "bg-red-400",     label: "Incobrable", cls: "bg-red-50    text-red-600    ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20" },
   };
   const { dot, label, cls } = cfg[estado];
   return (
@@ -39,17 +39,17 @@ function RowMenu({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: (
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(v => !v)}
-        className="flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-lg text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-600">
+        className="flex h-9 w-9 md:h-7 md:w-7 items-center justify-center rounded-lg text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300">
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl border border-neutral-100 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl border border-neutral-100 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
           <button onClick={() => { setOpen(false); onEditar(); }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50">
-            <Pencil className="h-3.5 w-3.5 text-neutral-400" />Editar
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800/60">
+            <Pencil className="h-3.5 w-3.5 text-neutral-400 dark:text-neutral-500" />Editar
           </button>
           <button onClick={() => { setOpen(false); onEliminar(); }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-red-50">
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
             <Trash2 className="h-3.5 w-3.5" />Eliminar
           </button>
         </div>
@@ -66,9 +66,9 @@ const TIPO_SESION_LABELS: Record<TipoSesion, string> = {
 };
 
 const TIPO_BADGE: Record<string, { label: string; cls: string }> = {
-  INASISTENCIA_JUSTIFICADA:   { label: "Canceló", cls: "bg-amber-50 text-amber-600 ring-1 ring-amber-200" },
-  INASISTENCIA_INJUSTIFICADA: { label: "Faltó",   cls: "bg-red-50 text-red-500 ring-1 ring-red-200" },
-  CANCELACION_PROFESIONAL:    { label: "Cancelé", cls: "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200" },
+  INASISTENCIA_JUSTIFICADA:   { label: "Canceló", cls: "bg-amber-50 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20" },
+  INASISTENCIA_INJUSTIFICADA: { label: "Faltó",   cls: "bg-red-50 text-red-500 ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20" },
+  CANCELACION_PROFESIONAL:    { label: "Cancelé", cls: "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:ring-neutral-700" },
 };
 
 interface EditForm {
@@ -170,24 +170,24 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: "300ms" }}>
+    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 animate-in fade-in slide-in-from-bottom-2 duration-500 dark:bg-neutral-900 dark:ring-white/10" style={{ animationDelay: "300ms" }}>
       <div className="flex items-baseline justify-between px-5 py-4">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">Últimos turnos</p>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Últimos turnos</p>
         {!cargando && turnos.length > 0 && (
-          <span className="text-xs text-neutral-300">{turnos.length} registros</span>
+          <span className="text-xs text-neutral-300 dark:text-neutral-600">{turnos.length} registros</span>
         )}
       </div>
 
       {cargando && (
-        <div className="divide-y divide-neutral-100">
+        <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center gap-3.5 px-5 py-3.5">
-              <div className="h-8 w-8 animate-pulse rounded-full bg-neutral-100" />
+              <div className="h-8 w-8 animate-pulse rounded-full bg-neutral-100 dark:bg-neutral-800" />
               <div className="flex-1 space-y-2">
-                <div className="h-3 w-32 animate-pulse rounded bg-neutral-100" />
-                <div className="h-2.5 w-20 animate-pulse rounded bg-neutral-100" />
+                <div className="h-3 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
+                <div className="h-2.5 w-20 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
               </div>
-              <div className="h-6 w-16 animate-pulse rounded-full bg-neutral-100" />
+              <div className="h-6 w-16 animate-pulse rounded-full bg-neutral-100 dark:bg-neutral-800" />
             </div>
           ))}
         </div>
@@ -195,51 +195,51 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
 
       {!cargando && turnos.length === 0 && (
         <div className="py-12 text-center">
-          <p className="text-sm text-neutral-400">Sin turnos registrados todavía.</p>
-          <p className="mt-1 text-xs text-neutral-300">Usá el copiloto para registrar el primero.</p>
+          <p className="text-sm text-neutral-400 dark:text-neutral-500">Sin turnos registrados todavía.</p>
+          <p className="mt-1 text-xs text-neutral-300 dark:text-neutral-600">Usá el copiloto para registrar el primero.</p>
         </div>
       )}
 
       {!cargando && turnos.length > 0 && (
-        <div className="divide-y divide-neutral-100">
+        <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
           {turnos.map(t => {
 
             /* ── Fila edición ── */
             if (editandoId === t.id) {
               return (
-                <div key={t.id} className="bg-slate-50 px-5 py-3">
+                <div key={t.id} className="bg-slate-50 px-5 py-3 dark:bg-neutral-800/60">
                   <div className="flex items-center gap-2">
                     <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                       {iniciales(t.paciente_nombre)}
                     </div>
-                    <p className="text-sm font-medium text-neutral-700">{t.paciente_nombre}</p>
+                    <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t.paciente_nombre}</p>
                   </div>
                   <div className="mt-3 flex flex-wrap items-end gap-2">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-medium uppercase text-neutral-400">Monto $</label>
+                      <label className="text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500">Monto $</label>
                       <input type="number" min={1} value={editForm.monto}
                         onChange={e => setEditForm(f => ({ ...f, monto: e.target.value }))}
-                        className="w-28 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        className="w-28 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm tabular-nums text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-neutral-700 dark:text-neutral-100" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-medium uppercase text-neutral-400">Estado</label>
+                      <label className="text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500">Estado</label>
                       <select value={editForm.estado} onChange={e => setEditForm(f => ({ ...f, estado: e.target.value as EstadoTurno }))}
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none">
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:text-neutral-100">
                         <option value="COBRADO">Cobrado</option>
                         <option value="DIFERIDO">Pendiente</option>
                         <option value="INCOBRABLE">Incobrable</option>
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-medium uppercase text-neutral-400">Prepaga (opcional)</label>
+                      <label className="text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500">Prepaga (opcional)</label>
                       <input type="text" placeholder="OSDE, Swiss Medical…" value={editForm.prepaga}
                         onChange={e => setEditForm(f => ({ ...f, prepaga: e.target.value }))}
-                        className="w-36 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none" />
+                        className="w-36 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:text-neutral-100 dark:placeholder:text-neutral-600" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-medium uppercase text-neutral-400">Medio de pago</label>
+                      <label className="text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500">Medio de pago</label>
                       <select value={editForm.medio_pago} onChange={e => setEditForm(f => ({ ...f, medio_pago: e.target.value as MedioPago | "" }))}
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none">
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:text-neutral-100">
                         <option value="">Sin especificar</option>
                         {(Object.keys(MEDIO_PAGO_LABELS) as MedioPago[]).map(k => (
                           <option key={k} value={k}>{MEDIO_PAGO_LABELS[k]}</option>
@@ -247,9 +247,9 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-medium uppercase text-neutral-400">Tipo de sesión</label>
+                      <label className="text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500">Tipo de sesión</label>
                       <select value={editForm.tipo_sesion} onChange={e => setEditForm(f => ({ ...f, tipo_sesion: e.target.value as TipoSesion }))}
-                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none">
+                        className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:text-neutral-100">
                         {(Object.keys(TIPO_SESION_LABELS) as TipoSesion[]).map(k => (
                           <option key={k} value={k}>{TIPO_SESION_LABELS[k]}</option>
                         ))}
@@ -263,7 +263,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                           : <Check className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => setEditandoId(null)} disabled={guardando}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition-colors hover:bg-neutral-100">
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -275,11 +275,11 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
             /* ── Fila eliminación ── */
             if (eliminandoId === t.id) {
               return (
-                <div key={t.id} className="flex items-center gap-3 bg-red-50 px-5 py-3.5">
+                <div key={t.id} className="flex items-center gap-3 bg-red-50 px-5 py-3.5 dark:bg-red-500/10">
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                     {iniciales(t.paciente_nombre)}
                   </div>
-                  <p className="flex-1 text-sm text-red-600">
+                  <p className="flex-1 text-sm text-red-600 dark:text-red-400">
                     ¿Eliminar el turno de <strong>{t.paciente_nombre}</strong>?
                   </p>
                   <div className="flex gap-2">
@@ -288,7 +288,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                       {guardando ? "Eliminando…" : "Sí, eliminar"}
                     </button>
                     <button onClick={() => setEliminandoId(null)} disabled={guardando}
-                      className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white">
+                      className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800">
                       Cancelar
                     </button>
                   </div>
@@ -302,7 +302,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
             const cobrando = cobrandoId === t.id;
 
             return (
-              <div key={t.id} className={`group flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-5 py-3 transition-colors hover:bg-neutral-50/80 ${esInasistencia ? "opacity-75" : ""}`}>
+              <div key={t.id} className={`group flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-5 py-3 transition-colors hover:bg-neutral-50/80 dark:hover:bg-neutral-800/60 ${esInasistencia ? "opacity-75" : ""}`}>
                 {/* Avatar */}
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarCls(t.paciente_nombre)}`}>
                   {iniciales(t.paciente_nombre)}
@@ -311,17 +311,17 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                 {/* Info */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="truncate text-sm font-medium text-neutral-800">{t.paciente_nombre}</p>
+                    <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">{t.paciente_nombre}</p>
                     {esInasistencia && t.tipo_sesion && TIPO_BADGE[t.tipo_sesion] && (
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TIPO_BADGE[t.tipo_sesion].cls}`}>
                         {TIPO_BADGE[t.tipo_sesion].label}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500">
                     {fechaRel(t.fecha_turno)}
-                    {t.prepaga && <span className="ml-1.5 text-neutral-300">· {t.prepaga}</span>}
-                    {t.medio_pago && <span className="ml-1.5 text-neutral-300">· {MEDIO_PAGO_LABELS[t.medio_pago as MedioPago]}</span>}
+                    {t.prepaga && <span className="ml-1.5 text-neutral-300 dark:text-neutral-600">· {t.prepaga}</span>}
+                    {t.medio_pago && <span className="ml-1.5 text-neutral-300 dark:text-neutral-600">· {MEDIO_PAGO_LABELS[t.medio_pago as MedioPago]}</span>}
                   </p>
                 </div>
 
@@ -330,13 +330,13 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                   {t.monto > 0 && (
                     <div className="flex items-center gap-1.5">
                       {t.moneda === "USD" && (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">USD</span>
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">USD</span>
                       )}
-                      <span className="text-sm font-semibold tabular-nums text-neutral-800">
+                      <span className="text-sm font-semibold tabular-nums text-neutral-800 dark:text-neutral-100">
                         {t.moneda === "USD" ? t.monto.toLocaleString("es-AR") : fmtPesos(t.monto)}
                       </span>
                       {t.moneda === "USD" && t.tipo_cambio && (
-                        <span className="text-xs text-neutral-400">≈ {fmtPesos(t.monto * t.tipo_cambio)}</span>
+                        <span className="text-xs text-neutral-400 dark:text-neutral-500">≈ {fmtPesos(t.monto * t.tipo_cambio)}</span>
                       )}
                     </div>
                   )}
@@ -349,7 +349,7 @@ export default function TurnosTable({ turnos, cargando, onRefresh }: Props) {
                       onClick={() => cobrarRapido(t)}
                       disabled={cobrando}
                       title="Marcar como cobrado"
-                      className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 opacity-100 transition-all hover:bg-emerald-100 md:opacity-0 md:group-hover:opacity-100 disabled:opacity-60"
+                      className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 opacity-100 transition-all hover:bg-emerald-100 md:opacity-0 md:group-hover:opacity-100 disabled:opacity-60 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
                     >
                       {cobrando
                         ? <span className="h-3 w-3 animate-spin rounded-full border border-emerald-300 border-t-emerald-700" />

@@ -313,7 +313,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
       className={`overflow-hidden rounded-2xl transition-all duration-200 ${
         focused
           ? "shadow-lg shadow-indigo-500/10 ring-2 ring-indigo-400/40"
-          : "shadow-sm ring-1 ring-black/5"
+          : "shadow-sm ring-1 ring-black/5 dark:ring-white/10"
       }`}
     >
       {/* Cabecera */}
@@ -357,7 +357,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
       </div>
 
       {/* Cuerpo */}
-      <div className="bg-white">
+      <div className="bg-white dark:bg-neutral-900">
 
         {/* Historial */}
         {hayConversacion && (
@@ -369,8 +369,8 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
                     <p className="text-sm text-white">{m.texto}</p>
                   </div>
                 ) : (
-                  <div className={`max-w-[90%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 ring-1 ${m.deshecho ? "bg-neutral-50 ring-neutral-100" : "bg-indigo-50 ring-indigo-100"}`}>
-                    <p className={`text-sm leading-relaxed ${m.deshecho ? "text-neutral-400 line-through" : "text-neutral-800"}`}>{m.texto}</p>
+                  <div className={`max-w-[90%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 ring-1 ${m.deshecho ? "bg-neutral-50 ring-neutral-100 dark:bg-neutral-800/60 dark:ring-neutral-800" : "bg-indigo-50 ring-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/20"}`}>
+                    <p className={`text-sm leading-relaxed ${m.deshecho ? "text-neutral-400 line-through dark:text-neutral-500" : "text-neutral-800 dark:text-neutral-100"}`}>{m.texto}</p>
                     {m.accion === "turno_registrado" && m.datos && m.datos.paciente !== "Sin identificar" && !m.deshecho && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <Tag>{m.datos.paciente}</Tag>
@@ -394,15 +394,15 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
                     )}
                     {m.turnoId && !m.deshecho && (
                       <button onClick={() => deshacerTurno(m.turnoId!)} disabled={deshaciendo === m.turnoId}
-                        className="mt-2 flex items-center gap-1 text-[11px] font-medium text-neutral-400 hover:text-red-600 transition-colors disabled:opacity-50">
+                        className="mt-2 flex items-center gap-1 text-[11px] font-medium text-neutral-400 hover:text-red-600 dark:text-neutral-500 dark:hover:text-red-400 transition-colors disabled:opacity-50">
                         {deshaciendo === m.turnoId
-                          ? <><span className="h-2.5 w-2.5 animate-spin rounded-full border border-neutral-300 border-t-neutral-500" /> Deshaciendo…</>
+                          ? <><span className="h-2.5 w-2.5 animate-spin rounded-full border border-neutral-300 border-t-neutral-500 dark:border-neutral-700 dark:border-t-neutral-400" /> Deshaciendo…</>
                           : <><Undo2 className="h-3 w-3" /> Deshacer</>
                         }
                       </button>
                     )}
                     {m.deshecho && (
-                      <p className="mt-1 text-[11px] text-neutral-400">Turno eliminado.</p>
+                      <p className="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500">Turno eliminado.</p>
                     )}
                   </div>
                 )}
@@ -416,7 +416,7 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
           <div className="flex flex-wrap gap-2 px-4 pt-3 pb-2">
             {sugerencias.map((s) => (
               <button key={s} onClick={() => usarSugerencia(s)}
-                className="rounded-full border border-indigo-100 bg-indigo-50/60 px-3 py-1 text-xs text-indigo-600/70 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm">
+                className="rounded-full border border-indigo-100 bg-indigo-50/60 px-3 py-1 text-xs text-indigo-600/70 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-300">
                 {s}
               </button>
             ))}
@@ -425,16 +425,16 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
 
         {/* Error */}
         {error && (
-          <div className="mx-4 mt-3 mb-1 rounded-xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100">
-            <p className="text-xs text-red-600">{error}</p>
+          <div className="mx-4 mt-3 mb-1 rounded-xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100 dark:bg-red-500/10 dark:ring-red-500/20">
+            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
             <div className="mt-1.5 flex items-center gap-3">
               {envioPendienteRef.current && (
                 <button onClick={reintentar} disabled={cargando}
-                  className="flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-700 disabled:opacity-50">
+                  className="flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50">
                   <RefreshCw className="h-3 w-3" /> Reintentar
                 </button>
               )}
-              <button onClick={() => setError(null)} className="text-[10px] text-red-400 hover:text-red-600">Cerrar</button>
+              <button onClick={() => setError(null)} className="text-[10px] text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400">Cerrar</button>
             </div>
           </div>
         )}
@@ -443,13 +443,13 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
         {adjunto && (
           <div className="mx-4 mt-3 mb-1">
             <div onClick={() => inputFileRef.current?.click()}
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 py-4 transition-colors hover:bg-indigo-50">
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 py-4 transition-colors hover:bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/15">
               {cargando
-                ? <span className="h-4 w-4 animate-spin rounded-full border border-indigo-200 border-t-indigo-500" />
+                ? <span className="h-4 w-4 animate-spin rounded-full border border-indigo-200 border-t-indigo-500 dark:border-indigo-500/20 dark:border-t-indigo-400" />
                 : <>
-                    <Paperclip className="h-4 w-4 text-indigo-400" />
-                    <span className="text-sm text-indigo-600/70">Seleccioná el comprobante</span>
-                    <span className="text-xs text-indigo-300">JPG · PNG · PDF</span>
+                    <Paperclip className="h-4 w-4 text-indigo-400 dark:text-indigo-500" />
+                    <span className="text-sm text-indigo-600/70 dark:text-indigo-400">Seleccioná el comprobante</span>
+                    <span className="text-xs text-indigo-300 dark:text-indigo-600">JPG · PNG · PDF</span>
                   </>
               }
             </div>
@@ -459,10 +459,10 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
         )}
 
         {/* Input */}
-        <div className={`flex items-end gap-2 px-3 py-2.5 border-t border-neutral-100`}>
+        <div className={`flex items-end gap-2 px-3 py-2.5 border-t border-neutral-100 dark:border-neutral-800`}>
           <button onClick={() => setAdjunto(v => !v)} disabled={grabando || cargando}
             className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
-              adjunto ? "bg-indigo-100 text-indigo-600" : "text-neutral-300 hover:text-neutral-500"
+              adjunto ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400" : "text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-300"
             } disabled:opacity-30`} title="Subir comprobante">
             {adjunto ? <X className="h-3.5 w-3.5" /> : <Paperclip className="h-3.5 w-3.5" />}
           </button>
@@ -474,11 +474,11 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
             onBlur={() => setFocused(false)}
             placeholder={grabando ? "Grabando… tocá el micrófono para enviar" : hayConversacion ? "Continuá la consulta…" : "Ej: ¿Cuánto cobré en marzo?"}
             rows={1} disabled={cargando || grabando}
-            className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none disabled:opacity-40"
+            className="flex-1 resize-none bg-transparent py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 dark:text-neutral-100 dark:placeholder:text-neutral-500 focus:outline-none disabled:opacity-40"
             style={{ maxHeight: "112px" }} />
 
           {texto.trim() && !cargando && !grabando && (
-            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">↵</span>
+            <span className="mb-0.5 shrink-0 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500">↵</span>
           )}
           {cargando && (
             <span className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center">
@@ -524,9 +524,9 @@ export default function NLPInput({ onTurnoCreado, ultimoPaciente }: Props) {
 
 function Tag({ children, color = "default" }: { children: React.ReactNode; color?: "default" | "emerald" | "blue" }) {
   const s = {
-    default: "bg-neutral-100 text-neutral-600",
-    emerald: "bg-emerald-100 text-emerald-700 font-medium",
-    blue:    "bg-indigo-100 text-indigo-700",
+    default: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+    emerald: "bg-emerald-100 text-emerald-700 font-medium dark:bg-emerald-500/15 dark:text-emerald-400",
+    blue:    "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400",
   };
   return <span className={`rounded-full px-2.5 py-0.5 text-xs ${s[color]}`}>{children}</span>;
 }

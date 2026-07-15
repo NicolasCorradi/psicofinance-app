@@ -30,12 +30,12 @@ function saludo(): string {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 ring-1 ring-red-100">
-        <WifiOff className="h-6 w-6 text-red-400" />
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 ring-1 ring-red-100 dark:bg-red-500/10 dark:ring-red-500/20">
+        <WifiOff className="h-6 w-6 text-red-400 dark:text-red-400" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-neutral-700">No se pudo conectar con el servidor</p>
-        <p className="mt-1 text-xs text-neutral-400">Revisá tu conexión o intentá de nuevo</p>
+        <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No se pudo conectar con el servidor</p>
+        <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">Revisá tu conexión o intentá de nuevo</p>
       </div>
       <button
         onClick={onRetry}
@@ -52,18 +52,18 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-neutral-200 bg-white px-6 py-12 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 ring-1 ring-indigo-100">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-neutral-200 bg-white px-6 py-12 text-center dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 ring-1 ring-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/20">
         <Sparkles className="h-6 w-6 text-indigo-500" />
       </div>
       <div>
-        <p className="text-base font-bold text-neutral-800">¡Bienvenido a PsicoFinance!</p>
-        <p className="mt-1.5 text-sm text-neutral-500 max-w-xs mx-auto">
+        <p className="text-base font-bold text-neutral-800 dark:text-neutral-100">¡Bienvenido a PsicoFinance!</p>
+        <p className="mt-1.5 text-sm text-neutral-500 max-w-xs mx-auto dark:text-neutral-400">
           Empezá registrando tu primera sesión con el Copiloto. Escribí algo como{" "}
-          <span className="font-medium text-indigo-600">"Juan me pagó $20.000 hoy"</span>.
+          <span className="font-medium text-indigo-600 dark:text-indigo-400">"Juan me pagó $20.000 hoy"</span>.
         </p>
       </div>
-      <div className="mt-2 flex items-center gap-2 text-xs text-neutral-400">
+      <div className="mt-2 flex items-center gap-2 text-xs text-neutral-400 dark:text-neutral-500">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-bold">↑</span>
         Usá el campo de arriba
       </div>
@@ -122,10 +122,10 @@ export default function DashboardPage() {
       {/* ── Header con saludo ── */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
+          <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent dark:from-neutral-100 dark:via-indigo-400 dark:to-neutral-100">
             {saludo()} 👋
           </h1>
-          <p className="mt-0.5 text-xs text-neutral-400 capitalize">{fechaCompleta}</p>
+          <p className="mt-0.5 text-xs text-neutral-400 capitalize dark:text-neutral-500">{fechaCompleta}</p>
         </div>
         {/* Botones header */}
         <div className="flex items-center gap-2 shrink-0">
@@ -135,7 +135,7 @@ export default function DashboardPage() {
               onClick={() => setRefreshKey(k => k + 1)}
               disabled={cargando}
               aria-busy={cargando}
-              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${cargando ? "animate-spin" : ""}`} />
               Actualizar

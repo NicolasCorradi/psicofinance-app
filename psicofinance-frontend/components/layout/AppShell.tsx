@@ -10,6 +10,7 @@ import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
 import { ToastProvider } from "@/lib/toast";
 import CambiarPassword from "./CambiarPassword";
 import Sheet from "@/components/ui/Sheet";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -133,6 +134,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
           <p className="px-3 text-[11px] capitalize text-white/40">{today}</p>
 
+          {/* Tema */}
+          <div className="px-3">
+            <ThemeToggle variant="sidebar" />
+          </div>
+
           {/* Cambiar contraseña */}
           <button
             onClick={() => setCambiarPassword(true)}
@@ -154,11 +160,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Header móvil ── */}
-      <header className="lg:hidden print:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl">
+      <header className="lg:hidden print:hidden fixed top-0 inset-x-0 z-50 flex h-14 items-center border-b border-neutral-200/60 bg-white/95 px-2 backdrop-blur-xl dark:border-neutral-800/60 dark:bg-neutral-950/95">
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0 mr-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100">
-            <BrainCircuit className="h-3.5 w-3.5 text-indigo-600" strokeWidth={1.8} />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-500/15">
+            <BrainCircuit className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.8} />
           </div>
         </div>
         {/* Nav */}
@@ -168,7 +174,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             return (
               <Link key={href} href={href}
                 className={`flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 transition-colors ${
-                  active ? "text-indigo-600" : "text-neutral-400 hover:text-neutral-600"
+                  active ? "text-indigo-600 dark:text-indigo-400" : "text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                 }`}
               >
                 <Icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />
@@ -177,7 +183,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
           <button onClick={() => setMenuCuenta(true)}
-            className="flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-neutral-400 hover:text-neutral-600 transition-colors">
+            className="flex min-w-[40px] flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-neutral-400 hover:text-neutral-600 transition-colors dark:text-neutral-500 dark:hover:text-neutral-300">
             <UserCircle className="h-4 w-4" strokeWidth={1.8} />
             <span className="text-[9px] font-semibold tracking-wide">Cuenta</span>
           </button>
@@ -187,16 +193,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sheet mobile: opciones de cuenta */}
       <Sheet open={menuCuenta} onClose={() => setMenuCuenta(false)} title="Cuenta">
         <div className="flex flex-col gap-1">
+          <div className="px-1 pb-2">
+            <ThemeToggle variant="sheet" />
+          </div>
           <button
             onClick={() => { setMenuCuenta(false); setCambiarPassword(true); }}
-            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             <KeyRound className="h-4 w-4 text-neutral-400" />
             Cambiar contraseña
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors dark:text-red-400 dark:hover:bg-red-500/10"
           >
             <LogOut className="h-4 w-4" />
             Cerrar sesión

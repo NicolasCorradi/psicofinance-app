@@ -31,10 +31,10 @@ function estadoDe(p: PacienteConStats): EstadoPaciente {
 }
 
 const BADGE: Record<EstadoPaciente, { label: string; cls: string }> = {
-  al_dia:       { label: "Al día",       cls: "bg-emerald-100 text-emerald-700" },
-  con_deuda:    { label: "Con deuda",    cls: "bg-red-100 text-red-600" },
-  inactivo:     { label: "Inactivo",     cls: "bg-amber-100 text-amber-700" },
-  sin_sesiones: { label: "Sin sesiones", cls: "bg-neutral-100 text-neutral-500" },
+  al_dia:       { label: "Al día",       cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" },
+  con_deuda:    { label: "Con deuda",    cls: "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400" },
+  inactivo:     { label: "Inactivo",     cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400" },
+  sin_sesiones: { label: "Sin sesiones", cls: "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400" },
 };
 
 function EstadoBadge({ p }: { p: PacienteConStats }) {
@@ -86,23 +86,23 @@ function EditarHonorario({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 bg-black/30 backdrop-blur-[2px]" onClick={onCerrar}>
-      <div className="relative w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200"/></div>
+      <div className="relative w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-white dark:bg-neutral-900 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 animate-in slide-in-from-bottom duration-250 sm:slide-in-from-bottom-0" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-0 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200 dark:bg-neutral-700"/></div>
         <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-900">Editar honorario</h3>
-            <p className="text-xs text-neutral-400 mt-0.5">{paciente.nombre} {paciente.apellido}</p>
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Editar honorario</h3>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{paciente.nombre} {paciente.apellido}</p>
           </div>
-          <button onClick={onCerrar} className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100">
+          <button onClick={onCerrar} className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="mb-1">
-          <label className="mb-1.5 block text-xs font-medium text-neutral-600">Honorario base mensual</label>
-          <div className="flex items-center rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
-            <span className="mr-2 text-sm text-neutral-400">$</span>
+          <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-300">Honorario base mensual</label>
+          <div className="flex items-center rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 px-3 py-2.5 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+            <span className="mr-2 text-sm text-neutral-400 dark:text-neutral-500">$</span>
             <input
               autoFocus
               type="text"
@@ -110,15 +110,15 @@ function EditarHonorario({
               value={valor}
               onChange={e => { setValor(e.target.value); setError(""); }}
               onKeyDown={e => { if (e.key === "Enter") guardar(); }}
-              className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+              className="flex-1 bg-transparent text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none"
               placeholder="Ej: 25000"
             />
           </div>
         </div>
-        {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+        {error && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{error}</p>}
 
         <div className="mt-4 flex gap-2">
-          <button onClick={onCerrar} className="flex-1 rounded-xl border border-neutral-200 py-2.5 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors">
+          <button onClick={onCerrar} className="flex-1 rounded-xl border border-neutral-200 dark:border-neutral-800 py-2.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors">
             Cancelar
           </button>
           <button
@@ -210,7 +210,7 @@ export default function PacientesPage() {
   const totalActivos   = pacientes.filter(p => p.sesiones_mes > 0).length;
 
   function SortIcon({ campo }: { campo: OrdenCampo }) {
-    if (ordenCampo !== campo) return <ArrowUpDown className="h-3 w-3 text-neutral-300" />;
+    if (ordenCampo !== campo) return <ArrowUpDown className="h-3 w-3 text-neutral-300 dark:text-neutral-600" />;
     return ordenDir === "asc"
       ? <ArrowUp className="h-3 w-3 text-indigo-500" />
       : <ArrowDown className="h-3 w-3 text-indigo-500" />;
@@ -223,8 +223,8 @@ export default function PacientesPage() {
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-lg font-extrabold tracking-tight text-transparent">Pacientes</h1>
-            <p className="text-xs text-neutral-400">
+            <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 dark:from-neutral-100 dark:via-indigo-300 dark:to-neutral-100 bg-clip-text text-lg font-extrabold tracking-tight text-transparent">Pacientes</h1>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">
               {cargando ? "Cargando…" : `${pacientes.length} paciente${pacientes.length !== 1 ? "s" : ""}`}
             </p>
           </div>
@@ -253,7 +253,7 @@ export default function PacientesPage() {
                       : "Al día",
                   }))
                 )}
-                className="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors"
               >
                 <Download className="h-3.5 w-3.5" />
                 Exportar
@@ -273,13 +273,13 @@ export default function PacientesPage() {
         {!cargando && pacientes.length > 0 && (
           <div className="mb-5 grid grid-cols-3 gap-3">
             {[
-              { label: "Total cobrado",    value: fmtPesos(totalCobrado),   color: "text-emerald-600", gradient: "from-emerald-400 to-teal-500" },
-              { label: "Total pendiente",  value: fmtPesos(totalPendiente), color: "text-amber-600",   gradient: "from-amber-400 to-orange-400" },
-              { label: "Activos este mes", value: String(totalActivos),     color: "text-indigo-600",  gradient: "from-indigo-400 to-violet-500" },
+              { label: "Total cobrado",    value: fmtPesos(totalCobrado),   color: "text-emerald-600 dark:text-emerald-400", gradient: "from-emerald-400 to-teal-500" },
+              { label: "Total pendiente",  value: fmtPesos(totalPendiente), color: "text-amber-600 dark:text-amber-400",   gradient: "from-amber-400 to-orange-400" },
+              { label: "Activos este mes", value: String(totalActivos),     color: "text-indigo-600 dark:text-indigo-400",  gradient: "from-indigo-400 to-violet-500" },
             ].map(({ label, value, color, gradient }) => (
-              <div key={label} className="relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+              <div key={label} className="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 p-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
                 <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
-                <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400">{label}</p>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">{label}</p>
                 <p className={`mt-1.5 text-xl sm:text-2xl font-bold tabular-nums ${color}`}>{value}</p>
               </div>
             ))}
@@ -288,12 +288,12 @@ export default function PacientesPage() {
 
         {/* Buscador */}
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
           <input
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre, apellido o email…"
-            className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-9 pr-4 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 shadow-sm"
+            className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 py-2.5 pl-9 pr-4 text-sm text-neutral-800 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 shadow-sm"
           />
         </div>
 
@@ -301,20 +301,20 @@ export default function PacientesPage() {
         {cargando ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-neutral-100" />
+              <div key={i} className="h-14 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
             ))}
           </div>
         ) : errorCarga ? (
           <div className="py-16 text-center">
-            <p className="text-sm text-neutral-500">No se pudieron cargar los pacientes.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">No se pudieron cargar los pacientes.</p>
             <button onClick={cargar}
-              className="mt-3 rounded-xl border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50">
+              className="mt-3 rounded-xl border border-neutral-200 dark:border-neutral-800 px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/60">
               Reintentar
             </button>
           </div>
         ) : filtradosOrdenados.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">
               {busqueda ? "Sin resultados." : "Sin pacientes registrados todavía."}
             </p>
           </div>
@@ -323,7 +323,7 @@ export default function PacientesPage() {
             {/* ── Mobile: tarjetas apiladas (el modelo de tabla no entra en 375px) ── */}
             <div className="space-y-2 md:hidden">
               {filtradosOrdenados.map(p => (
-                <div key={p.id} className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+                <div key={p.id} className="rounded-2xl bg-white dark:bg-neutral-900 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
                   <button
                     onClick={() => setSeleccionado(p.id)}
                     className="flex w-full items-center gap-3 px-3.5 pt-3.5 pb-2 text-left"
@@ -332,18 +332,18 @@ export default function PacientesPage() {
                       {iniciales(p.nombre, p.apellido)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-neutral-800">{p.nombre} {p.apellido}</p>
-                      <p className="mt-0.5 text-[11px] text-neutral-400 tabular-nums">
+                      <p className="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-100">{p.nombre} {p.apellido}</p>
+                      <p className="mt-0.5 text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums">
                         {p.total_sesiones} ses. · {fmtPesos(p.cobrado_total)}
                         {p.ultima_sesion && <span> · {fechaRel(p.ultima_sesion)}</span>}
                       </p>
                     </div>
                     <EstadoBadge p={p} />
                   </button>
-                  <div className="flex items-center justify-between gap-2 border-t border-neutral-50 px-3.5 py-2.5">
+                  <div className="flex items-center justify-between gap-2 border-t border-neutral-50 dark:border-neutral-800 px-3.5 py-2.5">
                     <div className="flex items-baseline gap-1.5 text-xs">
-                      <span className="text-neutral-400">Pendiente</span>
-                      <span className={`font-semibold tabular-nums ${p.pendiente > 0 ? "text-red-600" : "text-neutral-300"}`}>
+                      <span className="text-neutral-400 dark:text-neutral-500">Pendiente</span>
+                      <span className={`font-semibold tabular-nums ${p.pendiente > 0 ? "text-red-600 dark:text-red-400" : "text-neutral-300 dark:text-neutral-600"}`}>
                         {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
                       </span>
                     </div>
@@ -354,7 +354,7 @@ export default function PacientesPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 active:bg-emerald-100"
+                          className="flex items-center gap-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-500/20 active:bg-emerald-100 dark:active:bg-emerald-500/20"
                           title="Recordar pago por WhatsApp"
                         >
                           <MessageCircle className="h-3.5 w-3.5" />
@@ -363,7 +363,7 @@ export default function PacientesPage() {
                       )}
                       <button
                         onClick={e => { e.stopPropagation(); setEditando(p); }}
-                        className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm active:bg-indigo-50 active:text-indigo-700"
+                        className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-300 shadow-sm active:bg-indigo-50 active:text-indigo-700"
                       >
                         $ Honorario
                       </button>
@@ -374,31 +374,31 @@ export default function PacientesPage() {
             </div>
 
             {/* ── Desktop: tabla de columnas ── */}
-            <div className="hidden overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 md:block">
+            <div className="hidden overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 shadow-sm ring-1 ring-black/5 dark:ring-white/10 md:block">
               {/* Header de tabla */}
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-100 dark:border-neutral-800 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
                 <button
                   onClick={() => toggleOrden("apellido")}
-                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors text-left"
+                  className="flex items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors text-left"
                 >
                   Paciente <SortIcon campo="apellido" />
                 </button>
                 <span>Estado</span>
                 <button
                   onClick={() => toggleOrden("total_sesiones")}
-                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                  className="flex items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
                 >
                   Sesiones <SortIcon campo="total_sesiones" />
                 </button>
                 <button
                   onClick={() => toggleOrden("honorario_actual")}
-                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                  className="flex items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
                 >
                   Honorario <SortIcon campo="honorario_actual" />
                 </button>
                 <button
                   onClick={() => toggleOrden("pendiente")}
-                  className="flex items-center gap-1 hover:text-neutral-700 transition-colors"
+                  className="flex items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
                 >
                   Pendiente <SortIcon campo="pendiente" />
                 </button>
@@ -409,7 +409,7 @@ export default function PacientesPage() {
               {filtradosOrdenados.map(p => (
                 <div
                   key={p.id}
-                  className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-50 px-4 py-3 transition-colors last:border-0 hover:bg-neutral-50/60"
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-neutral-50 dark:border-neutral-800 px-4 py-3 transition-colors last:border-0 hover:bg-neutral-50/60 dark:hover:bg-neutral-800/60"
                 >
                   <button
                     onClick={() => setSeleccionado(p.id)}
@@ -420,35 +420,35 @@ export default function PacientesPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-neutral-800">
+                        <p className="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-100">
                           {p.nombre} {p.apellido}
                         </p>
                         {p.sesiones_mes > 0 && (
-                          <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                          <span className="shrink-0 rounded-full bg-indigo-100 dark:bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
                             {p.sesiones_mes} este mes
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-neutral-400 tabular-nums">
+                      <p className="text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums">
                         {p.total_sesiones} ses. · {fmtPesos(p.cobrado_total)}
                         {p.ultima_sesion && <span> · {fechaRel(p.ultima_sesion)}</span>}
                       </p>
                     </div>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-300 dark:text-neutral-600" />
                   </button>
 
                   <div><EstadoBadge p={p} /></div>
 
-                  <span className="text-xs text-neutral-500 tabular-nums text-center">
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums text-center">
                     {p.total_sesiones}
                   </span>
 
-                  <span className="text-xs text-neutral-500 tabular-nums whitespace-nowrap">
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums whitespace-nowrap">
                     {p.honorario_actual ? fmtPesosExacto(p.honorario_actual) : "—"}
                   </span>
 
                   <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
-                    p.pendiente > 0 ? "text-red-600" : "text-neutral-300"
+                    p.pendiente > 0 ? "text-red-600 dark:text-red-400" : "text-neutral-300 dark:text-neutral-600"
                   }`}>
                     {p.pendiente > 0 ? fmtPesosExacto(p.pendiente) : "—"}
                   </span>
@@ -460,7 +460,7 @@ export default function PacientesPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 transition-all hover:bg-emerald-100"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-500/20 transition-all hover:bg-emerald-100 dark:hover:bg-emerald-500/20"
                         title={`Recordar pago por WhatsApp (${fmtPesosExacto(p.pendiente)})`}
                         aria-label="Recordar pago por WhatsApp"
                       >
@@ -469,7 +469,7 @@ export default function PacientesPage() {
                     )}
                     <button
                       onClick={e => { e.stopPropagation(); setEditando(p); }}
-                      className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
                       title="Editar honorario"
                     >
                       $ Honorario

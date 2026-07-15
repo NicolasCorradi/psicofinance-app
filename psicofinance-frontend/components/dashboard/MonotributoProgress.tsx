@@ -30,8 +30,8 @@ export default function MonotributoProgress({ refreshKey = 0 }: { refreshKey?: n
   const gId    = s ? gradientId(s.estado) : "grad-empty";
 
   return (
-    <div className="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+    <div className="flex flex-col rounded-2xl bg-white dark:bg-neutral-900 p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
         Límite Monotributo
       </p>
 
@@ -74,28 +74,28 @@ export default function MonotributoProgress({ refreshKey = 0 }: { refreshKey?: n
       {/* Stats */}
       {s && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-neutral-500">
+          <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
             <span>Facturado (12m)</span>
-            <span className="font-semibold text-neutral-800">{fmtPesos(s.facturado_12m)}</span>
+            <span className="font-semibold text-neutral-800 dark:text-neutral-100">{fmtPesos(s.facturado_12m)}</span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-indigo-50">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-indigo-50 dark:bg-indigo-500/10">
             <div
               className="h-full rounded-full transition-all duration-700"
               style={{ width: `${pct}%`, backgroundColor: color }}
             />
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-neutral-400">Tope {fmtPesos(s.tope_anual)}</span>
+            <span className="text-neutral-400 dark:text-neutral-500">Tope {fmtPesos(s.tope_anual)}</span>
             <span style={{ color }} className="font-semibold">{fmtPesos(s.margen_disponible)} libre</span>
           </div>
           {s.criterio && (
-            <p className="text-[10px] text-neutral-300">
+            <p className="text-[10px] text-neutral-300 dark:text-neutral-600">
               Criterio {s.criterio === "PERCIBIDO" ? "percibido (por cobro)" : "devengado (por sesión)"}
               {s.vigencia ? ` · Escala ${s.vigencia}` : ""}
             </p>
           )}
           {s.advertencia && (
-            <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700 ring-1 ring-amber-200/60">
+            <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] leading-snug text-amber-700 ring-1 ring-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">
               ⚠ {s.advertencia}
             </p>
           )}
@@ -105,13 +105,13 @@ export default function MonotributoProgress({ refreshKey = 0 }: { refreshKey?: n
       {!s && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <div className="h-3 w-20 animate-pulse rounded bg-neutral-100" />
-            <div className="h-3 w-16 animate-pulse rounded bg-neutral-100" />
+            <div className="h-3 w-20 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
+            <div className="h-3 w-16 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
           </div>
-          <div className="h-1.5 w-full animate-pulse rounded-full bg-neutral-100" />
+          <div className="h-1.5 w-full animate-pulse rounded-full bg-neutral-100 dark:bg-neutral-800" />
           <div className="flex items-center justify-between">
-            <div className="h-3 w-24 animate-pulse rounded bg-neutral-100" />
-            <div className="h-3 w-20 animate-pulse rounded bg-neutral-100" />
+            <div className="h-3 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
+            <div className="h-3 w-20 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />
           </div>
         </div>
       )}
