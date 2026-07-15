@@ -335,10 +335,10 @@ function SlotPlaceholder({ slot, estadoSemana, horaEfectiva, onRegistrar, onEdit
   const nombre = slot.paciente_nombre;
   const movido = estadoSemana === "movido";
   return (
-    <div className={`group relative w-full rounded-xl border border-dashed px-2.5 py-2 text-xs transition-all ${
+    <div className={`w-full overflow-hidden rounded-xl border border-dashed text-xs transition-all ${
       movido ? "border-indigo-300 bg-indigo-50/70" : "border-neutral-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40"}`}>
-      <button onClick={onRegistrar} className="block w-full text-left">
-        <div className="mb-1 flex items-center gap-1.5 pr-5">
+      <button onClick={onRegistrar} className="block w-full px-2.5 pt-2 pb-1.5 text-left">
+        <div className="mb-1 flex items-center gap-1.5">
           <span className={`text-[11px] font-bold tabular-nums ${movido ? "text-indigo-700" : "text-neutral-700"}`}>{horaEfectiva}</span>
           {movido && <span className="rounded-full bg-indigo-100 px-1 py-0.5 text-[8px] font-semibold text-indigo-600">movido</span>}
         </div>
@@ -348,9 +348,10 @@ function SlotPlaceholder({ slot, estadoSemana, horaEfectiva, onRegistrar, onEdit
         </div>
         <p className="mt-0.5 text-[9px] text-neutral-400">Tap para registrar</p>
       </button>
-      <button onClick={onEditarSemana} title="Mover o cancelar solo esta semana"
-        className="absolute right-1 top-1 rounded p-1 text-neutral-400 hover:bg-indigo-100 hover:text-indigo-600">
-        <CalendarClock className="h-3 w-3"/>
+      <button onClick={onEditarSemana}
+        className={`flex w-full items-center justify-center gap-1 border-t px-2 py-1.5 text-[10px] font-medium transition-colors ${
+          movido ? "border-indigo-200 text-indigo-600 hover:bg-indigo-100" : "border-neutral-200 text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600"}`}>
+        <CalendarClock className="h-3 w-3"/> Mover / cancelar esta semana
       </button>
     </div>
   );
@@ -360,18 +361,20 @@ function SlotPlaceholder({ slot, estadoSemana, horaEfectiva, onRegistrar, onEdit
 
 function CanceladoCard({ slot, onEditarSemana }: { slot: SlotModelo; onEditarSemana: () => void }) {
   return (
-    <div className="relative w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-2.5 py-2 text-xs">
-      <div className="mb-1 flex items-center gap-1.5 pr-5">
-        <span className="text-[11px] font-bold tabular-nums text-neutral-400 line-through">{slot.hora}</span>
-        <span className="rounded-full bg-neutral-100 px-1 py-0.5 text-[8px] font-semibold text-neutral-500">no viene</span>
+    <div className="w-full overflow-hidden rounded-xl border border-dashed border-neutral-200 bg-neutral-50 text-xs">
+      <div className="px-2.5 pt-2 pb-1.5">
+        <div className="mb-1 flex items-center gap-1.5">
+          <span className="text-[11px] font-bold tabular-nums text-neutral-400 line-through">{slot.hora}</span>
+          <span className="rounded-full bg-neutral-100 px-1 py-0.5 text-[8px] font-semibold text-neutral-500">no viene</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"><Ban className="h-2.5 w-2.5"/></div>
+          <p className="truncate font-medium text-neutral-500 line-through">{slot.paciente_nombre}</p>
+        </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500"><Ban className="h-2.5 w-2.5"/></div>
-        <p className="truncate font-medium text-neutral-500 line-through">{slot.paciente_nombre}</p>
-      </div>
-      <button onClick={onEditarSemana} title="Deshacer o cambiar"
-        className="absolute right-1 top-1 rounded p-1 text-neutral-400 hover:bg-indigo-100 hover:text-indigo-600">
-        <RotateCcw className="h-3 w-3"/>
+      <button onClick={onEditarSemana}
+        className="flex w-full items-center justify-center gap-1 border-t border-neutral-200 px-2 py-1.5 text-[10px] font-medium text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600">
+        <RotateCcw className="h-3 w-3"/> Deshacer / cambiar
       </button>
     </div>
   );
