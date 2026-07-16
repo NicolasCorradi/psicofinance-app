@@ -2,6 +2,7 @@
 # Usa Supabase REST API via SupabaseClient (sin SQLAlchemy).
 
 import logging
+import re
 import unicodedata
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
@@ -40,9 +41,73 @@ def _sin_acentos(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
 
+def _tokens(s: str) -> list[str]:
+    """Palabras sueltas, sin puntuación. 'Sebastián,' y 'Sebastián' deben
+    tokenizar igual — la puntuación pegada al nombre (común: "Martina,
+    pagó...") no debe romper el match."""
+    return re.findall(r"[a-z0-9]+", s)
+
+
+def _subsecuencia_contigua(tokens: list[str], sub: list[str]) -> bool:
+    n = len(sub)
+    if n == 0:
+        return False
+    return any(tokens[i:i + n] == sub for i in range(len(tokens) - n + 1))
+
+
+def _nombres_en(fuente: str, pacientes_raw: list[dict]) -> list[dict]:
+    """Busca pacientes mencionados por nombre en `fuente` (ya normalizada:
+    minúsculas, sin tildes). Compara por tokens exactos, no por substring
+    crudo: "ana gomez" in "diana gomez" da True con `in` sobre strings
+    (falso positivo), pero como secuencia de tokens ["ana","gomez"] nunca
+    aparece dentro de ["diana","gomez"]."""
+    tokens = _tokens(fuente)
+    tokens_set = set(tokens)
+    encontrados = []
+    for p in pacientes_raw:
+        nombre_solo = _sin_acentos((p.get("nombre") or "").strip().lower())
+        if not nombre_solo:
+            continue
+        apellido = _sin_acentos((p.get("apellido") or "").strip().lower())
+        tokens_nombre = nombre_solo.split()
+        coincide = _subsecuencia_contigua(tokens, tokens_nombre) or (
+            len(tokens_nombre) == 1 and tokens_nombre[0] in tokens_set
+        )
+        if not coincide and apellido:
+            coincide = _subsecuencia_contigua(tokens, tokens_nombre + apellido.split())
+        if coincide:
+            encontrados.append(p)
+    return encontrados
+
+
+# Frases con las que el copiloto deja un registro de turno a mitad de camino
+# (le pidió un dato al psicólogo). Si la respuesta corta que sigue ("20000",
+# "efectivo", "sofia") no se clasifica como registro, el turno queda
+# abandonado — clasificar_intencion no ve el historial, así que una
+# respuesta ambigua de una sola palabra puede caer en "consulta" y confundir
+# al usuario justo cuando estaba terminando de cargar la sesión.
+_FRASES_REGISTRO_PENDIENTE = (
+    "no pude identificar el monto",
+    "no identifiqué el nombre del paciente",
+    "no pude entender el mensaje",
+)
+
+
+def _continua_registro_pendiente(historial: list, mensaje: str) -> bool:
+    if "?" in mensaje or not historial:
+        return False
+    ultimo = historial[-1]
+    if ultimo.rol != "assistant":
+        return False
+    t = ultimo.texto.lower()
+    return any(f in t for f in _FRASES_REGISTRO_PENDIENTE)
+
+
 def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: str, transcripcion: str | None = None) -> ChatResponse:
     """Lógica central del copiloto. Usada por /chat y /audio."""
     intencion = clasificar_intencion(mensaje)
+    if intencion == "consulta" and _continua_registro_pendiente(historial, mensaje):
+        intencion = "registro_turno"
 
     # Saludos/cortesías: respuesta fija, sin gastar cuota de Gemini
     if intencion == "saludo":
@@ -72,20 +137,9 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
 
         texto_norm = _sin_acentos(mensaje.lower())
 
-        def _nombres_en(fuente: str) -> list[dict]:
-            encontrados = []
-            for p in pacientes_raw:
-                nombre_solo = _sin_acentos((p.get("nombre") or "").strip().lower())
-                if not nombre_solo:
-                    continue
-                nombre_completo = _sin_acentos(f"{nombre_solo} {(p.get('apellido') or '').strip().lower()}".strip())
-                if nombre_completo in fuente or nombre_solo in fuente.split():
-                    encontrados.append(p)
-            return encontrados
-
         # 1) Nombres mencionados directamente en el mensaje actual — la fuente
         #    más confiable, porque los escribió el propio usuario
-        coincidencias = _nombres_en(texto_norm)
+        coincidencias = _nombres_en(texto_norm, pacientes_raw)
 
         # 2) "ambos"/"los dos" implica EXACTAMENTE 2 personas: si el mensaje no
         #    nombró a nadie, se buscan en el último mensaje del asistente
@@ -98,7 +152,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
         if not coincidencias and any(p in texto_norm for p in PRONOMBRE_PAR) and historial:
             for m in reversed(historial[-4:]):
                 if m.rol != "user":
-                    candidatos = _nombres_en(_sin_acentos(m.texto.lower()))
+                    candidatos = _nombres_en(_sin_acentos(m.texto.lower()), pacientes_raw)
                     if len(candidatos) == 2:
                         coincidencias = candidatos
                     else:
@@ -116,7 +170,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
         elif not coincidencias and es_todos and historial:
             for m in reversed(historial[-4:]):
                 if m.rol != "user":
-                    coincidencias = _nombres_en(_sin_acentos(m.texto.lower()))
+                    coincidencias = _nombres_en(_sin_acentos(m.texto.lower()), pacientes_raw)
                     break
 
         if not coincidencias:
