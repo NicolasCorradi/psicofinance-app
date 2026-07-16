@@ -266,8 +266,13 @@ def responder_consulta(texto: str, contexto: dict) -> str:
         f"{m['mes']}: ${m['egresos']:,.0f}" for m in egr_hist
     ) if egr_hist else "sin datos"
 
-    # Ficha por paciente — permite responder preguntas puntuales
-    pacientes = contexto.get("pacientes_detalle", [])
+    # Ficha por paciente — permite responder preguntas puntuales.
+    # Ordenada por cobrado histórico desc: los rankings ("top de pacientes")
+    # salen bien sin que el modelo tenga que ordenar números a mano.
+    pacientes = sorted(
+        contexto.get("pacientes_detalle", []),
+        key=lambda p: -p.get("cobrado_total", 0),
+    )
     if pacientes:
         lineas_pac = []
         for p in pacientes:
@@ -275,10 +280,15 @@ def responder_consulta(texto: str, contexto: dict) -> str:
                    else f"${p['honorario']:,.0f}") if p.get("honorario") else "sin honorario cargado"
             deuda = f", debe ${p['deuda']:,.0f}" if p.get("deuda") else ""
             ajuste = f", último ajuste {p['ultimo_ajuste']}" if p.get("ultimo_ajuste") else ""
+            atraso = ""
+            if p.get("atraso_pct"):
+                atraso = (f", atrasado {p['atraso_pct']}% vs inflación"
+                          f" (sugerido ${p['sugerido']:,.0f})" if p.get("sugerido") else "")
             ult = p.get("ultima_sesion") or "nunca"
             lineas_pac.append(
-                f"- {p['nombre']}: honorario {hon}{ajuste} | última sesión {ult} | "
-                f"{p['sesiones_mes']} sesiones este mes, {p['sesiones_tot']} en total{deuda}"
+                f"- {p['nombre']}: honorario {hon}{ajuste}{atraso} | última sesión {ult} | "
+                f"{p['sesiones_mes']} sesiones este mes, {p['sesiones_tot']} en total | "
+                f"cobrado histórico ${p.get('cobrado_total', 0):,.0f}{deuda}"
             )
         pacientes_txt = "\n".join(lineas_pac)
     else:
@@ -294,11 +304,16 @@ def responder_consulta(texto: str, contexto: dict) -> str:
                 f"{s.get('hora','?')} {s.get('paciente_nombre','?')}"
             )
         agenda_txt = " | ".join(
-            f"{dias_nombres.get(d, d)}: {', '.join(sorted(slots))}"
+            f"{dias_nombres.get(d, d)} ({len(slots)} sesiones): {', '.join(sorted(slots))}"
             for d, slots in sorted(por_dia.items())
         )
     else:
         agenda_txt = "sin agenda semanal configurada"
+
+    ipc_ctx = contexto.get("ipc") or {}
+    ipc_txt = (
+        f"último IPC mensual publicado (INDEC): {ipc_ctx.get('mensual_pct', 0):.1f}% ({ipc_ctx.get('periodo', 's/d')})"
+    ) if ipc_ctx else "sin datos"
 
     mono = contexto.get("monotributo") or {}
     mono_txt = (
@@ -325,8 +340,9 @@ EGRESOS (gastos del mes):
 RESULTADO:
 - Utilidad neta del mes (cobrado − egresos): ${contexto.get('utilidad_neta', contexto.get('cobrado_mes', 0)):,.0f}
 MONOTRIBUTO: {mono_txt}
+INFLACIÓN: {ipc_txt}
 AGENDA SEMANAL (horarios habituales): {agenda_txt}
-PACIENTES (ficha completa):
+PACIENTES (ficha completa; "cobrado histórico" = total pagado por ese paciente):
 {pacientes_txt}"""
 
     prompt = f"{contexto_txt}\n\nPregunta del psicólogo: {texto}"

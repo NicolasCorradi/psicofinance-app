@@ -179,7 +179,7 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             pid = t.get("paciente_id")
             if not pid:
                 continue
-            s = stats_pac.setdefault(pid, {"ultima": None, "sesiones_mes": 0, "total": 0, "deuda": 0.0})
+            s = stats_pac.setdefault(pid, {"ultima": None, "sesiones_mes": 0, "total": 0, "deuda": 0.0, "cobrado": 0.0})
             ft = _parse_date(t.get("fecha_turno"))
             if t.get("estado") != "INCOBRABLE" and ft:
                 s["total"] += 1
@@ -189,20 +189,45 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
                     s["sesiones_mes"] += 1
             if t.get("estado") == "DIFERIDO":
                 s["deuda"] += monto_ars(t)
+            elif t.get("estado") == "COBRADO":
+                s["cobrado"] += monto_ars(t)
 
+        # Inflación acumulada desde el último ajuste de honorario de cada
+        # paciente (misma lógica que las alertas de honorarios del dashboard)
+        from app.services.inflacion_service import fetch_ipc_indec, inflacion_acumulada
+        ipc = fetch_ipc_indec()
+        tasas_ipc = ipc.get("tasas", {})
+
+        _stats_vacias = {"ultima": None, "sesiones_mes": 0, "total": 0, "deuda": 0.0, "cobrado": 0.0}
         pacientes_detalle = []
         for p in pacientes_raw:
-            s = stats_pac.get(p["id"], {"ultima": None, "sesiones_mes": 0, "total": 0, "deuda": 0.0})
+            s = stats_pac.get(p["id"], _stats_vacias)
+            honorario = float(p.get("honorario_actual") or 0)
+            moneda_pac = p.get("moneda") or "ARS"
+            ajuste_str = str(p.get("fecha_ultimo_ajuste_honorario") or "")[:10] or None
+            # Desactualización vs inflación (solo honorarios en pesos)
+            atraso_pct = None
+            sugerido = None
+            if honorario and ajuste_str and moneda_pac == "ARS":
+                try:
+                    acum = inflacion_acumulada(date.fromisoformat(ajuste_str), hoy, tasas_ipc)
+                    atraso_pct = round(acum * 100)
+                    sugerido = round(honorario * (1 + acum))
+                except Exception:
+                    pass
             pacientes_detalle.append({
                 "nombre":        pac_map[p["id"]],
-                "honorario":     float(p.get("honorario_actual") or 0),
-                "moneda":        p.get("moneda") or "ARS",
-                "ultimo_ajuste": str(p.get("fecha_ultimo_ajuste_honorario") or "")[:10] or None,
+                "honorario":     honorario,
+                "moneda":        moneda_pac,
+                "ultimo_ajuste": ajuste_str,
+                "atraso_pct":    atraso_pct,
+                "sugerido":      sugerido,
                 "telefono":      bool(p.get("telefono")),
                 "ultima_sesion": s["ultima"].isoformat() if s["ultima"] else None,
                 "sesiones_mes":  s["sesiones_mes"],
                 "sesiones_tot":  s["total"],
                 "deuda":         float(s["deuda"]),
+                "cobrado_total": float(s["cobrado"]),
             })
 
         # ── Agenda semanal modelo ("¿qué días atiendo a Sofía?") ─────────────
@@ -252,6 +277,10 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             "pacientes_detalle":     pacientes_detalle,
             "agenda_semanal":        agenda_semanal,
             "monotributo":           monotributo_ctx,
+            "ipc": {
+                "mensual_pct": float(ipc.get("ultimo_valor_pct") or 0),
+                "periodo":     ipc.get("ultimo_real_periodo") or ipc.get("ultimo_periodo"),
+            },
         }
 
         respuesta_texto = responder_consulta(mensaje, contexto)
