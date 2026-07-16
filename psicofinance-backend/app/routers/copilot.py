@@ -58,7 +58,17 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             "user_id": f"eq.{user_id}",
             "select": "paciente_id,monto,estado,fecha_turno,fecha_cobro_efectivo,fecha_cobro_estimada,medio_pago,tipo_sesion,moneda,tipo_cambio",
         })
-        pacientes_raw = sb.select("pacientes", {"user_id": f"eq.{user_id}", "select": "id,nombre,apellido"})
+        try:
+            pacientes_raw = sb.select("pacientes", {
+                "user_id": f"eq.{user_id}",
+                "select": "id,nombre,apellido,honorario_actual,moneda,telefono,fecha_ultimo_ajuste_honorario",
+            })
+        except Exception:
+            # Compatibilidad: si la columna `moneda` aún no se migró en la BD
+            pacientes_raw = sb.select("pacientes", {
+                "user_id": f"eq.{user_id}",
+                "select": "id,nombre,apellido,honorario_actual,telefono,fecha_ultimo_ajuste_honorario",
+            })
         pac_map = {p["id"]: f"{p.get('nombre','')} {p.get('apellido','')}".strip() for p in pacientes_raw}
 
         cobrado_mes = sum(
@@ -162,6 +172,66 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             )
             egresos_mensuales.append({"mes": MESES_ES[ini.month - 1], "egresos": float(total_e)})
 
+        # ── Ficha por paciente: para responder preguntas puntuales ───────────
+        # ("¿cuánto le cobro a Martina?", "¿cuándo vino Diego por última vez?")
+        stats_pac: dict[str, dict] = {}
+        for t in turnos:
+            pid = t.get("paciente_id")
+            if not pid:
+                continue
+            s = stats_pac.setdefault(pid, {"ultima": None, "sesiones_mes": 0, "total": 0, "deuda": 0.0})
+            ft = _parse_date(t.get("fecha_turno"))
+            if t.get("estado") != "INCOBRABLE" and ft:
+                s["total"] += 1
+                if s["ultima"] is None or ft > s["ultima"]:
+                    s["ultima"] = ft
+                if primer_dia <= ft < sig_mes:
+                    s["sesiones_mes"] += 1
+            if t.get("estado") == "DIFERIDO":
+                s["deuda"] += monto_ars(t)
+
+        pacientes_detalle = []
+        for p in pacientes_raw:
+            s = stats_pac.get(p["id"], {"ultima": None, "sesiones_mes": 0, "total": 0, "deuda": 0.0})
+            pacientes_detalle.append({
+                "nombre":        pac_map[p["id"]],
+                "honorario":     float(p.get("honorario_actual") or 0),
+                "moneda":        p.get("moneda") or "ARS",
+                "ultimo_ajuste": str(p.get("fecha_ultimo_ajuste_honorario") or "")[:10] or None,
+                "telefono":      bool(p.get("telefono")),
+                "ultima_sesion": s["ultima"].isoformat() if s["ultima"] else None,
+                "sesiones_mes":  s["sesiones_mes"],
+                "sesiones_tot":  s["total"],
+                "deuda":         float(s["deuda"]),
+            })
+
+        # ── Agenda semanal modelo ("¿qué días atiendo a Sofía?") ─────────────
+        agenda_semanal: list[dict] = []
+        try:
+            rows_modelo = sb.select("configuracion", {
+                "clave": "eq.semana_modelo", "user_id": f"eq.{user_id}", "select": "valor",
+            })
+            if rows_modelo:
+                import json as _json
+                agenda_semanal = _json.loads(rows_modelo[0]["valor"])
+        except Exception as exc:
+            logger.warning("No se pudo leer semana modelo para el copiloto: %s", exc)
+
+        # ── Monotributo ("¿cómo vengo con el tope?") ──────────────────────────
+        monotributo_ctx: dict = {}
+        try:
+            from app.services.monotributo_service import obtener_semaforo
+            sem = obtener_semaforo(sb, user_id)
+            monotributo_ctx = {
+                "categoria":  sem.categoria_actual,
+                "facturado":  float(sem.facturado_12m),
+                "tope":       float(sem.tope_anual),
+                "porcentaje": float(sem.porcentaje_consumido),
+                "estado":     str(sem.estado.value if hasattr(sem.estado, "value") else sem.estado),
+            }
+        except Exception as exc:
+            logger.warning("No se pudo calcular el semáforo para el copiloto: %s", exc)
+
         contexto = {
             "cobrado_mes":           float(cobrado_mes),
             "en_camino_mes":         float(en_camino),
@@ -179,6 +249,9 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             "egresos_por_categoria": egresos_por_cat,
             "egresos_mensuales":     egresos_mensuales,
             "utilidad_neta":         float(cobrado_mes - total_egresos_mes),
+            "pacientes_detalle":     pacientes_detalle,
+            "agenda_semanal":        agenda_semanal,
+            "monotributo":           monotributo_ctx,
         }
 
         respuesta_texto = responder_consulta(mensaje, contexto)

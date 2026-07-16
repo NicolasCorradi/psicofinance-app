@@ -49,6 +49,42 @@ def _es_error_cuota(exc: Exception) -> bool:
     return "429" in txt or "RESOURCE_EXHAUSTED" in txt
 
 
+# Cadena de modelos de respaldo: el tier gratis de Gemini tiene cuota DIARIA
+# por modelo (¡20 requests/día para 2.5-flash!), pero cada modelo tiene su
+# propio balde de cuota. Si el principal se agota, probamos los siguientes —
+# multiplica la capacidad gratuita diaria y evita que el copiloto se quede mudo.
+# Verificados en vivo el 15/07/2026: estos responden con esta key.
+_MODELOS_FALLBACK = [
+    "gemini-flash-lite-latest",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+]
+
+
+def _generar_con_fallback(contents, config_gen: "types.GenerateContentConfig"):
+    """Intenta el modelo configurado y cae en cascada a los de respaldo si la
+    cuota está agotada (429) o el modelo fue dado de baja (404).
+    Otros errores se propagan de inmediato."""
+    cliente = genai.Client(api_key=config.gemini_api_key)
+    modelos = [config.gemini_model] + [m for m in _MODELOS_FALLBACK if m != config.gemini_model]
+    ultimo_error: Exception | None = None
+    for modelo in modelos:
+        try:
+            resp = cliente.models.generate_content(
+                model=modelo, contents=contents, config=config_gen,
+            )
+            if modelo != config.gemini_model:
+                logger.info("NLP: %s no disponible — respondió %s", config.gemini_model, modelo)
+            return resp
+        except Exception as e:
+            txt = str(e)
+            if _es_error_cuota(e) or "404" in txt or "NOT_FOUND" in txt:
+                ultimo_error = e
+                continue
+            raise
+    raise ErrorCuotaNLP(f"Cuota agotada en todos los modelos: {ultimo_error}") from ultimo_error
+
+
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
 PROMPT_CLASIFICACION = """Sos un clasificador de intenciones para PsicoFinance,
@@ -97,15 +133,22 @@ Ejemplo USD: {"paciente":"Laura","monto":80,"es_prepaga":false,"obra_social":nul
 
 PROMPT_CONSULTA = """Sos el copiloto financiero de PsicoFinance, una app para psicólogos independientes en Argentina.
 Respondé la pregunta del psicólogo de forma clara y útil, en español rioplatense (tuteá).
-Usá los datos financieros provistos como contexto. Si la pregunta no tiene respuesta en los datos, decilo honestamente.
+
+Tenés el panorama financiero COMPLETO del consultorio: totales del mes, historial,
+egresos, monotributo, la agenda semanal y la ficha de CADA paciente (honorario,
+última sesión, sesiones del mes, deuda). Usalos con confianza: si la respuesta
+está en los datos, respondé directo con el número o el dato concreto — nunca
+digas "no tengo esa información" si figura en el contexto. Buscá nombres de
+pacientes con tolerancia (mayúsculas, solo nombre de pila, apellido).
 
 Si te preguntan qué podés hacer (o cómo usarte), explicá tus dos funciones:
 1) Registrar sesiones por chat o audio: "vino Martina, pagó 35 mil en efectivo" — entendés fechas relativas, prepagas, dólares e inasistencias.
-2) Responder consultas sobre sus finanzas: facturación, deudores, gastos, utilidad, monotributo.
-Aclarales que la agenda, los pacientes y los reportes se manejan desde las otras pantallas de la app.
+2) Responder consultas sobre sus finanzas y pacientes: facturación, deudores, gastos, utilidad, monotributo, honorarios y agenda.
 
-Si preguntan algo de finanzas que NO está en los datos (proyecciones, consejos de inversión, impuestos que no sean el monotributo), respondé lo que puedas con los datos y aclará el límite. Nunca inventes números.
-No inventes datos. Podés responder en hasta 4 oraciones. Sin markdown."""
+Si preguntan algo que genuinamente NO está en los datos (proyecciones, consejos
+de inversión, impuestos que no sean el monotributo), respondé lo que puedas con
+los datos y aclará el límite. Nunca inventes números.
+Respondé en hasta 4 oraciones (o una lista corta si piden varios datos). Sin markdown."""
 
 
 # ── Función de clasificación ──────────────────────────────────────────────────
@@ -171,12 +214,10 @@ def clasificar_intencion(texto: str) -> str:
     if resultado is not None:
         return resultado
 
-    cliente = genai.Client(api_key=config.gemini_api_key)
     try:
-        resp = cliente.models.generate_content(
-            model=config.gemini_model,
-            contents=texto,
-            config=types.GenerateContentConfig(
+        resp = _generar_con_fallback(
+            texto,
+            types.GenerateContentConfig(
                 system_instruction=PROMPT_CLASIFICACION,
                 temperature=0.0,
                 # Margen amplio: los modelos con thinking consumen tokens de
@@ -225,6 +266,47 @@ def responder_consulta(texto: str, contexto: dict) -> str:
         f"{m['mes']}: ${m['egresos']:,.0f}" for m in egr_hist
     ) if egr_hist else "sin datos"
 
+    # Ficha por paciente — permite responder preguntas puntuales
+    pacientes = contexto.get("pacientes_detalle", [])
+    if pacientes:
+        lineas_pac = []
+        for p in pacientes:
+            hon = (f"USD {p['honorario']:,.0f}" if p.get("moneda") == "USD"
+                   else f"${p['honorario']:,.0f}") if p.get("honorario") else "sin honorario cargado"
+            deuda = f", debe ${p['deuda']:,.0f}" if p.get("deuda") else ""
+            ajuste = f", último ajuste {p['ultimo_ajuste']}" if p.get("ultimo_ajuste") else ""
+            ult = p.get("ultima_sesion") or "nunca"
+            lineas_pac.append(
+                f"- {p['nombre']}: honorario {hon}{ajuste} | última sesión {ult} | "
+                f"{p['sesiones_mes']} sesiones este mes, {p['sesiones_tot']} en total{deuda}"
+            )
+        pacientes_txt = "\n".join(lineas_pac)
+    else:
+        pacientes_txt = "sin pacientes cargados"
+
+    # Agenda semanal modelo — qué días/horarios atiende a cada uno
+    agenda = contexto.get("agenda_semanal", [])
+    if agenda:
+        dias_nombres = {1: "Lun", 2: "Mar", 3: "Mié", 4: "Jue", 5: "Vie", 6: "Sáb", 7: "Dom"}
+        por_dia: dict[int, list[str]] = {}
+        for s in agenda:
+            por_dia.setdefault(int(s.get("dia", 0)), []).append(
+                f"{s.get('hora','?')} {s.get('paciente_nombre','?')}"
+            )
+        agenda_txt = " | ".join(
+            f"{dias_nombres.get(d, d)}: {', '.join(sorted(slots))}"
+            for d, slots in sorted(por_dia.items())
+        )
+    else:
+        agenda_txt = "sin agenda semanal configurada"
+
+    mono = contexto.get("monotributo") or {}
+    mono_txt = (
+        f"categoría {mono.get('categoria')}, facturado 12m ${mono.get('facturado', 0):,.0f} "
+        f"de ${mono.get('tope', 0):,.0f} de tope ({mono.get('porcentaje', 0):.0f}% consumido, "
+        f"estado {mono.get('estado', '?')})"
+    ) if mono else "sin datos"
+
     contexto_txt = f"""Datos financieros actuales (fecha: {hoy_argentina().strftime('%d/%m/%Y')}):
 INGRESOS (criterio percibido — turnos cobrados efectivamente):
 - Cobrado este mes: ${contexto.get('cobrado_mes', 0):,.0f}
@@ -241,15 +323,18 @@ EGRESOS (gastos del mes):
 - Egresos por categoría: {egr_cat_txt}
 - Historial egresos 6 meses: {egr_hist_txt}
 RESULTADO:
-- Utilidad neta del mes (cobrado − egresos): ${contexto.get('utilidad_neta', contexto.get('cobrado_mes', 0)):,.0f}"""
+- Utilidad neta del mes (cobrado − egresos): ${contexto.get('utilidad_neta', contexto.get('cobrado_mes', 0)):,.0f}
+MONOTRIBUTO: {mono_txt}
+AGENDA SEMANAL (horarios habituales): {agenda_txt}
+PACIENTES (ficha completa):
+{pacientes_txt}"""
 
     prompt = f"{contexto_txt}\n\nPregunta del psicólogo: {texto}"
 
     try:
-        resp = cliente.models.generate_content(
-            model=config.gemini_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
+        resp = _generar_con_fallback(
+            prompt,
+            types.GenerateContentConfig(
                 system_instruction=PROMPT_CONSULTA,
                 temperature=0.3,
                 max_output_tokens=600,
@@ -260,7 +345,7 @@ RESULTADO:
         logger.error("Error al responder consulta: %s", e)
         if _es_error_cuota(e):
             return ("Recibí muchos mensajes seguidos y me quedé sin capacidad "
-                    "por un momento. Esperá unos 30 segundos y volvé a preguntarme.")
+                    "por un momento. Esperá un minuto y volvé a preguntarme.")
         return "No pude procesar tu consulta en este momento. Intentá de nuevo."
 
 
@@ -270,8 +355,6 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
     """
     Llama a Gemini con el mensaje del psicólogo y devuelve los datos estructurados del turno.
     """
-    cliente = genai.Client(api_key=config.gemini_api_key)
-
     # Incluir historial reciente para dar contexto (máx últimos 4 mensajes)
     contexto_historial = ""
     if historial:
@@ -288,10 +371,9 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
     )
 
     try:
-        respuesta = cliente.models.generate_content(
-            model=config.gemini_model,
-            contents=prompt_con_fecha,
-            config=types.GenerateContentConfig(
+        respuesta = _generar_con_fallback(
+            prompt_con_fecha,
+            types.GenerateContentConfig(
                 system_instruction=PROMPT_EXTRACCION,
                 response_mime_type="application/json",
                 temperature=0.1,
@@ -299,9 +381,9 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
             ),
         )
         texto_respuesta = respuesta.text.strip()
+    except ErrorCuotaNLP:
+        raise
     except Exception as e:
-        if _es_error_cuota(e):
-            raise ErrorCuotaNLP(f"Cuota de Gemini agotada: {e}") from e
         raise ErrorNLP(f"Error al llamar a Gemini: {e}") from e
 
     try:
