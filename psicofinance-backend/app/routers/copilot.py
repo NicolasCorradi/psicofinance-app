@@ -2,6 +2,7 @@
 # Usa Supabase REST API via SupabaseClient (sin SQLAlchemy).
 
 import logging
+import unicodedata
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from dateutil.relativedelta import relativedelta
@@ -16,14 +17,14 @@ from app.models.enums import EstadoTurno, OrigenPago, MedioPago, TipoSesion, Mon
 from app.services.dolar_service import get_dolar_blue
 from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
-from app.schemas.turno import TurnoCreate, TurnoRead
+from app.schemas.turno import TurnoCreate, TurnoRead, TurnoUpdate
 from app.services.nlp_service import (
     extraer_datos_turno, clasificar_intencion, responder_consulta,
     ErrorNLP, ErrorCuotaNLP,
 )
 from app.services.nlp_comprobante import extraer_datos_comprobante
 from app.crud.paciente import obtener_o_crear_paciente
-from app.crud.turno import crear_turno
+from app.crud.turno import crear_turno, listar_turnos_diferidos, actualizar_turno
 from app.utils import hoy_argentina, monto_ars, parse_fecha as _parse_date
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/copilot", tags=["Copiloto NLP"])
 
 MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+
+
+def _sin_acentos(s: str) -> str:
+    """Quita tildes/diacríticos para poder comparar nombres sin depender de
+    que la IA (o el usuario) escriba los acentos igual que la BD."""
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
 
 def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: str, transcripcion: str | None = None) -> ChatResponse:
@@ -46,6 +53,125 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
                 "(ej: \"¿cuánto facturé este mes?\")."
             ),
             accion="respuesta",
+            transcripcion=transcripcion,
+        )
+
+    # Saldar deuda existente: "Sebastián pagó lo que debía" / "ambos me
+    # pagaron lo adeudado". A diferencia de un registro nuevo, esto NO crea
+    # un turno: busca los turnos DIFERIDO ya cargados de ese/esos paciente(s)
+    # y los marca COBRADO. Antes esto se clasificaba como "consulta" y el
+    # copiloto respondía como si hubiera procesado el pago sin tocar la BD.
+    if intencion == "saldar_deuda":
+        try:
+            pacientes_raw = sb.select("pacientes", {
+                "user_id": f"eq.{user_id}", "select": "id,nombre,apellido",
+            })
+        except Exception as e:
+            logger.error("Error BD al listar pacientes para saldar deuda: %s", e)
+            raise HTTPException(status_code=503, detail="Base de datos no disponible.")
+
+        texto_norm = _sin_acentos(mensaje.lower())
+
+        def _nombres_en(fuente: str) -> list[dict]:
+            encontrados = []
+            for p in pacientes_raw:
+                nombre_solo = _sin_acentos((p.get("nombre") or "").strip().lower())
+                if not nombre_solo:
+                    continue
+                nombre_completo = _sin_acentos(f"{nombre_solo} {(p.get('apellido') or '').strip().lower()}".strip())
+                if nombre_completo in fuente or nombre_solo in fuente.split():
+                    encontrados.append(p)
+            return encontrados
+
+        # 1) Nombres mencionados directamente en el mensaje actual — la fuente
+        #    más confiable, porque los escribió el propio usuario
+        coincidencias = _nombres_en(texto_norm)
+
+        # 2) "ambos"/"los dos" implica EXACTAMENTE 2 personas: si el mensaje no
+        #    nombró a nadie, se buscan en el último mensaje del asistente
+        #    (típicamente la respuesta a "¿quién me debe?"), pero si esa
+        #    búsqueda encuentra más o menos de 2 (puede haber otros nombres
+        #    de contexto ahí, ej. otro "ambos" interno), NO se adivina: se
+        #    pide que los nombre para no saldarle la deuda a quien no debía.
+        PRONOMBRE_PAR = ("ambos", "los dos", "las dos", "entrambos")
+        es_todos = any(p in texto_norm for p in ("todos", "todas"))
+        if not coincidencias and any(p in texto_norm for p in PRONOMBRE_PAR) and historial:
+            for m in reversed(historial[-4:]):
+                if m.rol != "user":
+                    candidatos = _nombres_en(_sin_acentos(m.texto.lower()))
+                    if len(candidatos) == 2:
+                        coincidencias = candidatos
+                    else:
+                        nombres_candidatos = ", ".join(f"{c.get('nombre','')} {c.get('apellido','')}".strip() for c in candidatos) or "nadie reconocible"
+                        return ChatResponse(
+                            confirmacion=(
+                                f"No quiero equivocarme de paciente: en el mensaje anterior encontré "
+                                f"{len(candidatos)} nombres ({nombres_candidatos}), no 2. "
+                                "Decime los nombres exactos (ej: \"Sebastián Torres y Martina López pagaron lo que debían\")."
+                            ),
+                            accion="datos_insuficientes",
+                            transcripcion=transcripcion,
+                        )
+                    break
+        elif not coincidencias and es_todos and historial:
+            for m in reversed(historial[-4:]):
+                if m.rol != "user":
+                    coincidencias = _nombres_en(_sin_acentos(m.texto.lower()))
+                    break
+
+        if not coincidencias:
+            return ChatResponse(
+                confirmacion=(
+                    "No identifiqué a qué paciente te referís. Decime el nombre "
+                    "(ej: \"Sebastián Torres pagó lo que debía\")."
+                ),
+                accion="datos_insuficientes",
+                transcripcion=transcripcion,
+            )
+
+        # Medio de pago mencionado (opcional, mismo criterio que la extracción normal)
+        medio_pago = None
+        if any(k in texto_norm for k in ("efectivo", "cash", "en mano")):
+            medio_pago = MedioPago.EFECTIVO
+        elif any(k in texto_norm for k in ("transferencia", "transfe")):
+            medio_pago = MedioPago.TRANSFERENCIA
+        elif "mercado pago" in texto_norm or " mp " in f" {texto_norm} ":
+            medio_pago = MedioPago.MERCADO_PAGO
+        elif any(k in texto_norm for k in ("tarjeta", "débito", "debito", "crédito", "credito")):
+            medio_pago = MedioPago.TARJETA
+
+        hoy = hoy_argentina()
+        try:
+            diferidos = listar_turnos_diferidos(sb, user_id)
+        except Exception as e:
+            logger.error("Error BD al buscar deudas pendientes: %s", e)
+            raise HTTPException(status_code=503, detail="Base de datos no disponible.")
+
+        partes = []
+        for p in coincidencias:
+            nombre = f"{p.get('nombre','')} {p.get('apellido','')}".strip()
+            propios = [t for t in diferidos if t.get("paciente_id") == p["id"]]
+            if not propios:
+                partes.append(f"{nombre} no tenía deuda pendiente registrada")
+                continue
+            total = 0.0
+            for t in propios:
+                cambios = TurnoUpdate(estado=EstadoTurno.COBRADO, fecha_cobro_efectivo=hoy)
+                if medio_pago:
+                    cambios.medio_pago = medio_pago
+                try:
+                    actualizar_turno(sb, t["id"], cambios, user_id)
+                except Exception as e:
+                    logger.error("Error BD al saldar turno %s: %s", t.get("id"), e)
+                    raise HTTPException(status_code=503, detail="Base de datos no disponible.")
+                total += monto_ars(t)
+            n = len(propios)
+            monto_fmt = f"${total:,.0f}".replace(",", ".")
+            partes.append(f"{nombre}: {n} sesión{'es' if n != 1 else ''} marcada{'s' if n != 1 else ''} como cobrada ({monto_fmt})")
+
+        return ChatResponse(
+            confirmacion="Listo. " + "; ".join(partes) + ".",
+            accion="turno_registrado",
             transcripcion=transcripcion,
         )
 

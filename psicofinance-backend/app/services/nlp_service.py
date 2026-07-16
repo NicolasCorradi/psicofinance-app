@@ -161,6 +161,27 @@ _SALUDOS = {
     "de nada", "chau", "adios", "adiós", "hasta luego", "nos vemos",
 }
 
+# Saldar deuda existente (distinto de registrar una sesión nueva): un verbo
+# de pago + una referencia explícita a algo YA adeudado. "Juan pagó 30000 hoy"
+# es una sesión nueva (registro_turno); "Juan pagó lo que debía" es saldar la
+# deuda de sesiones YA registradas como DIFERIDO — no hay que crear un turno
+# nuevo, hay que marcar los existentes como cobrados.
+_VERBOS_PAGO = (
+    "pago", "pagó", "pagaron", "abono", "abonó", "abonaron",
+    "cancelo", "canceló", "cancelaron", "cancele", "cancelé",
+    "salda", "saldo", "saldó", "saldaron", "cubrio", "cubrió", "cubrieron",
+    "transfirio", "transfirió", "transfirieron", "deposito", "depositó",
+)
+_REFERENCIA_DEUDA = (
+    "lo que deb", "lo que me deb", "lo adeudado", "la deuda", "las deudas",
+    "lo pendiente", "lo atrasado", "todo lo que deb", "lo que faltaba",
+)
+
+
+def _es_saldar_deuda(t: str) -> bool:
+    return any(v in t for v in _VERBOS_PAGO) and any(r in t for r in _REFERENCIA_DEUDA)
+
+
 # Señales inequívocas de registro: verbos de acción sobre una sesión/pago
 _REGISTRO_FUERTE = (
     "registra", "registrá", "anota", "anotá", "carga", "cargá", "cargale",
@@ -184,11 +205,13 @@ _CONSULTA_FUERTE = (
 
 def _heuristica_intencion(texto: str) -> str | None:
     """Clasificación determinística, sin gastar cuota de Gemini.
-    Devuelve "saludo", "consulta", "registro_turno", o None si es ambiguo
-    (y ahí sí vale la pena preguntarle a Gemini)."""
+    Devuelve "saludo", "consulta", "registro_turno", "saldar_deuda", o None
+    si es ambiguo (y ahí sí vale la pena preguntarle a Gemini)."""
     t = texto.lower().strip()
     if t.strip("!¡¿?. ") in _SALUDOS:
         return "saludo"
+    if _es_saldar_deuda(t) and "?" not in t:
+        return "saldar_deuda"
     es_registro = any(s in t for s in _REGISTRO_FUERTE)
     es_consulta = "?" in t or any(s in t for s in _CONSULTA_FUERTE)
     # Imperativo de registro ("anotá que...") le gana a palabras de consulta
