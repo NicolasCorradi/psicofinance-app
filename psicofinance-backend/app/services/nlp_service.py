@@ -37,6 +37,18 @@ class ErrorNLP(Exception):
     pass
 
 
+class ErrorCuotaNLP(ErrorNLP):
+    """Gemini devolvió 429 (cuota agotada). El tier gratis permite 5 requests
+    por minuto — distinguirlo permite avisarle al usuario que reintente en
+    unos segundos en vez del genérico 'no pude entender el mensaje'."""
+    pass
+
+
+def _es_error_cuota(exc: Exception) -> bool:
+    txt = str(exc)
+    return "429" in txt or "RESOURCE_EXHAUSTED" in txt
+
+
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
 PROMPT_CLASIFICACION = """Sos un clasificador de intenciones para PsicoFinance,
@@ -86,28 +98,79 @@ Ejemplo USD: {"paciente":"Laura","monto":80,"es_prepaga":false,"obra_social":nul
 PROMPT_CONSULTA = """Sos el copiloto financiero de PsicoFinance, una app para psicólogos independientes en Argentina.
 Respondé la pregunta del psicólogo de forma clara y útil, en español rioplatense (tuteá).
 Usá los datos financieros provistos como contexto. Si la pregunta no tiene respuesta en los datos, decilo honestamente.
+
+Si te preguntan qué podés hacer (o cómo usarte), explicá tus dos funciones:
+1) Registrar sesiones por chat o audio: "vino Martina, pagó 35 mil en efectivo" — entendés fechas relativas, prepagas, dólares e inasistencias.
+2) Responder consultas sobre sus finanzas: facturación, deudores, gastos, utilidad, monotributo.
+Aclarales que la agenda, los pacientes y los reportes se manejan desde las otras pantallas de la app.
+
+Si preguntan algo de finanzas que NO está en los datos (proyecciones, consejos de inversión, impuestos que no sean el monotributo), respondé lo que puedas con los datos y aclará el límite. Nunca inventes números.
 No inventes datos. Podés responder en hasta 4 oraciones. Sin markdown."""
 
 
 # ── Función de clasificación ──────────────────────────────────────────────────
 
-def _heuristica_intencion(texto: str) -> str:
-    """Fallback determinístico cuando Gemini no responde: las preguntas
-    financieras se reconocen por interrogación o palabras de consulta."""
-    t = texto.lower()
-    señales = ("cuanto", "cuánto", "cuant", "gasté", "gaste", "gastos", "egreso",
-               "utilidad", "ganancia", "neto", "resumen", "como vengo", "cómo vengo")
-    if "?" in t or any(s in t for s in señales):
+# Saludos y cortesías: se responden con un mensaje fijo, sin gastar Gemini
+_SALUDOS = {
+    "hola", "buenas", "buen dia", "buen día", "buenas tardes", "buenas noches",
+    "gracias", "muchas gracias", "ok", "oka", "okey", "dale", "genial",
+    "perfecto", "joya", "barbaro", "bárbaro", "buenisimo", "buenísimo", "listo",
+    "de nada", "chau", "adios", "adiós", "hasta luego", "nos vemos",
+}
+
+# Señales inequívocas de registro: verbos de acción sobre una sesión/pago
+_REGISTRO_FUERTE = (
+    "registra", "registrá", "anota", "anotá", "carga", "cargá", "cargale",
+    "vino ", "vino,", "atendi", "atendí", "pago ", "pagó", "pago,", "me pago",
+    "abono", "abonó", "cobre ", "cobré", "transfirio", "transfirió",
+    "falto", "faltó", "no vino", "inasistencia",
+    "cancelo", "canceló", "cancele", "cancelé", "tuve que cancelar",
+    "quedo debiendo", "quedó debiendo", "me debe la", "sesion de", "sesión de",
+)
+
+# Señales inequívocas de consulta: interrogativos y vocabulario financiero
+_CONSULTA_FUERTE = (
+    "cuanto", "cuánto", "cuando", "cuándo", "quien", "quién", "cual", "cuál",
+    "como vengo", "cómo vengo", "como voy", "cómo voy", "que podes", "qué podés",
+    "que puedo", "qué puedo", "resumen", "gaste", "gasté", "gastos", "egreso",
+    "utilidad", "ganancia", "neto", "facture", "facturé", "facturacion",
+    "facturación", "mejor mes", "monotributo", "me conviene", "deudores",
+    "me deben", "inflacion", "inflación", "dolar", "dólar",
+)
+
+
+def _heuristica_intencion(texto: str) -> str | None:
+    """Clasificación determinística, sin gastar cuota de Gemini.
+    Devuelve "saludo", "consulta", "registro_turno", o None si es ambiguo
+    (y ahí sí vale la pena preguntarle a Gemini)."""
+    t = texto.lower().strip()
+    if t.strip("!¡¿?. ") in _SALUDOS:
+        return "saludo"
+    es_registro = any(s in t for s in _REGISTRO_FUERTE)
+    es_consulta = "?" in t or any(s in t for s in _CONSULTA_FUERTE)
+    # Imperativo de registro ("anotá que...") le gana a palabras de consulta
+    # sueltas, salvo que haya un signo de pregunta explícito
+    if es_registro and "?" not in t:
+        return "registro_turno"
+    if es_consulta and not es_registro:
         return "consulta"
-    return "registro_turno"
+    if es_consulta and es_registro:
+        return "consulta"  # pregunta explícita sobre un registro → consultar
+    return None
 
 
 def clasificar_intencion(texto: str) -> str:
     """
-    Devuelve "registro_turno" o "consulta".
-    Si Gemini falla o devuelve vacío (p. ej. gastó el presupuesto en thinking),
-    cae a una heurística determinística en vez de asumir registro.
+    Devuelve "registro_turno", "consulta" o "saludo".
+    Heurística primero: los casos claros no gastan cuota de Gemini (el tier
+    gratis da 5 requests/min y cada mensaje ya consume 1-2 en extracción o
+    respuesta — ahorrar la clasificación duplica la capacidad efectiva).
+    Gemini solo decide los mensajes genuinamente ambiguos.
     """
+    resultado = _heuristica_intencion(texto)
+    if resultado is not None:
+        return resultado
+
     cliente = genai.Client(api_key=config.gemini_api_key)
     try:
         resp = cliente.models.generate_content(
@@ -122,14 +185,12 @@ def clasificar_intencion(texto: str) -> str:
             ),
         )
         resultado = (resp.text or "").strip().lower()
-        if not resultado:
-            return _heuristica_intencion(texto)
         if "consulta" in resultado:
             return "consulta"
         return "registro_turno"
     except Exception as e:
-        logger.warning("Error al clasificar intención: %s — usando heurística", e)
-        return _heuristica_intencion(texto)
+        logger.warning("Error al clasificar intención: %s — asumiendo registro", e)
+        return "registro_turno"
 
 
 # ── Función de respuesta a consultas ─────────────────────────────────────────
@@ -197,6 +258,9 @@ RESULTADO:
         return resp.text.strip()
     except Exception as e:
         logger.error("Error al responder consulta: %s", e)
+        if _es_error_cuota(e):
+            return ("Recibí muchos mensajes seguidos y me quedé sin capacidad "
+                    "por un momento. Esperá unos 30 segundos y volvé a preguntarme.")
         return "No pude procesar tu consulta en este momento. Intentá de nuevo."
 
 
@@ -236,6 +300,8 @@ def extraer_datos_turno(texto: str, historial: list[dict] | None = None) -> Dato
         )
         texto_respuesta = respuesta.text.strip()
     except Exception as e:
+        if _es_error_cuota(e):
+            raise ErrorCuotaNLP(f"Cuota de Gemini agotada: {e}") from e
         raise ErrorNLP(f"Error al llamar a Gemini: {e}") from e
 
     try:

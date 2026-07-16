@@ -17,7 +17,10 @@ from app.services.dolar_service import get_dolar_blue
 from app.schemas.copilot import ChatRequest, ChatResponse, DatosExtraidos
 from app.schemas.comprobante import DatosBorrador, AprobarBorradorRequest
 from app.schemas.turno import TurnoCreate, TurnoRead
-from app.services.nlp_service import extraer_datos_turno, clasificar_intencion, responder_consulta, ErrorNLP
+from app.services.nlp_service import (
+    extraer_datos_turno, clasificar_intencion, responder_consulta,
+    ErrorNLP, ErrorCuotaNLP,
+)
 from app.services.nlp_comprobante import extraer_datos_comprobante
 from app.crud.paciente import obtener_o_crear_paciente
 from app.crud.turno import crear_turno
@@ -33,6 +36,18 @@ MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","D
 def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: str, transcripcion: str | None = None) -> ChatResponse:
     """Lógica central del copiloto. Usada por /chat y /audio."""
     intencion = clasificar_intencion(mensaje)
+
+    # Saludos/cortesías: respuesta fija, sin gastar cuota de Gemini
+    if intencion == "saludo":
+        return ChatResponse(
+            confirmacion=(
+                "¡Hola! Contame una sesión para registrarla (ej: \"vino Martina, "
+                "pagó 35 mil en efectivo\") o preguntame por tus finanzas "
+                "(ej: \"¿cuánto facturé este mes?\")."
+            ),
+            accion="respuesta",
+            transcripcion=transcripcion,
+        )
 
     if intencion == "consulta":
         hoy = hoy_argentina()
@@ -173,6 +188,19 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
     try:
         historial_dicts = [m.model_dump() for m in historial] if historial else None
         datos = extraer_datos_turno(mensaje, historial=historial_dicts)
+    except ErrorCuotaNLP as e:
+        # Cuota de Gemini agotada (tier gratis: 5 req/min) — no es culpa del
+        # mensaje del usuario, avisarle que reintente en unos segundos
+        logger.warning("Cuota NLP agotada: %s", e)
+        return ChatResponse(
+            confirmacion=(
+                "Recibí muchos mensajes seguidos y me quedé sin capacidad por un "
+                "momento. Esperá unos 30 segundos y mandámelo de nuevo — no hace "
+                "falta que lo reescribas."
+            ),
+            accion="error_nlp",
+            transcripcion=transcripcion,
+        )
     except ErrorNLP as e:
         logger.error("Error NLP: %s", e)
         return ChatResponse(
