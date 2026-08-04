@@ -202,11 +202,32 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             raise HTTPException(status_code=503, detail="Base de datos no disponible.")
 
         partes = []
+        saldados = 0
         for p in coincidencias:
             nombre = f"{p.get('nombre','')} {p.get('apellido','')}".strip()
-            propios = [t for t in diferidos if t.get("paciente_id") == p["id"]]
+            todos = [t for t in diferidos if t.get("paciente_id") == p["id"]]
+            # Un turno de prepaga está DIFERIDO porque lo debe la obra social
+            # (ciclo de ~60 días), no porque el paciente deba plata. Si el
+            # psicólogo dice "me pagó", se refiere a un pago directo: saldar
+            # ahí la cuenta por cobrar de OSDE registraría que la prepaga pagó
+            # en efectivo, que es falso. Se saldan solo los DIRECTO y se avisa
+            # de los de prepaga en vez de tocarlos por las dudas.
+            propios  = [t for t in todos if (t.get("origen_pago") or "DIRECTO") != "PREPAGA"]
+            de_prepaga = [t for t in todos if (t.get("origen_pago") or "DIRECTO") == "PREPAGA"]
             if not propios:
-                partes.append(f"{nombre} no tenía deuda pendiente registrada")
+                if de_prepaga:
+                    n_pp = len(de_prepaga)
+                    detalle = (
+                        "su única sesión pendiente es por prepaga"
+                        if n_pp == 1 else
+                        f"sus {n_pp} sesiones pendientes son por prepaga"
+                    )
+                    partes.append(
+                        f"{nombre} no tenía deuda propia: {detalle} "
+                        "(las cobra la obra social, no las toqué)"
+                    )
+                else:
+                    partes.append(f"{nombre} no tenía deuda pendiente registrada")
                 continue
             total = 0.0
             for t in propios:
@@ -221,7 +242,28 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
                 total += monto_ars(t)
             n = len(propios)
             monto_fmt = f"${total:,.0f}".replace(",", ".")
-            partes.append(f"{nombre}: {n} sesión{'es' if n != 1 else ''} marcada{'s' if n != 1 else ''} como cobrada ({monto_fmt})")
+            nota_pp = (
+                f" (le dejé aparte {len(de_prepaga)} de prepaga, esas las cobra la obra social)"
+                if de_prepaga else ""
+            )
+            partes.append(
+                f"{nombre}: {n} sesión{'es' if n != 1 else ''} marcada{'s' if n != 1 else ''} "
+                f"como cobrada ({monto_fmt}){nota_pp}"
+            )
+            saldados += n
+
+        # Si no se saldó nada, no decir "Listo" como si se hubiera registrado
+        # algo: el frontend refresca datos con accion=turno_registrado y el
+        # psicólogo se queda creyendo que quedó asentado un cobro que no existe.
+        if saldados == 0:
+            # Ojo: str.capitalize() pasa el resto a minúsculas y rompe los
+            # apellidos ("Sofia Herrera" -> "Sofia herrera")
+            texto_partes = "; ".join(partes)
+            return ChatResponse(
+                confirmacion=texto_partes[:1].upper() + texto_partes[1:] + ".",
+                accion="datos_insuficientes",
+                transcripcion=transcripcion,
+            )
 
         return ChatResponse(
             confirmacion="Listo. " + "; ".join(partes) + ".",

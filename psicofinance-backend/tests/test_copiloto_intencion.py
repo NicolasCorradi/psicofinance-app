@@ -8,11 +8,13 @@
 #     paciente equivocado por un matcheo de nombres por substring.
 
 import pytest
+from unittest.mock import patch
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.services.nlp_service import _heuristica_intencion
+from app.routers import copilot as copilot_router
 from app.routers.copilot import _nombres_en, _sin_acentos, _continua_registro_pendiente
 
 
@@ -125,3 +127,57 @@ class TestContinuaRegistroPendiente:
     def test_sin_registro_pendiente(self):
         assert _continua_registro_pendiente(self._hist("assistant", "¡Hola! Contame una sesión"), "20000") is False
         assert _continua_registro_pendiente([], "20000") is False
+
+
+class TestSaldarDeudaPrepaga:
+    """Un turno de prepaga está DIFERIDO porque lo debe la obra social a ~60
+    días, no porque el paciente deba plata. "Me pagó" refiere a un pago
+    directo: saldar ahí la cuenta por cobrar de OSDE asentaría que la prepaga
+    pagó en efectivo, que es falso."""
+
+    PACIENTES = [
+        {"id": "p1", "nombre": "Martina", "apellido": "Lopez"},
+        {"id": "p2", "nombre": "Sofia",   "apellido": "Herrera"},
+    ]
+    DIFERIDOS = [
+        {"id": "t1", "paciente_id": "p1", "monto": 30000, "moneda": "ARS", "origen_pago": "DIRECTO"},
+        {"id": "t2", "paciente_id": "p1", "monto": 25000, "moneda": "ARS", "origen_pago": "PREPAGA"},
+        {"id": "t3", "paciente_id": "p2", "monto": 40000, "moneda": "ARS", "origen_pago": "PREPAGA"},
+    ]
+
+    class _SB:
+        def __init__(self, pacientes):
+            self._pacientes = pacientes
+
+        def select(self, tabla, params):
+            return self._pacientes
+
+    def _correr(self, mensaje):
+        tocados = []
+        with patch.object(copilot_router, "listar_turnos_diferidos", lambda sb, uid: self.DIFERIDOS), \
+             patch.object(copilot_router, "actualizar_turno", lambda sb, tid, c, uid: tocados.append(tid)):
+            resp = copilot_router._procesar_chat(mensaje, [], self._SB(self.PACIENTES), "u1")
+        return resp, tocados
+
+    def test_solo_salda_los_directos(self):
+        resp, tocados = self._correr("martina me pago lo que debia en efectivo")
+        assert tocados == ["t1"]          # el t2 de prepaga queda intacto
+        assert resp.accion == "turno_registrado"
+        assert "prepaga" in resp.confirmacion.lower()
+
+    def test_paciente_con_deuda_solo_de_prepaga_no_se_toca(self):
+        resp, tocados = self._correr("sofia me pago lo que debia")
+        assert tocados == []
+        # No debe decir "Listo": el frontend refresca con turno_registrado y
+        # el psicólogo creería que quedó asentado un cobro inexistente
+        assert resp.accion == "datos_insuficientes"
+
+    def test_no_destruye_mayusculas_del_apellido(self):
+        """str.capitalize() pasaría "Sofia Herrera" a "Sofia herrera"."""
+        resp, _ = self._correr("sofia me pago lo que debia")
+        assert "Sofia Herrera" in resp.confirmacion
+
+    def test_paciente_inexistente_pide_aclaracion(self):
+        resp, tocados = self._correr("carlos me pago lo que debia")
+        assert tocados == []
+        assert resp.accion == "datos_insuficientes"
