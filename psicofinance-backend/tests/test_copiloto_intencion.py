@@ -181,3 +181,74 @@ class TestSaldarDeudaPrepaga:
         resp, tocados = self._correr("carlos me pago lo que debia")
         assert tocados == []
         assert resp.accion == "datos_insuficientes"
+
+
+class TestSesionConFechaFutura:
+    """"Mañana viene Martina" extrae una fecha futura. Registrarla como
+    COBRADA con fecha_cobro_efectivo en el futuro inventa plata cobrada en un
+    día que todavía no llegó, e infla el "cobrado de este mes"."""
+
+    PACIENTE = {
+        "id": "11111111-1111-1111-1111-111111111111",
+        "nombre": "Martina", "apellido": "Lopez",
+        "honorario_actual": 30000, "moneda": "ARS",
+    }
+
+    class _SB:
+        def select(self, tabla, params):
+            return []
+
+    def _correr(self, datos):
+        from app.routers import copilot as C
+        creados = []
+
+        def _fake_crear(sb, d, uid):
+            creados.append(d)
+            return {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "paciente_id": d.paciente_id, "fecha_turno": d.fecha_turno,
+                "monto": d.monto, "estado": d.estado, "origen_pago": d.origen_pago,
+                "fecha_cobro_estimada": d.fecha_cobro_estimada,
+                "fecha_cobro_efectivo": d.fecha_cobro_efectivo,
+                "prepaga": d.prepaga, "medio_pago": d.medio_pago,
+                "tipo_sesion": d.tipo_sesion, "moneda": d.moneda,
+                "tipo_cambio": d.tipo_cambio,
+                "created_at": "2026-08-04T10:00:00Z", "updated_at": "2026-08-04T10:00:00Z",
+            }
+
+        with patch.object(C, "clasificar_intencion", lambda m: "registro_turno"), \
+             patch.object(C, "extraer_datos_turno", lambda m, historial=None: datos), \
+             patch.object(C, "obtener_o_crear_paciente", lambda sb, n, u: (self.PACIENTE, False)), \
+             patch.object(C, "crear_turno", _fake_crear):
+            resp = C._procesar_chat("mensaje", [], self._SB(), "u1")
+        return resp, creados
+
+    def _datos(self, fecha, monto, medio=None):
+        from app.services.nlp_service import DatosTurnoNLP
+        return DatosTurnoNLP("Martina", monto, False, None, fecha, "alta", medio, "SESION", "ARS")
+
+    def test_futura_sin_pago_no_registra_nada(self):
+        from datetime import timedelta
+        from app.utils import hoy_argentina
+        manana = hoy_argentina() + timedelta(days=1)
+        # monto 0 => se asume el honorario de ficha => el mensaje no habla de pago
+        resp, creados = self._correr(self._datos(manana, 0))
+        assert creados == []
+        assert resp.accion == "datos_insuficientes"
+
+    def test_pago_adelantado_cobra_hoy_no_en_la_fecha_de_la_sesion(self):
+        from datetime import timedelta
+        from app.utils import hoy_argentina
+        hoy = hoy_argentina()
+        manana = hoy + timedelta(days=1)
+        resp, creados = self._correr(self._datos(manana, 30000, "EFECTIVO"))
+        assert resp.accion == "turno_registrado"
+        assert creados[0].fecha_turno == manana        # la sesión es mañana
+        assert creados[0].fecha_cobro_efectivo == hoy  # pero la plata entró hoy
+
+    def test_sesion_de_hoy_no_cambia(self):
+        from app.utils import hoy_argentina
+        hoy = hoy_argentina()
+        resp, creados = self._correr(self._datos(hoy, 30000, "EFECTIVO"))
+        assert resp.accion == "turno_registrado"
+        assert creados[0].fecha_cobro_efectivo == hoy

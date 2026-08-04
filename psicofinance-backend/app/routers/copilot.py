@@ -570,6 +570,25 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
             transcripcion=transcripcion,
         )
 
+    # Sesión con fecha futura ("mañana viene Martina", "el lunes atiendo a
+    # Diego"): todavía no ocurrió. Registrarla como COBRADA con la fecha de
+    # cobro en el futuro inventa plata cobrada en un día que no llegó e infla
+    # el "cobrado de este mes". Si el monto se asumió del honorario de ficha,
+    # el mensaje ni siquiera menciona un pago: hay que preguntar.
+    hoy_reg = hoy_argentina()
+    if datos.fecha > hoy_reg and monto_asumido:
+        return ChatResponse(
+            confirmacion=(
+                f"Ojo: esa sesión de {datos.paciente} es del {datos.fecha.strftime('%d/%m/%Y')} "
+                "y todavía no pasó, así que no la doy por cobrada para no inflarte el mes. "
+                "Si te la pagó por adelantado, decime el monto; si es un turno a futuro, "
+                "cargalo desde la Agenda."
+            ),
+            accion="datos_insuficientes",
+            datos_extraidos=_a_schema(datos),
+            transcripcion=transcripcion,
+        )
+
     # Inasistencias y cancelaciones se registran como INCOBRABLE si monto=0
     es_inasistencia = datos.tipo_sesion in ("INASISTENCIA_INJUSTIFICADA", "INASISTENCIA_JUSTIFICADA", "CANCELACION_PROFESIONAL")
     if es_inasistencia and datos.monto == 0:
@@ -585,7 +604,10 @@ def _procesar_chat(mensaje: str, historial: list, sb: SupabaseClient, user_id: s
         if datos.es_prepaga:
             fecha_cobro_estimada = datos.fecha + timedelta(days=60)
         else:
-            fecha_cobro_efectivo = datos.fecha
+            # Un pago por adelantado ("el lunes viene Ana y ya me pagó 30 mil")
+            # entra en caja HOY, aunque la sesión sea a futuro: la fecha de
+            # cobro nunca puede ser posterior al día de hoy.
+            fecha_cobro_efectivo = min(datos.fecha, hoy_reg)
 
     medio = MedioPago(datos.medio_pago) if datos.medio_pago else None
     tipo = TipoSesion(datos.tipo_sesion)
