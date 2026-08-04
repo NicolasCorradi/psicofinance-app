@@ -173,12 +173,22 @@ _VERBOS_PAGO = (
     "transfirio", "transfirió", "transfirieron", "deposito", "depositó",
 )
 _REFERENCIA_DEUDA = (
-    "lo que deb", "lo que me deb", "lo adeudado", "la deuda", "las deudas",
-    "lo pendiente", "lo atrasado", "todo lo que deb", "lo que faltaba",
+    # "lo/los que debía(n)", "la/su/mi deuda", etc. Se listan las variantes de
+    # posesivo y de plural porque en la práctica el psicólogo escribe
+    # "salda su deuda" o "me pagaron los que debían", no la forma canónica.
+    "lo que deb", "los que deb", "lo que me deb", "los que me deb",
+    "lo adeudado", "lo que faltaba", "lo pendiente", "lo atrasado",
+    "la deuda", "las deudas", "su deuda", "sus deudas", "mi deuda", "tu deuda",
 )
+
+# Modismos que por sí solos ya significan saldar deuda, sin verbo de pago
+# ("Carlos se puso al día" = pagó todo lo que adeudaba).
+_MODISMOS_SALDAR = ("se puso al dia", "se puso al día", "al dia con todo", "se pusieron al dia", "se pusieron al día")
 
 
 def _es_saldar_deuda(t: str) -> bool:
+    if any(m in t for m in _MODISMOS_SALDAR):
+        return True
     return any(v in t for v in _VERBOS_PAGO) and any(r in t for r in _REFERENCIA_DEUDA)
 
 
@@ -192,14 +202,21 @@ _REGISTRO_FUERTE = (
     "quedo debiendo", "quedó debiendo", "me debe la", "sesion de", "sesión de",
 )
 
-# Señales inequívocas de consulta: interrogativos y vocabulario financiero
+# Señales inequívocas de consulta: interrogativos y vocabulario financiero.
+# "cuant"/"cuánt" como prefijo cubre cuanto/cuanta/cuantos/cuantas — antes
+# solo estaba "cuanto" y "¿cuántas sesiones tuve?" se escapaba a Gemini.
 _CONSULTA_FUERTE = (
-    "cuanto", "cuánto", "cuando", "cuándo", "quien", "quién", "cual", "cuál",
+    "cuant", "cuánt", "cuando", "cuándo", "quien", "quién", "cual", "cuál",
     "como vengo", "cómo vengo", "como voy", "cómo voy", "que podes", "qué podés",
     "que puedo", "qué puedo", "resumen", "gaste", "gasté", "gastos", "egreso",
     "utilidad", "ganancia", "neto", "facture", "facturé", "facturacion",
     "facturación", "mejor mes", "monotributo", "me conviene", "deudores",
     "me deben", "inflacion", "inflación", "dolar", "dólar",
+    # Rankings y agregados: "top 10 de pacientes", "los que más me pagaron"
+    "top ", "ranking", "los que mas", "los que más", "el que mas", "el que más",
+    "promedio", "historial", "estadistica", "estadística", "comparado",
+    # Preguntas sobre la agenda: "qué días atiendo más"
+    "que dia", "qué día", "que hora", "qué hora", "mis pacientes", "listado",
 )
 
 
@@ -253,6 +270,12 @@ def clasificar_intencion(texto: str) -> str:
             return "consulta"
         return "registro_turno"
     except Exception as e:
+        # Si Gemini no está disponible, un mensaje con signo de pregunta NUNCA
+        # debe caer en registro: crearía un turno inventado a partir de una
+        # pregunta. Ante la duda, consultar es lo seguro (no escribe en la BD).
+        if "?" in texto:
+            logger.warning("Error al clasificar intención: %s — asumiendo consulta (hay '?')", e)
+            return "consulta"
         logger.warning("Error al clasificar intención: %s — asumiendo registro", e)
         return "registro_turno"
 
