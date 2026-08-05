@@ -35,27 +35,27 @@ class ResultadoSemaforo:
 
 
 # ── Tabla de topes ARCA — Servicios (fallback si no hay datos en BD) ─────────
-# Vigente desde febrero 2026. Fuente: afip.gob.ar/monotributo/categorias.asp
+# Vigente desde el 1/08/2026. Fuente: afip.gob.ar/monotributo/categorias.asp
 # La escala actualizada se carga en Supabase (configuracion.monotributo_topes)
 # sin necesidad de deploy — ver _topes_vigentes().
 TOPES_SERVICIOS: dict[str, float] = {
-    "A":  10_277_988.13,
-    "B":  15_058_447.71,
-    "C":  21_113_696.52,
-    "D":  26_212_853.42,
-    "E":  30_833_964.37,
-    "F":  38_642_048.36,
-    "G":  46_211_109.37,
-    "H":  70_113_407.33,
-    "I":  78_479_211.62,
-    "J":  89_872_640.30,
-    "K": 108_357_084.05,
+    "A":  12_009_410.45,
+    "B":  17_595_182.74,
+    "C":  24_670_494.31,
+    "D":  30_628_651.43,
+    "E":  36_028_231.33,
+    "F":  45_151_659.41,
+    "G":  53_995_798.87,
+    "H":  81_924_660.37,
+    "I":  91_699_761.90,
+    "J": 105_012_519.20,
+    "K": 126_610_838.75,
 }
 
 CATEGORIAS_VALIDAS = list(TOPES_SERVICIOS.keys())
-VIGENCIA_TOPES = "Feb 2026 – Jul 2026"
+VIGENCIA_TOPES = "Ago 2026 – Ene 2027"
 # Último día de vigencia de la escala hardcodeada de arriba
-VIGENCIA_HASTA = date(2026, 7, 31)
+VIGENCIA_HASTA = date(2027, 1, 31)
 
 
 def _topes_vigentes(sb: SupabaseClient) -> tuple[dict[str, float], str, date]:
