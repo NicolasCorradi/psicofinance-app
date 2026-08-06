@@ -76,6 +76,16 @@ const TIMEOUT_MS = 55_000;
 // llega a mostrar nada.
 const UMBRAL_DESPERTANDO_MS = 3_000;
 
+// Rutas que tardan por naturaleza, no porque el servidor esté dormido: las del
+// copiloto esperan la respuesta de Gemini y pasan los 3 segundos SIEMPRE.
+// Mostrarles "Iniciando el servidor…" es directamente falso —el backend está
+// respondiendo, es la IA pensando— y el copiloto ya tiene su propio indicador.
+const RUTAS_LENTAS_POR_NATURALEZA = ["/copilot/"];
+
+function esperaEsperable(path: string): boolean {
+  return RUTAS_LENTAS_POR_NATURALEZA.some(r => path.startsWith(r));
+}
+
 type OyenteDespertando = (despertando: boolean) => void;
 const oyentesDespertando = new Set<OyenteDespertando>();
 let requestsLentos = 0;
@@ -98,7 +108,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   let contadoLento = false;
-  const timerLento = setTimeout(() => {
+  const timerLento = esperaEsperable(path) ? null : setTimeout(() => {
     contadoLento = true;
     requestsLentos++;
     notificarDespertando();
@@ -107,7 +117,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   // Se llama sí o sí al terminar (ok, error o timeout): si quedara colgado,
   // el cartel de "iniciando servidor" no se iría más.
   function finLento() {
-    clearTimeout(timerLento);
+    if (timerLento !== null) clearTimeout(timerLento);
     if (contadoLento) {
       contadoLento = false;
       requestsLentos = Math.max(0, requestsLentos - 1);
