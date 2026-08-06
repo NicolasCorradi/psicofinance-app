@@ -13,7 +13,8 @@ from app.schemas.turno import TurnoCreate, TurnoUpdate
 from app.utils import monto_ars, parse_fecha as _parse_date
 
 
-def crear_turno(sb: SupabaseClient, datos: TurnoCreate, user_id: str) -> dict:
+def _fila_turno(datos: TurnoCreate, user_id: str) -> dict:
+    """Convierte un TurnoCreate en la fila que espera PostgREST."""
     data = {}
     for k, v in datos.model_dump().items():
         if v is None:
@@ -28,7 +29,20 @@ def crear_turno(sb: SupabaseClient, datos: TurnoCreate, user_id: str) -> dict:
             data[k] = v
     data["id"] = str(uuid.uuid4())
     data["user_id"] = user_id
-    return sb.insert("turnos", data)
+    return data
+
+
+def crear_turno(sb: SupabaseClient, datos: TurnoCreate, user_id: str) -> dict:
+    return sb.insert("turnos", _fila_turno(datos, user_id))
+
+
+def crear_turnos_lote(sb: SupabaseClient, turnos: list[TurnoCreate], user_id: str) -> list[dict]:
+    """Crea varios turnos en un solo INSERT (cierre de jornada).
+
+    Va por insert_many y no por N crear_turno() para que sea atómico: si el
+    psicólogo cierra 7 turnos de una, no puede quedar la jornada a medias con
+    3 cargados y 4 no."""
+    return sb.insert_many("turnos", [_fila_turno(d, user_id) for d in turnos])
 
 
 def obtener_turno(sb: SupabaseClient, turno_id: uuid.UUID, user_id: str) -> dict | None:

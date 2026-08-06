@@ -7,8 +7,11 @@ from datetime import date
 from app.supabase_client import SupabaseClient, get_supabase
 from app.auth import usuario_id
 from app.models.enums import EstadoTurno
-from app.schemas.turno import TurnoCreate, TurnoRead, TurnoUpdate
-from app.crud.turno import crear_turno, obtener_turno, listar_turnos, actualizar_turno, eliminar_turno
+from app.schemas.turno import TurnoCreate, TurnoRead, TurnoUpdate, TurnoLoteCreate
+from app.crud.turno import (
+    crear_turno, crear_turnos_lote, obtener_turno, listar_turnos,
+    actualizar_turno, eliminar_turno,
+)
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
 
@@ -31,6 +34,19 @@ def listar(
 ):
     """Lista turnos con filtros opcionales por estado y rango de fechas."""
     return listar_turnos(sb, usuario_id, estado=estado, desde=desde, hasta=hasta, offset=offset, limit=limit)
+
+
+# ⚠ IMPORTANTE: /lote debe ir ANTES de /{turno_id} (ver nota en /agenda).
+@router.post("/lote", response_model=list[TurnoRead], status_code=status.HTTP_201_CREATED)
+def registrar_turnos_lote(
+    body: TurnoLoteCreate,
+    sb: SupabaseClient = Depends(get_supabase),
+    usuario_id: str = Depends(usuario_id),
+):
+    """Registra varios turnos de una sola vez (cierre de jornada).
+
+    Un solo INSERT: o entran todos o no entra ninguno."""
+    return crear_turnos_lote(sb, body.turnos, usuario_id)
 
 
 # ⚠ IMPORTANTE: /agenda debe ir ANTES de /{turno_id} para que FastAPI no

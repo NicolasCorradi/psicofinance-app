@@ -270,6 +270,11 @@ export function crearTurno(datos: TurnoCreatePayload): Promise<TurnoRead> {
   return post<TurnoRead>('/turnos/', datos);
 }
 
+/** Crea varios turnos de una (cierre de jornada). Atómico: entran todos o ninguno. */
+export function crearTurnosLote(turnos: TurnoCreatePayload[]): Promise<TurnoRead[]> {
+  return post<TurnoRead[]>('/turnos/lote', { turnos });
+}
+
 /** Actualiza parcialmente un turno (monto, estado, prepaga, etc.). */
 export function actualizarTurno(id: string, datos: TurnoUpdatePayload): Promise<TurnoRead> {
   return patch<TurnoRead>(`/turnos/${id}`, datos);

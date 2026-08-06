@@ -47,6 +47,21 @@ class SupabaseClient:
         result = r.json()
         return result[0] if isinstance(result, list) else result
 
+    def insert_many(self, table: str, filas: list[dict]) -> list[dict]:
+        """Inserta varias filas en UN solo request.
+
+        PostgREST resuelve un payload de array como un único INSERT, así que
+        es atómico: o entran todas o no entra ninguna. Importante para el
+        cierre de jornada — evita quedar a mitad de camino si falla la fila 5
+        de 7, y ahorra N round-trips (con el free tier de Render, cada uno
+        puede costar segundos)."""
+        if not filas:
+            return []
+        r = httpx.post(f"{self.base}/{table}", headers=self.h, json=filas, timeout=30)
+        r.raise_for_status()
+        result = r.json()
+        return result if isinstance(result, list) else [result]
+
     def upsert(self, table: str, data: dict, on_conflict: str) -> dict:
         """Insert-or-update atómico de PostgREST.
 

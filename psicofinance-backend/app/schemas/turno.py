@@ -37,6 +37,14 @@ class TurnoCreate(TurnoBase):
         return self
 
 
+class TurnoLoteCreate(BaseModel):
+    """Varios turnos de una (cierre de jornada desde la agenda).
+
+    El tope de 50 es una guarda: una jornada real no pasa de ~15 turnos, y
+    evita que un bug del cliente mande un lote gigante en un solo INSERT."""
+    turnos: list[TurnoCreate] = Field(min_length=1, max_length=50)
+
+
 class TurnoUpdate(BaseModel):
     """Schema para actualizar un turno (PATCH /turnos/{id}).
     Todos los campos son opcionales: solo se actualizan los que se envían."""

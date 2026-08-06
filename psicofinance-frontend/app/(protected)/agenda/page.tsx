@@ -4,17 +4,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronLeft, ChevronRight, CalendarDays, Loader2,
   LayoutGrid, Plus, X, GripVertical, Check, Trash2,
-  RefreshCw, WifiOff, CalendarClock, Ban, RotateCcw,
+  RefreshCw, WifiOff, CalendarClock, Ban, RotateCcw, CheckCheck,
 } from "lucide-react";
 import {
   getTurnosAgenda, getSemanaModelo, guardarSemanaModelo,
-  getPacientes, crearTurno, actualizarTurno,
+  getPacientes, crearTurno, crearTurnosLote, actualizarTurno,
   getExcepcionesSemana, guardarExcepcionesSemana, getDolarBlue,
 } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import type {
   TurnoAgenda, EstadoTurno, TipoSesion, MedioPago, Moneda,
-  SlotModelo, PacienteConStats, ExcepcionSemanal,
+  SlotModelo, PacienteConStats, ExcepcionSemanal, TurnoCreatePayload,
 } from "@/lib/types";
 import { avatarCls, iniciales } from "@/lib/avatar";
 import { isoDate, MESES_ES, MEDIO_LABEL } from "@/lib/format";
@@ -47,6 +47,222 @@ const ESTADO_DOT: Record<EstadoTurno, string> = {
 const TIPO_LABEL: Record<string, string> = {
   INASISTENCIA_JUSTIFICADA: "Canceló", INASISTENCIA_INJUSTIFICADA: "Faltó", CANCELACION_PROFESIONAL: "Cancelé",
 };
+// ── Modal Cierre de jornada (varios turnos de una) ────────────────────────────
+
+type MarcaCierre = "COBRO" | "DEBE" | "FALTO";
+
+interface FilaCierre {
+  slot:      SlotModelo;
+  hora:      string;
+  marca:     MarcaCierre;
+  monto:     string;   // editable: el honorario de ficha es solo el valor por defecto
+  moneda:    Moneda;
+}
+
+interface ModalCierreJornadaProps {
+  fecha:       string;
+  filasInit:   FilaCierre[];
+  onClose:     () => void;
+  onGuardado:  () => void;
+}
+
+function ModalCierreJornada({ fecha, filasInit, onClose, onGuardado }: ModalCierreJornadaProps) {
+  const [filas, setFilas]         = useState<FilaCierre[]>(filasInit);
+  const [medioPago, setMedioPago] = useState<MedioPago | "">("");
+  const [tipoCambio, setTipoCambio] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError]         = useState("");
+  const toast = useToast();
+
+  const hayUsd = filas.some(f => f.moneda === "USD" && f.marca !== "FALTO");
+
+  useEffect(() => {
+    if (hayUsd && tipoCambio == null) {
+      getDolarBlue().then(d => setTipoCambio(d.valor)).catch(() => {});
+    }
+  }, [hayUsd, tipoCambio]);
+
+  function setMarca(i: number, marca: MarcaCierre) {
+    setFilas(fs => fs.map((f, j) => (j === i ? { ...f, marca } : f)));
+    setError("");
+  }
+  function setMonto(i: number, monto: string) {
+    setFilas(fs => fs.map((f, j) => (j === i ? { ...f, monto } : f)));
+    setError("");
+  }
+
+  const nCobro = filas.filter(f => f.marca === "COBRO").length;
+  const nDebe  = filas.filter(f => f.marca === "DEBE").length;
+  const nFalto = filas.filter(f => f.marca === "FALTO").length;
+  const totalCobrado = filas
+    .filter(f => f.marca === "COBRO")
+    .reduce((a, f) => {
+      const m = Number(f.monto) || 0;
+      return a + (f.moneda === "USD" ? m * (tipoCambio ?? 0) : m);
+    }, 0);
+
+  async function confirmar() {
+    setError("");
+    // Un monto en 0 en una sesión que se cobra o se debe casi siempre es un
+    // honorario sin cargar: registrarlo igual mete un turno de $0 que después
+    // hay que salir a corregir a mano.
+    const sinMonto = filas.filter(f => f.marca !== "FALTO" && (Number(f.monto) || 0) <= 0);
+    if (sinMonto.length > 0) {
+      setError(`Falta el monto de ${sinMonto.map(f => f.slot.paciente_nombre).join(", ")}.`);
+      return;
+    }
+    if (hayUsd && (!tipoCambio || tipoCambio <= 0)) {
+      setError("Ingresá un tipo de cambio válido para los honorarios en dólares.");
+      return;
+    }
+
+    const hoy = isoDate(new Date());
+    const payload: TurnoCreatePayload[] = filas.map(f => {
+      if (f.marca === "FALTO") {
+        return {
+          paciente_id: f.slot.paciente_id,
+          fecha_turno: fecha,
+          monto:       0,
+          estado:      "COBRADO" as EstadoTurno,
+          origen_pago: "DIRECTO",
+          tipo_sesion: "INASISTENCIA_INJUSTIFICADA" as TipoSesion,
+          moneda:      "ARS" as Moneda,
+          medio_pago:  null,
+          fecha_cobro_efectivo: null,
+        };
+      }
+      const cobro = f.marca === "COBRO";
+      return {
+        paciente_id: f.slot.paciente_id,
+        fecha_turno: fecha,
+        monto:       Number(f.monto) || 0,
+        estado:      (cobro ? "COBRADO" : "DIFERIDO") as EstadoTurno,
+        origen_pago: "DIRECTO",
+        tipo_sesion: "SESION" as TipoSesion,
+        moneda:      f.moneda,
+        tipo_cambio: f.moneda === "USD" ? tipoCambio : null,
+        medio_pago:  cobro ? (medioPago || null) : null,
+        fecha_cobro_efectivo: cobro ? hoy : null,
+      };
+    });
+
+    setGuardando(true);
+    try {
+      await crearTurnosLote(payload);
+      toast.success(`Jornada cerrada: ${filas.length} turno${filas.length !== 1 ? "s" : ""} registrado${filas.length !== 1 ? "s" : ""}`);
+      onGuardado();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "No se pudo cerrar la jornada");
+      toast.error("No se pudo cerrar la jornada");
+    } finally { setGuardando(false); }
+  }
+
+  const BOTONES: [MarcaCierre, string, string][] = [
+    ["COBRO", "Cobré",  "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400"],
+    ["DEBE",  "Debe",   "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-400"],
+    ["FALTO", "Faltó",  "border-neutral-300 bg-neutral-100 text-neutral-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm sm:p-4" onClick={onClose}>
+      <div className="flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl ring-1 ring-black/5 sm:max-w-lg sm:rounded-2xl dark:bg-slate-900 dark:ring-white/10" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 sm:hidden"><div className="h-1 w-10 rounded-full bg-neutral-200 dark:bg-slate-700"/></div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-5 pb-3">
+          <div>
+            <p className="text-xs text-neutral-400 dark:text-slate-500">{formatFecha(fecha)}</p>
+            <h3 className="text-base font-bold text-neutral-900 dark:text-slate-100">Cerrar jornada</h3>
+            <p className="mt-0.5 text-xs text-neutral-400 dark:text-slate-500">
+              {filas.length} turno{filas.length !== 1 ? "s" : ""} sin registrar
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-neutral-300 hover:text-neutral-500 dark:text-slate-600 dark:hover:text-slate-300"><X className="h-4 w-4"/></button>
+        </div>
+
+        {/* Filas */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6">
+          <div className="space-y-2">
+            {filas.map((f, i) => (
+              <div key={`${f.slot.paciente_id}-${f.hora}`} className="rounded-xl border border-neutral-200 p-2.5 dark:border-slate-700">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold tabular-nums text-neutral-400 dark:text-slate-500">{f.hora}</span>
+                  <span className="truncate text-sm font-medium text-neutral-800 dark:text-slate-100">{f.slot.paciente_nombre}</span>
+                  {f.marca !== "FALTO" && (
+                    <div className="ml-auto flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="text-[11px] text-neutral-400 dark:text-slate-500">{f.moneda === "USD" ? "US$" : "$"}</span>
+                      <input type="number" min={0} value={f.monto} onChange={e => setMonto(i, e.target.value)}
+                        className="w-20 bg-transparent text-right text-xs font-semibold tabular-nums text-neutral-800 outline-none dark:text-slate-100"/>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {BOTONES.map(([val, label, activo]) => (
+                    <button key={val} onClick={() => setMarca(i, val)}
+                      className={`rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${f.marca === val ? activo : "border-neutral-200 text-neutral-400 hover:bg-neutral-50 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800/60"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tipo de cambio (solo si hay honorarios en USD) */}
+          {hayUsd && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+              <span className="whitespace-nowrap text-[10px] text-neutral-400 dark:text-slate-500">Tipo de cambio</span>
+              <input type="number" min={0} value={tipoCambio ?? ""} onChange={e => setTipoCambio(e.target.value ? Number(e.target.value) : null)}
+                placeholder="Ej: 1350" className="flex-1 bg-transparent text-sm font-medium text-neutral-800 outline-none dark:text-slate-100"/>
+            </div>
+          )}
+
+          {/* Medio de pago del lote */}
+          {nCobro > 0 && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-xs font-semibold text-neutral-500 dark:text-slate-400">
+                Medio de pago <span className="font-normal text-neutral-400 dark:text-slate-500">(para los {nCobro} cobrados)</span>
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["EFECTIVO","TRANSFERENCIA","MERCADO_PAGO","TARJETA"] as MedioPago[]).map(m => (
+                  <button key={m} onClick={() => setMedioPago(medioPago === m ? "" : m)}
+                    className={`rounded-lg border px-1.5 py-1.5 text-[10px] font-medium transition-colors ${medioPago === m ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400" : "border-neutral-200 text-neutral-500 hover:bg-neutral-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60"}`}>
+                    {MEDIO_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
+        </div>
+
+        {/* Footer con resumen */}
+        <div className="border-t border-neutral-100 px-6 py-4 dark:border-slate-800">
+          <div className="mb-2.5 flex items-center justify-between text-xs">
+            <span className="text-neutral-500 dark:text-slate-400">
+              {nCobro} cobrado{nCobro !== 1 ? "s" : ""}
+              {nDebe > 0 && ` · ${nDebe} debe${nDebe !== 1 ? "n" : ""}`}
+              {nFalto > 0 && ` · ${nFalto} faltó`}
+            </span>
+            {totalCobrado > 0 && (
+              <span className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0}).format(totalCobrado)}
+              </span>
+            )}
+          </div>
+          <button onClick={confirmar} disabled={guardando}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">
+            {guardando
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin"/>Registrando…</>
+              : <><CheckCheck className="h-4 w-4"/>Confirmar jornada ({filas.length})</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Modal Registrar (placeholder → nuevo turno) ───────────────────────────────
 
 interface ModalRegistrarProps {
@@ -587,6 +803,7 @@ function VistaSemana() {
   const [modalReg, setModalReg]     = useState<{ slot: SlotModelo; fecha: string } | null>(null);
   const [modalEdit, setModalEdit]   = useState<TurnoAgenda | null>(null);
   const [modalMover, setModalMover] = useState<SlotModelo | null>(null);
+  const [modalCierre, setModalCierre] = useState<{ fecha: string; filas: FilaCierre[] } | null>(null);
   const hoyIso = isoDate(new Date());
   const toast = useToast();
 
@@ -682,6 +899,31 @@ function VistaSemana() {
     return pacientes.find(p => p.id === slot.paciente_id)?.moneda === "USD" ? "USD" : "ARS";
   }
 
+  // Abre el cierre de jornada con los turnos del día que faltan registrar.
+  // Arranca todo en "Cobré", que es el caso habitual: el psicólogo solo toca
+  // las excepciones (el que debe, el que faltó).
+  function abrirCierre(iso: string, pendientes: SlotEfectivo[]) {
+    setModalCierre({
+      fecha: iso,
+      filas: pendientes.map(s => {
+        const hon = honorarioDeSlot(s);
+        return {
+          slot:   s,
+          hora:   s.horaEfectiva,
+          marca:  "COBRO" as MarcaCierre,
+          monto:  hon ? String(hon) : "",
+          moneda: monedaDeSlot(s),
+        };
+      }),
+    });
+  }
+
+  // Solo tiene sentido cerrar un día que ya pasó: dar por cobrada una sesión
+  // futura inventa plata que todavía no entró.
+  function puedeCerrar(iso: string, pendientes: unknown[]): boolean {
+    return iso <= hoyIso && pendientes.length >= 2;
+  }
+
   return (<>
     {/* Controles */}
     <div className="mb-4 flex flex-wrap items-center gap-2 justify-between">
@@ -727,6 +969,12 @@ function VistaSemana() {
                     {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDeTurno(t, dm)} onClick={() => setModalEdit(t)}/>)}
                     {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
                     {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
+                    {puedeCerrar(iso, placeholders) && (
+                      <button onClick={() => abrirCierre(iso, placeholders)}
+                        className="mt-1 flex w-full items-center justify-center gap-1 rounded-xl bg-indigo-600 px-2 py-1.5 text-[10px] font-semibold text-white hover:bg-indigo-500">
+                        <CheckCheck className="h-3 w-3"/>Cerrar día ({placeholders.length})
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -750,6 +998,12 @@ function VistaSemana() {
                     {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDeTurno(t, dm)} onClick={() => setModalEdit(t)}/>)}
                     {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
                     {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
+                    {puedeCerrar(iso, placeholders) && (
+                      <button onClick={() => abrirCierre(iso, placeholders)}
+                        className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
+                        <CheckCheck className="h-3.5 w-3.5"/>Cerrar día ({placeholders.length})
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -784,6 +1038,16 @@ function VistaSemana() {
         turno={modalEdit}
         onClose={() => setModalEdit(null)}
         onGuardado={() => { setModalEdit(null); cargar(lunes); }}
+      />
+    )}
+
+    {/* Modal cierre de jornada (varios turnos de una) */}
+    {modalCierre && (
+      <ModalCierreJornada
+        fecha={modalCierre.fecha}
+        filasInit={modalCierre.filas}
+        onClose={() => setModalCierre(null)}
+        onGuardado={() => { setModalCierre(null); cargar(lunes); }}
       />
     )}
 
