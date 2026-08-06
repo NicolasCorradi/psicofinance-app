@@ -123,7 +123,8 @@ function ModalCierreJornada({ fecha, filasInit, onClose, onGuardado }: ModalCier
           paciente_id: f.slot.paciente_id,
           fecha_turno: fecha,
           monto:       0,
-          estado:      "COBRADO" as EstadoTurno,
+          // INCOBRABLE, no COBRADO: no fue sesión prestada ni hubo ingreso
+          estado:      "INCOBRABLE" as EstadoTurno,
           origen_pago: "DIRECTO",
           tipo_sesion: "INASISTENCIA_INJUSTIFICADA" as TipoSesion,
           moneda:      "ARS" as Moneda,
@@ -311,7 +312,11 @@ function ModalRegistrar({ slot, fecha, honorario, monedaDefault, onClose, onGuar
         paciente_id:          slot.paciente_id,
         fecha_turno:          fecha,
         monto:                esInasistencia ? 0 : montoNum,
-        estado:               esInasistencia ? "COBRADO" : estado,
+        // Una falta sin cobro no es una sesión prestada ni un ingreso: va
+        // INCOBRABLE, que es el estado que el resto de la app ya excluye del
+        // conteo de sesiones. Marcarla COBRADO con monto 0 la contaba como
+        // sesión real y además metía un 0 en el honorario promedio.
+        estado:               esInasistencia ? "INCOBRABLE" : estado,
         tipo_sesion:          tipoSesion,
         origen_pago:          "DIRECTO",
         moneda:               esInasistencia ? "ARS" : moneda,
@@ -468,7 +473,10 @@ function ModalEditar({ turno, onClose, onGuardado }: ModalEditarProps) {
     setGuardando(true);
     try {
       const hoy = isoDate(new Date());
-      const estadoFinal = esInasistencia ? "COBRADO" : estado;
+      // Ver nota en ModalRegistrar: la falta sin cobro va INCOBRABLE, no
+      // COBRADO con monto 0. Al no ser COBRADO, la rama de abajo además
+      // limpia la fecha de cobro si el turno ya la tenía.
+      const estadoFinal = esInasistencia ? "INCOBRABLE" : estado;
       // Al pasar a COBRADO se setea la fecha de cobro; al volver a DIFERIDO
       // hay que mandar null explícito (undefined significa "no tocar" y el
       // turno seguiría contando como cobrado del mes)
