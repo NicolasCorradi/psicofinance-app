@@ -15,6 +15,26 @@ function fmtFecha(s: string | null): string {
   });
 }
 
+/** Días transcurridos desde la sesión (antigüedad de la deuda). */
+function diasDesde(iso: string | null): number {
+  if (!iso) return 0;
+  const f = new Date(iso + "T00:00:00");
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((hoy.getTime() - f.getTime()) / 86_400_000));
+}
+
+// Tramos de antigüedad: una lista plana de deudas no dice a quién reclamar
+// primero. Lo que tiene 60+ días es lo que realmente hay que ir a buscar.
+const TRAMOS = [
+  { id: "vencidos",  label: "Más de 60 días", desde: 61, hasta: Infinity,
+    cls: "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400" },
+  { id: "atrasados", label: "30 a 60 días",   desde: 31, hasta: 60,
+    cls: "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400" },
+  { id: "recientes", label: "Hasta 30 días",  desde: 0,  hasta: 30,
+    cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400" },
+] as const;
+
 type TipoSheet = "cobrado_mes" | "en_camino" | "sin_cobrar" | null;
 
 interface Props {
@@ -201,6 +221,8 @@ export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
                : "No hay pagos vencidos"}
             </p>
           </div>
+        ) : sheetTipo === "sin_cobrar" ? (
+          <DeudaPorAntiguedad turnos={turnosActivos} />
         ) : (
           <div className="flex flex-col gap-2">
             <p className="mb-2 text-xs text-neutral-400 dark:text-slate-500">
@@ -216,11 +238,59 @@ export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
   );
 }
 
+/** Deuda vencida agrupada por antigüedad, de lo más viejo a lo más nuevo. */
+function DeudaPorAntiguedad({ turnos }: { turnos: TurnoResumen[] }) {
+  const enArs = (t: TurnoResumen) =>
+    t.moneda === "USD" && t.tipo_cambio ? t.monto * t.tipo_cambio : t.monto;
+
+  const grupos = TRAMOS.map(tramo => {
+    const items = turnos
+      .filter(t => {
+        const d = diasDesde(t.fecha_turno);
+        return d >= tramo.desde && d <= tramo.hasta;
+      })
+      .sort((a, b) => diasDesde(b.fecha_turno) - diasDesde(a.fecha_turno));
+    return { tramo, items, total: items.reduce((a, t) => a + enArs(t), 0) };
+  }).filter(g => g.items.length > 0);
+
+  // Lo que debe la prepaga no se le reclama al paciente: son cuentas por
+  // cobrar con la obra social, con su propio ciclo de ~60 días.
+  const dePrepaga = turnos.filter(t => t.origen_pago === "PREPAGA").length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {dePrepaga > 0 && (
+        <p className="rounded-xl bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500 dark:bg-slate-800/40 dark:text-slate-400">
+          {dePrepaga === 1
+            ? "1 de estas sesiones la cobra una prepaga, no se la reclames al paciente."
+            : `${dePrepaga} de estas sesiones las cobra una prepaga, no se las reclames al paciente.`}
+        </p>
+      )}
+      {grupos.map(({ tramo, items, total }) => (
+        <div key={tramo.id} className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tramo.cls}`}>
+              {tramo.label} · {items.length}
+            </span>
+            <span className="text-xs font-bold tabular-nums text-neutral-600 dark:text-slate-300">
+              {new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(total)}
+            </span>
+          </div>
+          {items.map(t => <TurnoRow key={t.id} turno={t} tipo="sin_cobrar" />)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TurnoRow({ turno: t, tipo }: { turno: TurnoResumen; tipo: Exclude<TipoSheet, null> }) {
+  const dias = diasDesde(t.fecha_turno);
   const fechaLabel =
     tipo === "cobrado_mes" ? `Cobrado ${fmtFecha(t.fecha_cobro_efectivo)}` :
     tipo === "en_camino"   ? `Sesión del mes en curso` :
-    `Sesión vencida`;
+    // Concreto en vez de "Sesión vencida": el número de días es lo que
+    // decide si hay que reclamar hoy o puede esperar.
+    dias === 1 ? "hace 1 día" : `hace ${dias} días`;
 
   const vencido = tipo === "sin_cobrar";
 
