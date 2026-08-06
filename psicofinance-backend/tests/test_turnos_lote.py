@@ -69,12 +69,31 @@ class TestCrearTurnosLote:
         assert filas[0]["medio_pago"] == "EFECTIVO"
         assert filas[1]["tipo_sesion"] == "INASISTENCIA_INJUSTIFICADA"
 
-    def test_omite_los_none(self):
-        """PostgREST toma el default de la columna si el campo no viaja."""
+    def test_todas_las_filas_con_las_mismas_claves(self):
+        """PostgREST rechaza el lote con PGRST102 "All object keys must match"
+        si las filas difieren en claves. En un cierre de jornada real siempre
+        difieren: la cobrada lleva medio_pago y fecha_cobro_efectivo, la que
+        quedó debiendo no. Las faltantes viajan como null explícito."""
         sb = _SBFake()
         crear_turnos_lote(sb, _lote().turnos, "user-abc")
         _, filas = sb.llamadas[0]
-        assert "fecha_cobro_efectivo" not in filas[1]
+        assert len({frozenset(f) for f in filas}) == 1, "las filas no tienen las mismas claves"
+        # el que no se cobró igual lleva la clave, en null
+        assert "fecha_cobro_efectivo" in filas[1]
+        assert filas[1]["fecha_cobro_efectivo"] is None
+        # y el que sí conserva su valor
+        assert filas[0]["fecha_cobro_efectivo"] == "2026-08-05"
+        assert filas[0]["medio_pago"] == "EFECTIVO"
+
+    def test_mezcla_de_estados_no_pierde_valores(self):
+        """Normalizar claves no debe pisar lo que cada fila sí traía."""
+        sb = _SBFake()
+        crear_turnos_lote(sb, _lote().turnos, "user-abc")
+        _, filas = sb.llamadas[0]
+        assert filas[0]["estado"] == "COBRADO"
+        assert filas[1]["estado"] == "COBRADO"
+        assert filas[1]["tipo_sesion"] == "INASISTENCIA_INJUSTIFICADA"
+        assert filas[0]["tipo_sesion"] == "SESION"
 
     def test_lote_vacio_rechazado(self):
         with pytest.raises(Exception):

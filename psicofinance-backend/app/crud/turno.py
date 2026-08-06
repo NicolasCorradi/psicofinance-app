@@ -42,7 +42,21 @@ def crear_turnos_lote(sb: SupabaseClient, turnos: list[TurnoCreate], user_id: st
     Va por insert_many y no por N crear_turno() para que sea atómico: si el
     psicólogo cierra 7 turnos de una, no puede quedar la jornada a medias con
     3 cargados y 4 no."""
-    return sb.insert_many("turnos", [_fila_turno(d, user_id) for d in turnos])
+    filas = [_fila_turno(d, user_id) for d in turnos]
+
+    # PostgREST rechaza el lote con "All object keys must match" (PGRST102) si
+    # las filas no tienen exactamente las mismas claves, y _fila_turno omite
+    # los None. En un cierre de jornada real las filas SIEMPRE difieren: la que
+    # se cobró lleva medio_pago y fecha_cobro_efectivo, la que quedó debiendo
+    # no. Se completan las faltantes con null explícito.
+    # Es seguro: los campos que varían son justo los nullable (medio_pago,
+    # prepaga, fechas de cobro, tipo_cambio); los que tienen default en
+    # TurnoCreate (estado, origen_pago, tipo_sesion, moneda) nunca son None y
+    # por lo tanto viajan siempre.
+    claves = {k for f in filas for k in f}
+    filas = [{k: f.get(k) for k in claves} for f in filas]
+
+    return sb.insert_many("turnos", filas)
 
 
 def obtener_turno(sb: SupabaseClient, turno_id: uuid.UUID, user_id: str) -> dict | None:
