@@ -68,48 +68,94 @@ export class ApiError extends Error {
 // si estuvo inactivo. 55s da margen sin dejar al usuario esperando indefinidamente.
 const TIMEOUT_MS = 55_000;
 
+// ── Aviso de "el servidor está iniciando" ────────────────────────────────────
+// Render (free tier) apaga el servicio tras 15 min sin tráfico, así que el
+// primer request después de un rato tarda decenas de segundos. Sin ningún
+// aviso el usuario ve un spinner eterno y concluye que la app se colgó.
+// El umbral evita ruido: una respuesta normal tarda milisegundos y nunca
+// llega a mostrar nada.
+const UMBRAL_DESPERTANDO_MS = 3_000;
+
+type OyenteDespertando = (despertando: boolean) => void;
+const oyentesDespertando = new Set<OyenteDespertando>();
+let requestsLentos = 0;
+
+/** Avisa cuando hay algún request tardando más de lo normal (backend dormido). */
+export function suscribirServidorDespertando(fn: OyenteDespertando): () => void {
+  oyentesDespertando.add(fn);
+  fn(requestsLentos > 0);
+  return () => { oyentesDespertando.delete(fn); };
+}
+
+function notificarDespertando() {
+  const hay = requestsLentos > 0;
+  oyentesDespertando.forEach(fn => fn(hay));
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await tokenSesion();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  let res: Response;
+  let contadoLento = false;
+  const timerLento = setTimeout(() => {
+    contadoLento = true;
+    requestsLentos++;
+    notificarDespertando();
+  }, UMBRAL_DESPERTANDO_MS);
+
+  // Se llama sí o sí al terminar (ok, error o timeout): si quedara colgado,
+  // el cartel de "iniciando servidor" no se iría más.
+  function finLento() {
+    clearTimeout(timerLento);
+    if (contadoLento) {
+      contadoLento = false;
+      requestsLentos = Math.max(0, requestsLentos - 1);
+      notificarDespertando();
+    }
+  }
+
   try {
-    res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        ...init?.headers,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      // En Next.js 16 App Router: 'no-store' desactiva caché para datos dinámicos
-      cache: init?.method && init.method !== 'GET' ? undefined : 'no-store',
-    });
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new ApiError(0, 'El servidor está tardando en responder (puede estar iniciando). Probá de nuevo en un momento.');
-    }
-    throw new ApiError(0, 'No pudimos conectar con el servidor. Revisá tu conexión a internet.');
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (!res.ok) {
-    let detalle = '';
+    let res: Response;
     try {
-      const json = await res.json();
-      detalle = json?.detail ?? JSON.stringify(json);
-    } catch {
-      detalle = await res.text().catch(() => '');
+      res = await fetch(`${API_BASE}${PREFIJO}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          ...init?.headers,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        // En Next.js 16 App Router: 'no-store' desactiva caché para datos dinámicos
+        cache: init?.method && init.method !== 'GET' ? undefined : 'no-store',
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        throw new ApiError(0, 'El servidor está tardando en responder (puede estar iniciando). Probá de nuevo en un momento.');
+      }
+      throw new ApiError(0, 'No pudimos conectar con el servidor. Revisá tu conexión a internet.');
+    } finally {
+      clearTimeout(timeoutId);
     }
-    if (res.status === 401) {
-      throw new ApiError(401, 'Tu sesión expiró. Iniciá sesión de nuevo.');
-    }
-    throw new ApiError(res.status, detalle || `HTTP ${res.status} en ${path}`);
-  }
 
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+    if (!res.ok) {
+      let detalle = '';
+      try {
+        const json = await res.json();
+        detalle = json?.detail ?? JSON.stringify(json);
+      } catch {
+        detalle = await res.text().catch(() => '');
+      }
+      if (res.status === 401) {
+        throw new ApiError(401, 'Tu sesión expiró. Iniciá sesión de nuevo.');
+      }
+      throw new ApiError(res.status, detalle || `HTTP ${res.status} en ${path}`);
+    }
+
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  } finally {
+    finLento();
+  }
 }
 
 function get<T>(path: string): Promise<T> {

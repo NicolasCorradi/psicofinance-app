@@ -11,6 +11,7 @@ import { ToastProvider } from "@/lib/toast";
 import CambiarPassword from "./CambiarPassword";
 import Sheet from "@/components/ui/Sheet";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import EstadoServidor from "@/components/ui/EstadoServidor";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -61,6 +62,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
+    <EstadoServidor />
     <div className="flex min-h-screen bg-background">
 
       {/* ── Sidebar desktop ── */}
