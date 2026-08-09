@@ -147,9 +147,12 @@ export default function SimuladorHonorarios({ refreshKey = 0 }: { refreshKey?: n
           {/* Tabla de pacientes */}
           <div className="overflow-hidden rounded-xl border border-neutral-100 dark:border-slate-800">
             <div className="grid grid-cols-3 border-b border-neutral-100 bg-neutral-50 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-500">
+              {/* Decía "Honorario actual" pero la celda muestra honorario ×
+                  sesiones del mes: con 4 sesiones de $35.000 figuraba
+                  "$140 k" como si ese fuera el honorario. */}
               <span>Paciente</span>
-              <span className="text-right">Honorario actual</span>
-              <span className="text-right text-violet-600 dark:text-violet-400">Ajustado</span>
+              <span className="text-right">Ingreso del mes</span>
+              <span className="text-right text-violet-600 dark:text-violet-400">Con ajuste</span>
             </div>
             {topPacientes.map(p => (
               <div key={p.id} className="grid grid-cols-3 border-b border-neutral-50 px-3 py-2 text-xs last:border-0 dark:border-slate-800">

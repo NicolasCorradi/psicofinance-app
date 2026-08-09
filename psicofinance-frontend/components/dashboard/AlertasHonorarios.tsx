@@ -10,6 +10,12 @@ export default function AlertasHonorarios({ refreshKey = 0 }: { refreshKey?: num
   const [alertas, setAlertas]   = useState<AlertaHonorario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState(false);
+  const [verTodos, setVerTodos] = useState(false);
+
+  // Sin tope, con 20 pacientes la tarjeta medía 1246px —más que la pantalla—
+  // y aplastaba todo lo que venía abajo en el dashboard. Vienen ordenados por
+  // urgencia, así que los primeros son los que de verdad hay que ajustar.
+  const TOPE = 6;
 
   useEffect(() => {
     getAlertasHonorarios()
@@ -63,7 +69,7 @@ export default function AlertasHonorarios({ refreshKey = 0 }: { refreshKey?: num
       {/* Lista */}
       {!cargando && !error && alertas.length > 0 && (
         <div className="space-y-1">
-          {alertas.map((a) => (
+          {(verTodos ? alertas : alertas.slice(0, TOPE)).map((a) => (
             <div
               key={a.paciente_id}
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
@@ -91,6 +97,16 @@ export default function AlertasHonorarios({ refreshKey = 0 }: { refreshKey?: num
               </span>
             </div>
           ))}
+          {alertas.length > TOPE && (
+            <button
+              onClick={() => setVerTodos(v => !v)}
+              className="w-full rounded-xl px-3 py-2 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+            >
+              {verTodos
+                ? "Ver menos"
+                : `Ver los ${alertas.length - TOPE} restantes`}
+            </button>
+          )}
         </div>
       )}
     </div>

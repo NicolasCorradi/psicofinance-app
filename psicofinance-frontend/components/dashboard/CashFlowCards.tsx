@@ -99,7 +99,8 @@ export default function CashFlowCards({ metricas: m, resumenEgresos }: Props) {
       tipo:       "cobrado_mes" as TipoSheet,
       titulo:     "Cobrado este mes",
       valor:      m?.cobrado_mes ?? null,
-      sub:        m ? `${m.total_turnos_mes} sesión${m.total_turnos_mes !== 1 ? "es" : ""} realizadas` : "–",
+      // "sesión" + "es" daba "sesiónes": en plural el acento se pierde
+      sub:        m ? `${m.total_turnos_mes} ${m.total_turnos_mes === 1 ? "sesión realizada" : "sesiones realizadas"}` : "–",
       Icon:       TrendingUp,
       iconBg:     "bg-emerald-100 dark:bg-emerald-500/10",
       iconColor:  "text-emerald-600 dark:text-emerald-400",

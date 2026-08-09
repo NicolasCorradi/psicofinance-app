@@ -42,7 +42,10 @@ export function ubicarTarjeta(
   let top: number;
   if (rect.top + rect.height + M + tam.height <= vp.height) top = rect.top + rect.height + M;
   else if (rect.top - M - tam.height >= 0)                  top = rect.top - M - tam.height;
-  else                                                       top = Math.max(M, (vp.height - tam.height) / 2);
+  // El elemento ocupa toda la pantalla y no hay hueco: se apoya abajo en vez
+  // de centrarse. Centrada taparía el encabezado del elemento, que es
+  // justamente lo que le dice al usuario qué está mirando.
+  else                                                       top = Math.max(M, vp.height - tam.height - M);
 
   // Alineada al elemento, pero siempre dentro de la pantalla
   const left = Math.min(Math.max(M, rect.left), Math.max(M, vp.width - tam.width - M));
