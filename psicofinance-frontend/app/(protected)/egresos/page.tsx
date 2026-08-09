@@ -120,7 +120,7 @@ export default function EgresosPage() {
   const abrirAlta    = ()              => { setEditando(null); setModalAbierto(true); };
 
   return (
-    <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
+    <main data-tour="egresos-vista" className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
 
       {/* ── Header ── */}
       <div className="mb-6 flex items-start justify-between gap-4">

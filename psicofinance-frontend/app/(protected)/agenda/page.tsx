@@ -1360,7 +1360,7 @@ function VistaModelo() {
 export default function AgendaPage() {
   const [tab, setTab] = useState<"semana"|"modelo">("semana");
   return (
-    <div className="min-h-screen bg-neutral-50/50 p-4 lg:p-8 dark:bg-slate-950">
+    <div data-tour="agenda-vista" className="min-h-screen bg-neutral-50/50 p-4 lg:p-8 dark:bg-slate-950">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-xl font-extrabold tracking-tight text-transparent dark:from-slate-100 dark:via-indigo-300 dark:to-slate-100">Agenda</h1>
         <div className="flex overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">

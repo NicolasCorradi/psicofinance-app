@@ -152,7 +152,7 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-4">
 
           {/* Copiloto NLP */}
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
+          <div data-tour="copiloto" className="animate-in fade-in slide-in-from-bottom-3 duration-400">
             <NLPInput
               onTurnoCreado={handleTurnoCreado}
               ultimoPaciente={metricas?.ultimos_turnos?.[0]?.paciente_nombre}
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           {esVacio && <EmptyState />}
 
           {/* Hero: ingreso neto del mes — el número más accionable, destacado */}
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "80ms" }}>
+          <div data-tour="ingreso-neto" className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "80ms" }}>
             <IngresoNetoHero
               cobradoMes={metricas?.cobrado_mes ?? null}
               resumenEgresos={resumenEgresos}
@@ -172,7 +172,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Métricas secundarias */}
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "110ms" }}>
+          <div data-tour="cashflow" className="animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "110ms" }}>
             <CashFlowCards metricas={metricas} resumenEgresos={resumenEgresos} />
           </div>
 
@@ -181,13 +181,13 @@ export default function DashboardPage() {
             <div className="lg:col-span-2">
               <VentasMensuales data={metricas?.ventas_mensuales ?? []} />
             </div>
-            <MonotributoProgress refreshKey={refreshKey} />
+            <div data-tour="monotributo"><MonotributoProgress refreshKey={refreshKey} /></div>
           </div>
 
           {/* Mini agenda + Alertas */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-3 duration-400" style={{ animationDelay: "220ms" }}>
             <MiniAgenda refreshKey={refreshKey} />
-            <AlertasHonorarios refreshKey={refreshKey} />
+            <div data-tour="alertas-honorarios"><AlertasHonorarios refreshKey={refreshKey} /></div>
           </div>
 
           {/* Simulador */}

@@ -119,7 +119,7 @@ export default function ReportesPage() {
   const anioActual = new Date().getFullYear();
 
   return (
-    <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
+    <main data-tour="reportes-vista" className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
       {!cargando && errorCarga && (
         <div className="mb-4 flex items-center justify-between rounded-2xl bg-red-50 px-4 py-3 ring-1 ring-red-100 dark:bg-red-500/10 dark:ring-red-500/20">
           <p className="text-sm text-red-600 dark:text-red-400">No se pudieron cargar los datos del reporte.</p>

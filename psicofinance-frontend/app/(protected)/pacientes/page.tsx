@@ -238,7 +238,7 @@ export default function PacientesPage() {
 
   return (
     <>
-      <main className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
+      <main data-tour="pacientes-lista" className="mx-auto max-w-screen-lg px-4 py-6 lg:py-8">
 
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">

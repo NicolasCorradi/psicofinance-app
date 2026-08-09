@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, TrendingDown, LogOut, KeyRound, UserCircle } from "lucide-react";
+import { LayoutDashboard, Users, BrainCircuit, BarChart3, CalendarDays, TrendingDown, LogOut, KeyRound, UserCircle, GraduationCap } from "lucide-react";
 import { getSemaforo, getTurnosAgenda } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type { ResultadoSemaforo, EstadoSemaforo } from "@/lib/types";
@@ -12,6 +12,7 @@ import CambiarPassword from "./CambiarPassword";
 import Sheet from "@/components/ui/Sheet";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import EstadoServidor from "@/components/ui/EstadoServidor";
+import Tour from "@/components/tutorial/Tour";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -38,6 +39,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sesionesHoy,    setSesionesHoy]    = useState(0);
   const [cambiarPassword, setCambiarPassword] = useState(false);
   const [menuCuenta,      setMenuCuenta]      = useState(false); // mobile: sheet con opciones de cuenta
+  const [tourAbierto,     setTourAbierto]     = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
@@ -63,6 +65,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
     <EstadoServidor />
+    <Tour open={tourAbierto} onClose={() => setTourAbierto(false)} />
     <div className="flex min-h-screen bg-background">
 
       {/* ── Sidebar desktop ── */}
@@ -123,6 +126,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Bottom */}
         <div className="px-3 pb-5 space-y-2">
+          <button
+            onClick={() => setTourAbierto(true)}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40 transition-colors hover:bg-white/5 hover:text-white/80"
+          >
+            <GraduationCap className="h-4 w-4 shrink-0 opacity-60" strokeWidth={1.8} />
+            Tutorial
+          </button>
           {semaforo && (
             <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${CHIP_CLS[semaforo.estado]}`}>
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT_CLS[semaforo.estado]}`} />
@@ -198,6 +208,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="px-1 pb-2">
             <ThemeToggle variant="sheet" />
           </div>
+          <button
+            onClick={() => { setMenuCuenta(false); setTourAbierto(true); }}
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <GraduationCap className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+            Ver tutorial
+          </button>
           <button
             onClick={() => { setMenuCuenta(false); setCambiarPassword(true); }}
             className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors dark:text-slate-300 dark:hover:bg-slate-800"
