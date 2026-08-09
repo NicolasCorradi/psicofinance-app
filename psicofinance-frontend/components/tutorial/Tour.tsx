@@ -20,6 +20,34 @@ const LS_PASO = "pf_tour_paso";
 const LS_VISTO = "pf_tour_visto";
 
 interface Rect { top: number; left: number; width: number; height: number }
+interface Tam { width: number; height: number }
+interface Viewport { width: number; height: number }
+
+/** Dónde poner la tarjeta del paso, sin que tape lo que explica ni se salga
+ *  de la pantalla.
+ *
+ *  Se mide el tamaño real de la tarjeta en vez de estimarlo: el paso del
+ *  copiloto lleva la demo adentro y mide más del doble que los demás, así que
+ *  con un alto fijo se salía de pantalla. Y anclarla siempre a la derecha
+ *  tapaba justo el elemento cuando ese elemento vivía en la columna derecha. */
+export function ubicarTarjeta(
+  rect: Rect | null, tam: Tam, vp: Viewport, margen = 14,
+): React.CSSProperties {
+  const M = margen;
+  // Sin elemento, o en mobile: abajo y centrada. Al pie hay menos cosas que
+  // tapar que arriba, donde está la barra de navegación.
+  if (!rect || vp.width < 640) {
+    return { bottom: M * 2, left: "50%", transform: "translateX(-50%)" };
+  }
+  let top: number;
+  if (rect.top + rect.height + M + tam.height <= vp.height) top = rect.top + rect.height + M;
+  else if (rect.top - M - tam.height >= 0)                  top = rect.top - M - tam.height;
+  else                                                       top = Math.max(M, (vp.height - tam.height) / 2);
+
+  // Alineada al elemento, pero siempre dentro de la pantalla
+  const left = Math.min(Math.max(M, rect.left), Math.max(M, vp.width - tam.width - M));
+  return { top, left, transform: "none" };
+}
 
 /** Busca el nodo del paso reintentando: tras navegar, la pantalla aún carga. */
 function useNodoDelPaso(target: string | undefined, pathname: string, i: number) {
@@ -146,24 +174,23 @@ export default function Tour({ open, onClose }: { open: boolean; onClose: () => 
     if (open) tarjetaRef.current?.focus();
   }, [open, i]);
 
+  const [ubicacion, setUbicacion] = useState<React.CSSProperties>({ bottom: 28 });
+  useEffect(() => {
+    if (!open) return;
+    const card = tarjetaRef.current;
+    if (!card) return;
+    const { width, height } = card.getBoundingClientRect();
+    setUbicacion(ubicarTarjeta(rect, { width, height },
+      { width: window.innerWidth, height: window.innerHeight }));
+  }, [open, i, rect, paso?.demo]);
+
   if (!open || !paso) return null;
 
   const esUltimo = i === PASOS.length - 1;
   const progreso = ((i + 1) / PASOS.length) * 100;
   const Icon = paso.icon;
 
-  // La tarjeta va debajo del elemento si entra; si no, arriba; sin elemento,
-  // abajo y centrada para no tapar la pantalla que se está explicando.
-  const MARGEN = 14, ALTO_APROX = 300;
-  let estiloTarjeta: React.CSSProperties = {};
-  if (rect) {
-    const cabeAbajo = rect.top + rect.height + MARGEN + ALTO_APROX < window.innerHeight;
-    estiloTarjeta = cabeAbajo
-      ? { top: rect.top + rect.height + MARGEN }
-      : { bottom: Math.max(MARGEN, window.innerHeight - rect.top + MARGEN) };
-  } else {
-    estiloTarjeta = { bottom: MARGEN * 2 };
-  }
+  const estiloTarjeta = ubicacion;
 
   return (
     <>
@@ -190,15 +217,17 @@ export default function Tour({ open, onClose }: { open: boolean; onClose: () => 
         role="dialog"
         aria-modal="false"
         aria-label={`Tutorial, paso ${i + 1} de ${PASOS.length}: ${paso.titulo}`}
-        style={estiloTarjeta}
-        className="fixed inset-x-3 z-[80] mx-auto max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 outline-none sm:inset-x-auto sm:right-6 dark:bg-slate-900 dark:ring-white/10"
+        style={{ maxHeight: "calc(100dvh - 28px)", ...estiloTarjeta }}
+        className="fixed z-[80] flex w-[calc(100vw-24px)] max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 outline-none sm:w-[26rem] dark:bg-slate-900 dark:ring-white/10"
       >
         {/* Progreso */}
-        <div className="h-1 w-full bg-neutral-100 dark:bg-slate-800">
+        <div className="h-1 w-full shrink-0 bg-neutral-100 dark:bg-slate-800">
           <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${progreso}%` }} />
         </div>
 
-        <div className="p-4">
+        {/* Si el contenido no entra (el paso del copiloto lleva la demo), la
+            tarjeta scrollea por dentro en vez de desbordar la pantalla */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className="mb-2 flex items-start gap-2.5">
             <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${paso.color}`}>
               <Icon className="h-4 w-4" strokeWidth={2} />
