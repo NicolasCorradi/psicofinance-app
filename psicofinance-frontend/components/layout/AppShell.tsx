@@ -13,6 +13,7 @@ import Sheet from "@/components/ui/Sheet";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import EstadoServidor from "@/components/ui/EstadoServidor";
 import Tour from "@/components/tutorial/Tour";
+import { TourProvider } from "@/components/tutorial/contexto";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -44,6 +45,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const supabase = createClient();
 
+  // Primera visita: el tour arranca solo. Si ya lo vio (o lo cerro), no
+  // vuelve a aparecer salvo que lo pida desde el boton.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("pf_tour_visto")) setTourAbierto(true);
+    } catch { /* localStorage bloqueado: no autoabrir */ }
+  }, []);
+
   useEffect(() => {
     getSemaforo().then(setSemaforo).catch(() => {});
     // Badge agenda: contar turnos REALES de hoy
@@ -64,6 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
+    <TourProvider value={{ abrirTutorial: () => setTourAbierto(true) }}>
     <EstadoServidor />
     <Tour open={tourAbierto} onClose={() => setTourAbierto(false)} />
     <div className="flex min-h-screen bg-background">
@@ -240,6 +250,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {cambiarPassword && <CambiarPassword onCerrar={() => setCambiarPassword(false)} />}
     </div>
+    </TourProvider>
     </ToastProvider>
   );
 }

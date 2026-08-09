@@ -14,7 +14,8 @@ import MiniAgenda          from "@/components/dashboard/MiniAgenda";
 import AlertasHonorarios   from "@/components/dashboard/AlertasHonorarios";
 import TurnosTable         from "@/components/dashboard/TurnosTable";
 import SimuladorHonorarios from "@/components/dashboard/SimuladorHonorarios";
-import GuiaDashboard       from "@/components/dashboard/GuiaDashboard";
+import BotonTutorial       from "@/components/tutorial/BotonTutorial";
+import PrimerosPasos       from "@/components/tutorial/PrimerosPasos";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ export default function DashboardPage() {
         </div>
         {/* Botones header */}
         <div className="flex items-center gap-2 shrink-0">
-          <GuiaDashboard />
+          <BotonTutorial />
           {!error && (
             <button
               onClick={() => setRefreshKey(k => k + 1)}
@@ -158,6 +159,9 @@ export default function DashboardPage() {
               ultimoPaciente={metricas?.ultimos_turnos?.[0]?.paciente_nombre}
             />
           </div>
+
+          {/* Primeros pasos: se esconde solo cuando esta todo hecho */}
+          <PrimerosPasos refreshKey={refreshKey} />
 
           {/* Empty state */}
           {esVacio && <EmptyState />}
