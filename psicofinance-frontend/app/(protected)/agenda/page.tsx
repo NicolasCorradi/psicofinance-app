@@ -41,6 +41,31 @@ function formatFecha(iso: string): string {
   return `${parseInt(d)} ${MESES_ES[parseInt(m) - 1]} ${y}`;
 }
 
+/** Empareja los turnos ya registrados de un día con los slots de la plantilla,
+ *  uno a uno, consumiendo cada slot.
+ *
+ *  El turno no guarda la hora, se deduce de la plantilla. Buscar "el primer
+ *  slot de ese paciente" rompe cuando alguien viene dos veces el mismo día
+ *  (ej. Martina los miércoles 10:00 y 13:00): los dos turnos salían con la
+ *  misma hora, y si solo uno estaba registrado el otro slot no aparecía como
+ *  pendiente porque se lo daba por cubierto.
+ *
+ *  Devuelve la hora de cada turno (null si no hay slot que le corresponda) y
+ *  los slots que quedaron libres, que son los que faltan registrar. */
+export function emparejarConSlots<S extends { paciente_id: string; horaEfectiva: string }>(
+  turnosDelDia: { id: string; paciente_id: string }[],
+  slotsDelDia: S[],
+): { horaDe: Map<string, string | null>; libres: S[] } {
+  const libres = [...slotsDelDia];
+  const horaDe = new Map<string, string | null>();
+  for (const t of turnosDelDia) {
+    const idx = libres.findIndex(s => s.paciente_id === t.paciente_id);
+    horaDe.set(t.id, idx >= 0 ? libres[idx].horaEfectiva : null);
+    if (idx >= 0) libres.splice(idx, 1);
+  }
+  return { horaDe, libres };
+}
+
 const ESTADO_DOT: Record<EstadoTurno, string> = {
   COBRADO: "bg-emerald-500", DIFERIDO: "bg-amber-400", INCOBRABLE: "bg-neutral-300",
 };
@@ -851,28 +876,25 @@ function VistaSemana() {
     return { ...s, diaEfectivo: s.dia, horaEfectiva: s.hora, estadoSemana: "normal" };
   });
 
-  // Hora de un turno ya registrado: el turno no la guarda, la sacamos de la
-  // plantilla (slot del mismo paciente que cae ese día, ya con excepción aplicada).
-  function horaDeTurno(t: TurnoAgenda, dm: number): string | null {
-    const s = slotsEfectivos.find(x =>
-      x.paciente_id === t.paciente_id && x.diaEfectivo === dm && x.estadoSemana !== "cancelado");
-    return s ? s.horaEfectiva : null;
-  }
-
   const dias = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(lunes, i), iso = isoDate(d);
     const dm = diaModelo(d);
-    // Turnos del día, ordenados por su hora de plantilla
-    const td = turnos
-      .filter(t => t.fecha_turno === iso)
-      .sort((a, b) => (horaDeTurno(a, dm) ?? "99").localeCompare(horaDeTurno(b, dm) ?? "99"));
-    // Activos (normal/movido) que caen en este día y aún no se registraron
-    const placeholders = slotsEfectivos
-      .filter(s => s.estadoSemana !== "cancelado" && s.diaEfectivo === dm && !td.some(t => t.paciente_id === s.paciente_id))
+    const delDia = turnos.filter(t => t.fecha_turno === iso);
+
+    // Slots activos del día, en orden de horario
+    const slotsDia = slotsEfectivos
+      .filter(s => s.estadoSemana !== "cancelado" && s.diaEfectivo === dm)
       .sort((a, b) => a.horaEfectiva.localeCompare(b.horaEfectiva));
+
+    const { horaDe, libres } = emparejarConSlots(delDia, slotsDia);
+
+    const td = [...delDia].sort((a, b) =>
+      (horaDe.get(a.id) ?? "99").localeCompare(horaDe.get(b.id) ?? "99"));
+    // Lo que quedó sin emparejar es lo que falta registrar
+    const placeholders = libres;
     // Cancelados: se muestran en su día ORIGINAL como recordatorio
     const cancelados = slotsEfectivos.filter(s => s.estadoSemana === "cancelado" && s.dia === dm);
-    return { d, iso, dm, label: DIAS_CORTO[i], td, placeholders, cancelados };
+    return { d, iso, dm, label: DIAS_CORTO[i], td, placeholders, cancelados, horaDe };
   });
 
   // Aplica (o revierte con exc=null) una excepción para el slot dado
@@ -962,7 +984,7 @@ function VistaSemana() {
       : <>
           {/* Desktop */}
           <div className="hidden md:grid grid-cols-7 gap-2">
-            {dias.map(({ d, iso, dm, label, td, placeholders, cancelados }) => {
+            {dias.map(({ d, iso, dm, label, td, placeholders, cancelados, horaDe }) => {
               const esHoy = iso === hoyIso, esFin = d.getDay() === 0 || d.getDay() === 6;
               const total = td.length + placeholders.length + cancelados.length;
               return (
@@ -974,7 +996,7 @@ function VistaSemana() {
                   </div>
                   <div className="space-y-1.5">
                     {total === 0 && <p className="pt-4 text-center text-[10px] text-neutral-300 dark:text-slate-600">—</p>}
-                    {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDeTurno(t, dm)} onClick={() => setModalEdit(t)}/>)}
+                    {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDe.get(t.id) ?? null} onClick={() => setModalEdit(t)}/>)}
                     {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
                     {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
                     {puedeCerrar(iso, placeholders) && (
@@ -991,7 +1013,7 @@ function VistaSemana() {
 
           {/* Mobile */}
           <div className="md:hidden space-y-2">
-            {dias.map(({ d, iso, dm, label, td, placeholders, cancelados }) => {
+            {dias.map(({ d, iso, dm, label, td, placeholders, cancelados, horaDe }) => {
               const esHoy = iso === hoyIso, esFin = d.getDay() === 0 || d.getDay() === 6;
               const total = td.length + placeholders.length + cancelados.length;
               return (
@@ -1003,7 +1025,7 @@ function VistaSemana() {
                   </div>
                   <div className={`px-3 py-2 space-y-1.5 ${esHoy ? "bg-indigo-50/40 dark:bg-indigo-500/10" : "bg-white dark:bg-slate-900"}`}>
                     {total === 0 && <p className="py-2 text-center text-xs text-neutral-300 dark:text-slate-600">Sin turnos</p>}
-                    {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDeTurno(t, dm)} onClick={() => setModalEdit(t)}/>)}
+                    {td.map(t => <TurnoCard key={t.id} t={t} hora={horaDe.get(t.id) ?? null} onClick={() => setModalEdit(t)}/>)}
                     {placeholders.map(s => <SlotPlaceholder key={`${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} estadoSemana={s.estadoSemana === "movido" ? "movido" : "normal"} horaEfectiva={s.horaEfectiva} onRegistrar={() => setModalReg({ slot: s, fecha: iso })} onEditarSemana={() => setModalMover(s)}/>)}
                     {cancelados.map(s => <CanceladoCard key={`c-${s.dia}-${s.hora}-${s.paciente_id}`} slot={s} onEditarSemana={() => setModalMover(s)}/>)}
                     {puedeCerrar(iso, placeholders) && (
