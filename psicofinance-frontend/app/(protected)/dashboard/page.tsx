@@ -88,9 +88,13 @@ export default function DashboardPage() {
   // medianoche y podía diferir entre servidor y cliente (hydration mismatch)
   const [fechaCompleta, setFechaCompleta] = useState("");
   useEffect(() => {
-    setFechaCompleta(new Date().toLocaleDateString("es-AR", {
+    const f = new Date().toLocaleDateString("es-AR", {
       weekday: "long", day: "numeric", month: "long", year: "numeric",
-    }));
+    });
+    // Antes se mayusculizaba con la clase CSS "capitalize", que pone en
+    // mayúscula CADA palabra ("Domingo, 9 De Agosto De 2026"). Solo la
+    // primera letra debe ir en mayúscula.
+    setFechaCompleta(f.charAt(0).toUpperCase() + f.slice(1));
   }, []);
 
   const cargar = useCallback(async () => {
@@ -126,7 +130,7 @@ export default function DashboardPage() {
           <h1 className="bg-gradient-to-r from-neutral-900 via-indigo-800 to-neutral-900 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent dark:from-slate-100 dark:via-indigo-400 dark:to-slate-100">
             {saludo()} 👋
           </h1>
-          <p className="mt-0.5 text-xs text-neutral-400 capitalize dark:text-slate-500">{fechaCompleta}</p>
+          <p className="mt-0.5 text-xs text-neutral-400 dark:text-slate-500">{fechaCompleta}</p>
         </div>
         {/* Botones header */}
         <div className="flex items-center gap-2 shrink-0">

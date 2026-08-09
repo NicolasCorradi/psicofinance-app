@@ -67,9 +67,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.refresh();
   };
 
-  const today = new Date().toLocaleDateString("es-AR", {
+  // La clase CSS "capitalize" pone en mayúscula CADA palabra ("Dom, 9 Ago"):
+  // solo la primera letra debe ir en mayúscula.
+  const todayRaw = new Date().toLocaleDateString("es-AR", {
     weekday: "short", day: "numeric", month: "short",
   });
+  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
 
   return (
     <ToastProvider>
@@ -154,7 +157,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-          <p className="px-3 text-[11px] capitalize text-white/40">{today}</p>
+          <p className="px-3 text-[11px] text-white/40">{today}</p>
 
           {/* Tema */}
           <div className="px-3">

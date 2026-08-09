@@ -14,7 +14,10 @@ const DIAS_ES = ["domingo","lunes","martes","miércoles","jueves","viernes","sá
 
 function hoyLabel(): string {
   const d = new Date();
-  return `${DIAS_ES[d.getDay()]} ${d.getDate()} ${MESES_ES[d.getMonth()]}`;
+  const dia = DIAS_ES[d.getDay()];
+  // Solo la primera letra en mayúscula: la clase CSS "capitalize" pondría
+  // también en mayúscula el mes ("Domingo 9 Ago").
+  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${d.getDate()} ${MESES_ES[d.getMonth()]}`;
 }
 
 function diaModelo(d: Date): number { return d.getDay() === 0 ? 7 : d.getDay(); }
@@ -107,7 +110,7 @@ export default function MiniAgenda({ refreshKey = 0 }: { refreshKey?: number }) 
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-slate-500">Agenda de hoy</p>
-            <p className="text-xs font-medium text-neutral-600 dark:text-slate-300 capitalize">{hoyLabel()}</p>
+            <p className="text-xs font-medium text-neutral-600 dark:text-slate-300">{hoyLabel()}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">según semana modelo</p>
           </div>
         </div>

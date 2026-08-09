@@ -27,7 +27,10 @@ function moverMes(mes: string, delta: number): string {
 
 function labelMes(mes: string): string {
   const [y, m] = mes.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  // "julio de 2026" -> "Julio de 2026". La clase CSS "capitalize" pondría
+  // "Julio De 2026" (mayúscula en cada palabra).
+  const s = new Date(y, m - 1, 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ── Chips de resumen ──────────────────────────────────────────────────────────
@@ -146,7 +149,7 @@ export default function EgresosPage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="min-w-[140px] text-center text-sm font-semibold capitalize text-neutral-700 dark:text-slate-300">
+        <span className="min-w-[140px] text-center text-sm font-semibold text-neutral-700 dark:text-slate-300">
           {labelMes(mes)}
         </span>
         <button

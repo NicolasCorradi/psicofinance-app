@@ -73,7 +73,10 @@ export default function LoginPage() {
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight text-white">PsicoFinance</h1>
-            <p className="mt-1 text-sm text-white/40">Ingresá a tu consultorio</p>
+            {/* Antes decía solo "Ingresá a tu consultorio": para alguien que
+                nunca vio la app (los psicólogos a los que se les manda el
+                link) no explicaba qué es esto ni para qué sirve. */}
+            <p className="mt-1 text-sm text-white/40">Turnos, cobros y monotributo en un solo lugar</p>
           </div>
         </div>
 
@@ -81,6 +84,8 @@ export default function LoginPage() {
         <div className="overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10 backdrop-blur-sm shadow-2xl">
           {!modoReset ? (
           <form onSubmit={handleLogin} className="p-6 flex flex-col gap-4">
+
+            <p className="text-sm font-semibold text-white">Ingresá a tu consultorio</p>
 
             {/* Email */}
             <div>
